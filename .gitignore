@@ -1,79 +1,8 @@
-# Dependencies
 node_modules/
-.pnp
-.pnp.js
-.yarn/install-state.gz
-
-# Testing
-coverage/
-*.lcov
-
-# Next.js
 .next/
-out/
-build/
-next-env.d.ts
-
-# Production
-dist/
-
-# Environment variables
 .env
-.env*.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Vercel
-.vercel
-
-# Supabase
-.supabase/
-supabase/.branches/
-supabase/.temp/
-
-# TypeScript
+.env.local
+coverage/
 *.tsbuildinfo
-tsconfig.tsbuildinfo
-
-# Database (local PGlite dumps)
-*.sql
-!prisma/**/*.sql
-!drizzle/**/*.sql
-
-# Uploads & generated files
-public/uploads/
-public/generated/
-*.local
-
-# Logs
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-# Editor
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-$RECYCLE.BIN/
-
-# Misc
-.cache/
-.parcel-cache/
-.eslintcache
-.stylelintcache
-.turbo/
-.temp/
-.tmp/
+.vercel/
+next-env.d.ts
