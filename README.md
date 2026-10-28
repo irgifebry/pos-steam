@@ -7,7 +7,7 @@ Mobile-first, bisa di-install ke layar utama HP (PWA), dan **tetap berfungsi saa
 | | |
 |---|---|
 | **Produk** | Sistem Point of Sale untuk outlet cuci steam (motor & mobil) |
-| **Status** | Fase Fondasi (F1) — implementasi belum dimulai |
+| **Status** | Fase Fondasi (F1) - backend selesai, frontend berjalan |
 | **Tanggal mulai** | 20 Oktober 2026 |
 | **Dokumen spesifikasi** | [`prd.md`](./prd.md) |
 
@@ -102,21 +102,24 @@ Mobile-first, bisa di-install ke layar utama HP (PWA), dan **tetap berfungsi saa
 .
 ├── prd.md                    # Product Requirements Document (spesifikasi acuan)
 ├── docs/
+│   ├── backend/              # Dokumentasi backend (API, jobdesk, batasan)
+│   │   └── README.md
 │   └── superpowers/plans/    # Peta rencana implementasi per fase
 │       ├── README.md         # Peta rencana + ketentuan yang sudah dikunci
 │       └── 2026-10-20-01-fondasi.md
-├── src/                      # (akan dibuat pada Fase F1)
+├── drizzle/                  # Migrasi database
+├── src/
 │   ├── app/                  # Rute UI + API Route Handlers
-│   ├── lib/                  # Service layer, validasi, db
+│   ├── lib/                  # Service layer, auth, db, validasi
 │   └── components/           # Komponen UI
-└── .env.example              # (akan dibuat pada Fase F1)
+└── .env.example
 ```
 
 ---
 
 ## Setup
 
-> Detail setup ada di [`prd.md` §9.2](./prd.md) dan `docs/superpowers/plans/2026-10-20-01-fondasi.md`.
+> Detail setup backend ada di [`docs/backend/README.md`](./docs/backend/README.md). Spesifikasi produk ada di [`prd.md` §9.2](./prd.md), rencana fase di `docs/superpowers/plans/2026-10-20-01-fondasi.md`.
 
 ### Prasyarat
 
@@ -143,6 +146,9 @@ NODE_ENV=production
 
 ```bash
 npm install
+cp .env.example .env.local   # isi kredensial
+npm run db:migrate
+npm run db:seed
 npm run dev
 ```
 
@@ -153,6 +159,7 @@ npm run dev
 | Dokumen | Isi |
 |---|---|
 | [`prd.md`](./prd.md) | PRD lengkap:requirement, model data, kontrak API, risiko, open questions |
+| [`docs/backend/README.md`](./docs/backend/README.md) | Status backend, kontrak API, setup, batasan, dan jobdesk backend |
 | [`docs/superpowers/plans/README.md`](./docs/superpowers/plans/README.md) | Peta rencana implementasi 7 fase + ketentuan yang sudah dikunci |
 | [`docs/superpowers/plans/2026-10-20-01-fondasi.md`](./docs/superpowers/plans/2026-10-20-01-fondasi.md) | Rencana detail Fase F1 |
 
