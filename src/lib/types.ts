@@ -10,6 +10,7 @@ import type {
   roleSchema,
   servicePackageInputSchema,
   servicePackageUpdateSchema,
+  userCreateSchema,
   userInputSchema,
   userUpdateSchema,
   vehicleTypeSchema,
@@ -28,3 +29,4 @@ export type BankInput = z.infer<typeof bankInputSchema>;
 export type BankUpdate = z.infer<typeof bankUpdateSchema>;
 export type UserInput = z.infer<typeof userInputSchema>;
 export type UserUpdate = z.infer<typeof userUpdateSchema>;
+export type UserCreate = z.infer<typeof userCreateSchema>;
