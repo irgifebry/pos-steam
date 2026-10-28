@@ -2,15 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { ZodError } from "zod";
 import { createTestDatabase } from "@/lib/db/test-db";
-import {
-  orderItems,
-  orders,
-  outlets,
-  servicePackages,
-  user as userTable,
-} from "@/lib/db/schema";
+import { orderItems, orders, outlets, user as userTable } from "@/lib/db/schema";
 import type { AppDatabase } from "@/lib/db/schema";
-import { HttpError } from "@/lib/http";
 import {
   createServicePackage,
   deactivateServicePackage,
