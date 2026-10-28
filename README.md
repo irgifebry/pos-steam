@@ -32,6 +32,14 @@ Mobile-first, bisa di-install ke layar utama HP (PWA), dan **tetap berfungsi saa
 | **Kasir** | Input pesanan, pembayaran, cetak struk, update status kendaraan, catat absensi, lihat laporan harian |
 | **Operator** | Melihat papan status hari ini, menandai status kendaraan yang ditugaskan |
 
+## Tim Proyek
+
+| Akun GitHub | Peran | Tanggung jawab |
+|---|---|---|
+| [irgifebry](https://github.com/irgifebry) | Frontend Developer | Antarmuka dan pengalaman pengguna |
+| [Najwan48](https://github.com/Najwan48) | Backend Developer | API, logika bisnis, dan database |
+| [dimas22231](https://github.com/dimas22231) | QA | Pengujian dan pelaporan bug |
+
 ---
 
 ## Stack Teknis
