@@ -140,6 +140,18 @@ export const addons = pgTable(
   (table) => [unique("addons_outlet_name_unique").on(table.outletId, table.name)],
 );
 
+export const banks = pgTable("banks", {
+  id: id(),
+  outletId: text("outlet_id")
+    .notNull()
+    .references(() => outlets.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  accountNumber: text("account_number").notNull(),
+  accountName: text("account_name").notNull(),
+  active: boolean("active").notNull().default(true),
+  ...timestamps(),
+});
+
 export const customers = pgTable("customers", {
   id: id(),
   name: text("name").notNull(),
