@@ -10,7 +10,7 @@ import {
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { VehicleType } from "@/lib/types";
 
 const id = () =>
@@ -309,4 +309,4 @@ export const auditLogs = pgTable("audit_logs", {
   ...timestamps(),
 });
 
-export type AppDatabase = PgDatabase<PgQueryResultHKT, typeof import("./schema")>;
+export type AppDatabase = NodePgDatabase<typeof import("./schema")>;
