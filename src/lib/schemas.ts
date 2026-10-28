@@ -92,3 +92,11 @@ export const userUpdateSchema = z.object({
 });
 
 export const pinSchema = z.string().min(6, "PIN minimal 6 karakter").max(72);
+
+export const userCreateSchema = userInputSchema.extend({
+  password: pinSchema,
+});
+
+export const userActiveSchema = z.object({
+  active: z.boolean(),
+});
