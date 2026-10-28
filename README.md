@@ -102,6 +102,10 @@ Mobile-first, bisa di-install ke layar utama HP (PWA), dan **tetap berfungsi saa
 .
 ├── prd.md                    # Product Requirements Document (spesifikasi acuan)
 ├── docs/
+│   ├── qa/                   # Test plan, test case, dan checklist regresi
+│   │   ├── test-plan.md
+│   │   ├── test-cases/f1-fondasi.md
+│   │   └── regression-checklist.md
 │   └── superpowers/plans/    # Peta rencana implementasi per fase
 │       ├── README.md         # Peta rencana + ketentuan yang sudah dikunci
 │       └── 2026-10-20-01-fondasi.md
@@ -155,6 +159,9 @@ npm run dev
 | [`prd.md`](./prd.md) | PRD lengkap:requirement, model data, kontrak API, risiko, open questions |
 | [`docs/superpowers/plans/README.md`](./docs/superpowers/plans/README.md) | Peta rencana implementasi 7 fase + ketentuan yang sudah dikunci |
 | [`docs/superpowers/plans/2026-10-20-01-fondasi.md`](./docs/superpowers/plans/2026-10-20-01-fondasi.md) | Rencana detail Fase F1 |
+| [`docs/qa/test-plan.md`](./docs/qa/test-plan.md) | Rencana pengujian: strategi, prioritas, environment, alur bug, roadmap QA |
+| [`docs/qa/test-cases/f1-fondasi.md`](./docs/qa/test-cases/f1-fondasi.md) | 69 test case F1: build, schema, auth/RBAC, master data, UI/PWA, seed/deploy |
+| [`docs/qa/regression-checklist.md`](./docs/qa/regression-checklist.md) | Smoke test PR, regression F1, invariant lintas fase, release checklist |
 
 ---
 
