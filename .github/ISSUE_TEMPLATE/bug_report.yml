@@ -1,0 +1,186 @@
+name: Laporan Bug
+description: Laporkan bug dengan langkah reproduksi, dampak, dan bukti
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Terima kasih sudah melaporkan bug. Isi sedetail mungkin agar bisa direproduksi.
+
+        **Penting:** jika ini kerentanan keamanan (kebocoran data, bypass login/RBAC, secret terekspos), **jangan** buat issue publik. Hubungi maintainer secara privat.
+
+  - type: input
+    id: ringkasan
+    attributes:
+      label: Ringkasan bug
+      description: Satu kalimat yang menjelaskan masalahnya.
+      placeholder: "Contoh: Kasir bisa membuka halaman Pengaturan lewat URL langsung"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity (dampak teknis)
+      description: Pilih dampak terburuk yang terjadi.
+      options:
+        - S1 - Critical (data hilang, keamanan, transaksi tidak bisa, duplikasi)
+        - S2 - Major (fitur utama rusak, tanpa workaround)
+        - S3 - Minor (ada workaround)
+        - S4 - Trivial (kosmetik)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioritas (urgensi bisnis)
+      options:
+        - P0 - Blocker
+        - P1 - High
+        - P2 - Medium
+        - P3 - Low
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Local / Vercel Preview / Production, sertakan URL bila ada.
+      placeholder: "Vercel Preview — https://pos-steam-git-fix-xxx.vercel.app"
+    validations:
+      required: true
+
+  - type: input
+    id: build
+    attributes:
+      label: Build / commit / PR
+      placeholder: "commit a5b6a7f / PR #12"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: Perangkat & browser
+      options:
+        - Android Chrome (HP utama)
+        - Android Chrome (HP mid-range)
+        - iOS Safari 16+
+        - Desktop Chrome
+        - Desktop Edge
+        - Lainnya (tulis di catatan tambahan)
+    validations:
+      required: true
+
+  - type: textarea
+    id: preconditions
+    attributes:
+      label: Prasyarat & data uji
+      description: Akun/role, outlet, data yang dipakai. Jangan sertakan password atau token asli.
+      placeholder: |
+        Login sebagai qa.kasir@pos.test (role kasir)
+        Data: paket "QA - Komplit" motor, Rp 35.000
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Langkah reproduksi
+      description: Tulis langkah yang bisa diikuti orang lain dari awal.
+      placeholder: |
+        1. Buka /login
+        2. Masuk sebagai kasir
+        3. Ketik /pengaturan di address bar
+        4. Tekan Enter
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Hasil yang diharapkan
+      placeholder: "Kasir diarahkan ke /kasir atau mendapat 403."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Hasil aktual
+      placeholder: "Halaman Pengaturan terbuka dan daftar karyawan terlihat."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reproducibility
+    attributes:
+      label: Tingkat reproduksi
+      options:
+        - Selalu (100%)
+        - Sering (>50%)
+        - Jarang (<50%)
+        - Sekali saja (intermittent)
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Bukti
+      description: Screenshot/video, console log, HAR, request/response. Hapus data sensitif.
+      placeholder: "Tempel gambar di sini atau sertakan link."
+    validations:
+      required: false
+
+  - type: input
+    id: testcase
+    attributes:
+      label: Test case terkait
+      description: ID dari docs/qa/test-cases.
+      placeholder: "F1-042"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Auth & sesi
+        - RBAC & keamanan
+        - Master data
+        - API & validasi
+        - UI & navigasi
+        - PWA & offline
+        - Kasir & pembayaran
+        - Antrean & status
+        - Laporan
+        - Absensi & gaji
+        - Seed & deploy
+        - Dokumentasi
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Catatan tambahan
+      description: Dugaan penyebab, workaround, issue terkait, atau konteks lain.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: Saya sudah mencari issue serupa sebelum membuat laporan ini.
+          required: true
+        - label: Saya sudah menghapus password, token, service key, dan data sensitif dari bukti.
+          required: true
+        - label: Ini bukan kerentanan keamanan yang harus dilaporkan secara privat.
+          required: true

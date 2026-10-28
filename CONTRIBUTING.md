@@ -123,6 +123,7 @@ Dua aturan pokok: **halaman tidak boleh berisi logika bisnis**, dan **service ti
 - Test API: **PGlite** (Postgres in-memory) — tidak butuh Supabase.
 - Assertion memakai Testing Library, mock network dengan MSW.
 - Setiap service layer idealnya punya test untuk kasus sukses, input tidak valid, dan kasus yang akan menggigit pengguna nyata (lihat *Review Focus* pada rencana implementasi).
+- Rencana pengujian, test case per fase, dan checklist regresi ada di [`docs/qa/`](./docs/qa/). QA memakai dokumen tersebut saat review PR; developer wajib memastikan smoke test di checklist regresi lolos sebelum meminta review.
 
 ---
 
