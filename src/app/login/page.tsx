@@ -20,17 +20,15 @@ export default function LoginPage() {
     setError("");
     setGoogleLoading(true);
     try {
-      await authClient.signIn.social({ provider: "google", callbackURL: "/kasir" });
+      const result = await authClient.signIn.social({ provider: "google", callbackURL: "/kasir" });
+      if (result.error) {
+        setError(result.error.message || "Gagal masuk dengan Google");
+      }
     } catch {
-      enterDemo();
+      setError("Gagal menghubungi layanan login. Coba lagi.");
     } finally {
       setGoogleLoading(false);
     }
-  }
-
-  function enterDemo() {
-    if (typeof window !== "undefined") localStorage.setItem("pos_demo_mode", "1");
-    router.push("/kasir");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -46,11 +44,18 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      await authClient.signIn.email({ email: email.trim(), password: pin, callbackURL: "/kasir" });
+      const result = await authClient.signIn.email({
+        email: email.trim(),
+        password: pin,
+        callbackURL: "/kasir",
+      });
+      if (result.error) {
+        setError(result.error.message || "Email atau PIN salah");
+        return;
+      }
       router.push("/kasir");
     } catch {
-      // Backend tidak tersedia → masuk mode demo
-      enterDemo();
+      setError("Gagal menghubungi layanan login. Coba lagi.");
     } finally {
       setLoading(false);
     }
@@ -112,15 +117,6 @@ export default function LoginPage() {
           </form>
         </Card>
 
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={enterDemo}
-            className="text-sm font-semibold text-brand hover:underline"
-          >
-            Masuk mode demo (tanpa login)
-          </button>
-        </div>
         <p className="text-center text-xs text-muted">
           Lupa PIN? Hubungi admin outlet untuk reset.
         </p>

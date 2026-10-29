@@ -6,6 +6,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { rupiah } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { apiFetch } from "@/lib/api-client";
 import {
   Calendar,
   Banknote,
@@ -27,80 +28,29 @@ type Period = "hari" | "minggu" | "bulan" | "custom";
 
 type Tx = {
   id: string;
+  invoiceNo: string;
   date: string;
   vehicleType: VehicleType;
   paymentMethod: PaymentMethod;
   packageName: string;
-  addons: string[];
+  addons: { name: string; price: number; qty: number; subtotal: number }[];
   employee: string;
   total: number;
 };
 
-const PACKAGES: { name: string; vehicleType: VehicleType; price: number }[] = [
-  { name: "Cuci Steam Reguler", vehicleType: "motor", price: 15000 },
-  { name: "Cuci Steam Komplit", vehicleType: "motor", price: 25000 },
-  { name: "Cuci Steam Premium", vehicleType: "motor", price: 40000 },
-  { name: "Cuci Steam Reguler", vehicleType: "mobil", price: 30000 },
-  { name: "Cuci Steam Komplit", vehicleType: "mobil", price: 50000 },
-  { name: "Cuci Steam Premium", vehicleType: "mobil", price: 75000 },
-];
+type ApiTx = Omit<Tx, "id"> & { id: string };
 
-const ADDON_PRICE: Record<string, number> = {
-  "Semprot Wax": 5000,
-  "Ojek Ban": 8000,
-  "Semprot Interior": 10000,
-  "Poles Kaca": 7000,
+type CashShift = {
+  id: string;
+  date: string;
+  openedByName: string;
+  openingCash: number;
+  closedByName: string | null;
+  closingCash: number | null;
+  expectedCash: number | null;
+  difference: number | null;
+  closedAt: string | null;
 };
-
-const ADDON_VEHICLES: Record<string, VehicleType[]> = {
-  "Semprot Wax": ["motor", "mobil"],
-  "Ojek Ban": ["motor"],
-  "Semprot Interior": ["mobil"],
-  "Poles Kaca": ["motor", "mobil"],
-};
-
-const EMPLOYEES = ["Budi", "Sari", "Andi", "Dina"];
-
-function buildDemoTransactions(today: Date): Tx[] {
-  const txs: Tx[] = [];
-  let counter = 1;
-  for (let d = 0; d < 7; d++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - d);
-    const iso = date.toISOString().slice(0, 10);
-    const n = 8 + (d % 3) * 2;
-    for (let k = 0; k < n; k++) {
-      const seed = d * 100 + k;
-      const vehicleType: VehicleType = seed % 3 === 0 ? "mobil" : "motor";
-      const pkgs = PACKAGES.filter((p) => p.vehicleType === vehicleType);
-      const pkg = pkgs[seed % pkgs.length];
-      const possible = Object.keys(ADDON_VEHICLES).filter((a) =>
-        ADDON_VEHICLES[a].includes(vehicleType),
-      );
-      const chosen: string[] = [];
-      if (seed % 2 === 0) chosen.push(possible[seed % possible.length]);
-      if (seed % 5 === 0 && possible.length > 1) {
-        chosen.push(possible[(seed + 1) % possible.length]);
-      }
-      const addons = Array.from(new Set(chosen));
-      const addonTotal = addons.reduce((s, n) => s + (ADDON_PRICE[n] ?? 0), 0);
-      const total = pkg.price + addonTotal;
-      const paymentMethod: PaymentMethod = seed % 4 === 0 ? "Transfer" : "Tunai";
-      const employee = EMPLOYEES[seed % EMPLOYEES.length];
-      txs.push({
-        id: `TRX-${String(counter++).padStart(4, "0")}`,
-        date: iso,
-        vehicleType,
-        paymentMethod,
-        packageName: pkg.name,
-        addons,
-        employee,
-        total,
-      });
-    }
-  }
-  return txs;
-}
 
 function isoDate(d: Date): string {
   const year = d.getFullYear();
@@ -117,15 +67,15 @@ function startOfDay(d: Date): Date {
 
 export default function LaporanPage() {
   const [mounted, setMounted] = useState(false);
-  const [transactions] = useState<Tx[]>(() => {
-    if (typeof window === "undefined") return [];
-    return buildDemoTransactions(new Date());
-  });
+  const [transactions, setTransactions] = useState<Tx[]>([]);
+  const [txLoading, setTxLoading] = useState(true);
+  const [txError, setTxError] = useState("");
   const [period, setPeriod] = useState<Period>("minggu");
   const [vehicleFilter, setVehicleFilter] = useState<"semua" | VehicleType>("semua");
   const [paymentFilter, setPaymentFilter] = useState<"semua" | PaymentMethod>("semua");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+  const [cashShift, setCashShift] = useState<CashShift | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -139,34 +89,59 @@ export default function LaporanPage() {
 
   const today = useMemo(() => startOfDay(new Date()), []);
 
+  const range = useMemo(() => {
+    const end = new Date();
+    const start = new Date(end);
+    if (period === "hari") {
+      // today only
+    } else if (period === "minggu") {
+      start.setDate(end.getDate() - 6);
+    } else if (period === "bulan") {
+      start.setDate(1);
+    } else {
+      return { from: customFrom, to: customTo };
+    }
+    return { from: isoDate(start), to: isoDate(end) };
+  }, [period, customFrom, customTo]);
+
+  useEffect(() => {
+    if (!range.from || !range.to) return;
+    let cancelled = false;
+    setTxLoading(true);
+    apiFetch<{ data: ApiTx[] }>(
+      `/api/reports/transactions?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`,
+    )
+      .then((res) => {
+        if (cancelled) return;
+        setTransactions(res.data);
+        setTxError("");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setTransactions([]);
+        setTxError(error instanceof Error ? error.message : "Gagal memuat laporan");
+      })
+      .finally(() => {
+        if (!cancelled) setTxLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [range]);
+
+  useEffect(() => {
+    apiFetch<{ data: { history: CashShift[] } }>("/api/cash-shifts")
+      .then((res) => setCashShift(res.data.history[0] ?? null))
+      .catch(() => setCashShift(null));
+  }, []);
+
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
-      const d = new Date(t.date);
-      let inPeriod = true;
-      if (period === "hari") {
-        inPeriod = d.toDateString() === today.toDateString();
-      } else if (period === "minggu") {
-        const start = new Date(today);
-        start.setDate(today.getDate() - 6);
-        inPeriod = d >= start && d <= today;
-      } else if (period === "bulan") {
-        inPeriod = d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-      } else if (period === "custom") {
-        const from = customFrom ? new Date(customFrom) : null;
-        const to = customTo ? new Date(customTo) : null;
-        if (from) inPeriod = inPeriod && d >= startOfDay(from);
-        if (to) {
-          const end = startOfDay(to);
-          end.setHours(23, 59, 59, 999);
-          inPeriod = inPeriod && d <= end;
-        }
-      }
-      if (!inPeriod) return false;
       if (vehicleFilter !== "semua" && t.vehicleType !== vehicleFilter) return false;
       if (paymentFilter !== "semua" && t.paymentMethod !== paymentFilter) return false;
       return true;
     });
-  }, [transactions, period, vehicleFilter, paymentFilter, customFrom, customTo, today]);
+  }, [transactions, vehicleFilter, paymentFilter]);
 
   const omzet = useMemo(() => filtered.reduce((s, t) => s + t.total, 0), [filtered]);
   const count = filtered.length;
@@ -218,10 +193,10 @@ export default function LaporanPage() {
     const map = new Map<string, { jumlah: number; omzet: number }>();
     filtered.forEach((t) => {
       t.addons.forEach((a) => {
-        const cur = map.get(a) ?? { jumlah: 0, omzet: 0 };
-        cur.jumlah += 1;
-        cur.omzet += ADDON_PRICE[a] ?? 0;
-        map.set(a, cur);
+        const cur = map.get(a.name) ?? { jumlah: 0, omzet: 0 };
+        cur.jumlah += a.qty;
+        cur.omzet += a.subtotal;
+        map.set(a.name, cur);
       });
     });
     return Array.from(map.entries())
@@ -261,7 +236,7 @@ export default function LaporanPage() {
       t.vehicleType,
       t.paymentMethod,
       t.packageName,
-      t.addons.join("; "),
+      t.addons.map((addon) => `${addon.name} x${addon.qty}`).join("; "),
       t.employee,
       String(t.total),
     ]);
@@ -316,12 +291,14 @@ export default function LaporanPage() {
         </div>
       </div>
 
-      <aside
-        role="note"
-        className="rounded-[var(--radius-sm)] border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
-      >
-        <span className="font-semibold">Data demo:</span> seluruh transaksi dan angka di laporan ini sintetis, bukan data operasional terverifikasi.
-      </aside>
+      {txError && (
+        <div className="rounded-[var(--radius-sm)] border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
+          {txError}
+        </div>
+      )}
+      {txLoading && (
+        <p className="text-sm text-muted">Memuat data laporan...</p>
+      )}
 
       <Card className="flex flex-col gap-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-ink">
@@ -536,7 +513,34 @@ export default function LaporanPage() {
 
       <Card className="flex flex-col gap-2">
         <CardTitle className="text-base">Rekap kas harian</CardTitle>
-        <p className="text-sm text-muted">Belum tersedia: data saldo awal, pengeluaran, dan kas fisik tidak ada pada data demo laporan.</p>
+        {cashShift ? (
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <span className="text-muted">Tanggal</span>
+            <span className="text-right font-semibold text-ink">{cashShift.date}</span>
+            <span className="text-muted">Dibuka oleh</span>
+            <span className="text-right font-semibold text-ink">{cashShift.openedByName}</span>
+            <span className="text-muted">Saldo awal</span>
+            <span className="text-right font-semibold text-ink">{rupiah(cashShift.openingCash)}</span>
+            <span className="text-muted">Kas seharusnya</span>
+            <span className="text-right font-semibold text-ink">
+              {cashShift.expectedCash === null ? "-" : rupiah(cashShift.expectedCash)}
+            </span>
+            <span className="text-muted">Kas akhir</span>
+            <span className="text-right font-semibold text-ink">
+              {cashShift.closingCash === null ? "Shift masih terbuka" : rupiah(cashShift.closingCash)}
+            </span>
+            <span className="text-muted">Selisih</span>
+            <span className={cn("text-right font-semibold", (cashShift.difference ?? 0) < 0 ? "text-danger" : "text-ink")}>
+              {cashShift.difference === null ? "-" : rupiah(cashShift.difference)}
+            </span>
+            <span className="text-muted">Status</span>
+            <span className="text-right font-semibold text-ink">
+              {cashShift.closedAt ? `Ditutup oleh ${cashShift.closedByName ?? "kasir"}` : "Terbuka"}
+            </span>
+          </div>
+        ) : (
+          <p className="text-sm text-muted">Belum ada shift kas. Buka shift di halaman Pengaturan → Gaji Kas.</p>
+        )}
       </Card>
     </div>
   );

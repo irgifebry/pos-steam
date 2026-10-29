@@ -51,15 +51,34 @@ type Bank = {
 
 type RecentTx = {
   id: string;
+  invoiceNo: string;
   queueNumber: string;
   customer: string;
   vehicleType: VehicleType;
   total: number;
   paymentMethod: "tunai" | "transfer";
   time: string;
+  status: string;
+  paid: boolean;
   packageName?: string;
   addons?: { name: string; qty: number; price: number }[];
   plate?: string;
+};
+
+type ApiOrder = {
+  id: string;
+  invoiceNo: string;
+  queueNo: string;
+  vehicleType: VehicleType;
+  status: string;
+  customerName: string;
+  plate: string;
+  grandTotal: number;
+  createdAt: string;
+  packageName: string;
+  paid: boolean;
+  payment: { method: "tunai" | "transfer" } | null;
+  addons: { name: string; qty: number; price: number; subtotal: number }[];
 };
 
 type SuccessInfo = {
@@ -92,7 +111,7 @@ export default function KasirPage() {
   const [refNumber, setRefNumber] = useState("");
 
   const [recent, setRecent] = useState<RecentTx[]>([]);
-  const [queueCounter, setQueueCounter] = useState(4);
+  const [ordersError, setOrdersError] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<SuccessInfo | null>(null);
@@ -110,6 +129,47 @@ export default function KasirPage() {
       window.removeEventListener("offline", updateOnline);
     };
   }, []);
+
+  const loadOrders = useCallback(async () => {
+    try {
+      const res = await apiFetch<{ data: ApiOrder[] }>("/api/orders?includePaid=true");
+      const timeFormatter = new Intl.DateTimeFormat("id-ID", {
+        timeZone: "Asia/Jakarta",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      setRecent(
+        res.data.map((order) => ({
+          id: order.id,
+          invoiceNo: order.invoiceNo,
+          queueNumber: order.queueNo,
+          customer: order.customerName,
+          vehicleType: order.vehicleType,
+          total: order.grandTotal,
+          paymentMethod: order.payment?.method ?? "tunai",
+          time: timeFormatter.format(new Date(order.createdAt)),
+          status: order.status,
+          paid: order.paid,
+          packageName: order.packageName,
+          addons: order.addons.map((addon) => ({
+            name: addon.name,
+            qty: addon.qty,
+            price: addon.price,
+          })),
+          plate: order.plate,
+        })),
+      );
+      setOrdersError("");
+    } catch (error) {
+      setOrdersError(error instanceof Error ? error.message : "Gagal memuat transaksi hari ini.");
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadOrders();
+    const timer = window.setInterval(() => void loadOrders(), 15_000);
+    return () => window.clearInterval(timer);
+  }, [loadOrders]);
 
   // Fetch packages + addons when vehicle type changes
   const loadCatalog = useCallback(async (vt: VehicleType) => {
@@ -191,10 +251,11 @@ export default function KasirPage() {
   const change = paymentMethod === "tunai" ? cashNum - total : 0;
 
   const stats = useMemo(() => {
-    const count = recent.length;
-    const omzet = recent.reduce((s, t) => s + t.total, 0);
-    const cash = recent.filter((t) => t.paymentMethod === "tunai").reduce((s, t) => s + t.total, 0);
-    const transfer = recent.filter((t) => t.paymentMethod === "transfer").reduce((s, t) => s + t.total, 0);
+    const paid = recent.filter((t) => t.paid);
+    const count = paid.length;
+    const omzet = paid.reduce((s, t) => s + t.total, 0);
+    const cash = paid.filter((t) => t.paymentMethod === "tunai").reduce((s, t) => s + t.total, 0);
+    const transfer = paid.filter((t) => t.paymentMethod === "transfer").reduce((s, t) => s + t.total, 0);
     const avg = count ? Math.round(omzet / count) : 0;
     return { count, omzet, cash, transfer, avg };
   }, [recent]);
@@ -242,56 +303,44 @@ export default function KasirPage() {
     }
 
     setSubmitting(true);
-    const queueNumber = `${vehicleType === "motor" ? "M" : "C"}-${String(queueCounter).padStart(3, "0")}`;
-    const order = {
-      queueNumber,
-      customer: custName.trim() || "Pelanggan",
+
+    const body = {
+      clientId: crypto.randomUUID(),
       vehicleType,
-      package: selectedPackage,
-      addons: addonLines,
-      total,
-      paymentMethod,
-      cashReceived: paymentMethod === "tunai" ? cashNum : undefined,
-      change: paymentMethod === "tunai" ? change : undefined,
-      bankId: paymentMethod === "transfer" ? selectedBankId : undefined,
-      refNumber: paymentMethod === "transfer" ? refNumber : undefined,
+      packageId: selectedPackage.id,
+      addons: addonLines.map(({ addon, qty }) => ({ addonId: addon.id, qty })),
+      customerName: custName.trim(),
+      customerPhone: custPhone.trim(),
       plate: custPlate.trim(),
-      phone: custPhone.trim(),
+      payment: {
+        method: paymentMethod,
+        cashReceived: paymentMethod === "tunai" ? cashNum : undefined,
+        bankId: paymentMethod === "transfer" ? selectedBankId : undefined,
+        referenceNo: paymentMethod === "transfer" ? refNumber.trim() : undefined,
+      },
     };
 
     // Keep form intact unless backend confirms order creation.
+    let created: ApiOrder;
     try {
-      await apiFetch("/api/orders", {
+      const res = await apiFetch<{ data: ApiOrder }>("/api/orders", {
         method: "POST",
-        body: JSON.stringify(order),
+        body: JSON.stringify(body),
       });
+      created = res.data;
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Gagal menyimpan transaksi. Coba lagi.");
       setSubmitting(false);
       return;
     }
 
-    // Local order record
-    const now = new Date();
-    const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    setRecent((prev) => [
-      {
-        id: `r${Date.now()}`,
-        queueNumber,
-        customer: order.customer,
-        vehicleType,
-        total,
-        paymentMethod,
-        time,
-        packageName: selectedPackage.name,
-        addons: addonLines.map(({ addon, qty }) => ({ name: addon.name, qty, price: addon.price })),
-        plate: custPlate.trim(),
-      },
-      ...prev,
-    ]);
-    setQueueCounter((c) => c + 1);
+    setSuccess({
+      queueNumber: created.queueNo,
+      customer: created.customerName,
+      total: created.grandTotal,
+    });
 
-    setSuccess({ queueNumber, customer: order.customer, total });
+    await loadOrders();
 
     // Reset form
     setSelectedPackageId(null);
@@ -643,6 +692,7 @@ export default function KasirPage() {
       {/* Recent transactions */}
       <section className="flex flex-col gap-2">
         <h3 className="text-base font-bold text-ink">Transaksi Terakhir Hari Ini</h3>
+        {ordersError && <p className="text-sm text-danger">{ordersError}</p>}
         <Card className="flex flex-col gap-2 p-3">
           {recent.length === 0 && <p className="text-sm text-muted text-center py-2">Belum ada transaksi</p>}
           {recent.map((t) => (
@@ -650,7 +700,7 @@ export default function KasirPage() {
               <div className="min-w-0">
                 <p className="font-semibold text-ink truncate">{t.queueNumber} • {t.customer}</p>
                 <p className="text-xs text-muted">
-                  {t.vehicleType === "motor" ? "Motor" : "Mobil"} • {t.time} • {t.paymentMethod === "tunai" ? "Tunai" : "Transfer"}
+                  {t.vehicleType === "motor" ? "Motor" : "Mobil"} • {t.time} • {t.paymentMethod === "tunai" ? "Tunai" : "Transfer"} • {t.paid ? "Lunas" : "Belum bayar"}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -725,16 +775,16 @@ export default function KasirPage() {
           <style>{`@page { size: 58mm auto; margin: 3mm; } @media print { html, body { width: 52mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; } body * { visibility: hidden !important; } .receipt-print, .receipt-print * { visibility: visible !important; } .receipt-print { position: fixed !important; inset: 0 auto auto 0 !important; width: 52mm !important; max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: #fff !important; color: #000 !important; } .no-print { display: none !important; } }`}</style>
           <Card className="receipt-print w-full max-w-sm flex flex-col gap-3">
             <h2 className="text-center text-xl font-bold">Struk transaksi</h2>
-            <p className="text-center text-sm text-muted">Pratinjau memakai data yang tersedia di sesi lokal ini; data struk tidak disimpan untuk sesi berikutnya.</p>
+            <p className="text-center text-sm text-muted">{receipt.invoiceNo}</p>
             <div className="border-y border-line py-3 text-sm">
               <p>{receipt.queueNumber} • {receipt.time}</p>
               <p>{receipt.customer} • {receipt.vehicleType === "motor" ? "Motor" : "Mobil"}</p>
               {receipt.plate && <p>Plat: {receipt.plate}</p>}
-              {receipt.packageName ? <p>{receipt.packageName}</p> : <p>Rincian paket tidak tersedia untuk transaksi demo ini.</p>}
+              {receipt.packageName ? <p>{receipt.packageName}</p> : <p>Rincian paket tidak tersedia.</p>}
               {receipt.addons?.map((addon) => <p key={addon.name}>{addon.name} x{addon.qty} • {rupiah(addon.price * addon.qty)}</p>)}
-              {receipt.addons === undefined && receipt.packageName === undefined && <p>Rincian add-on tidak tersedia.</p>}
               <p className="mt-2 font-bold">Total: {rupiah(receipt.total)}</p>
               <p>Pembayaran: {receipt.paymentMethod === "tunai" ? "Tunai" : "Transfer"}</p>
+              <p>Status: {receipt.paid ? "Lunas" : "Belum dibayar"}</p>
             </div>
             <div className="no-print flex gap-2">
               <Button fullWidth onClick={() => window.print()}><Printer className="h-4 w-4" /> Cetak</Button>
