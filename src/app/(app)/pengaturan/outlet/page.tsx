@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Save, Store } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { dummyOutlet } from "@/lib/dummy-data";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
@@ -52,17 +51,9 @@ export default function OutletPage() {
             taxPercent: String(first.taxPercent),
           });
         }
-      } catch {
-        const first = dummyOutlet as Outlet;
-        setOutlet(first);
-        setForm({
-          name: first.name,
-          address: first.address,
-          phone: first.phone,
-          receiptFooter: first.receiptFooter,
-          taxPercent: String(first.taxPercent),
-        });
-        setError("Mode demo: data contoh ditampilkan (backend tidak tersedia)");
+      } catch (e) {
+        setOutlet(null);
+        setError(e instanceof Error ? e.message : "Gagal memuat outlet");
       } finally {
         setLoading(false);
       }

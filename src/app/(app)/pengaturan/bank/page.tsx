@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, X, Landmark } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { dummyBanks } from "@/lib/dummy-data";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
@@ -27,7 +26,7 @@ const emptyForm = {
 };
 
 export default function BankPage() {
-  const [items, setItems] = useState<Bank[]>(dummyBanks as unknown as Bank[]);
+  const [items, setItems] = useState<Bank[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -39,11 +38,11 @@ export default function BankPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await apiFetch<{ data: Bank[] }>("/api/banks");
+      const res = await apiFetch<{ data: Bank[] }>("/api/banks?includeInactive=true");
       setItems(res.data);
-    } catch {
-      setItems(dummyBanks as unknown as Bank[]);
-      setError("Mode demo: data contoh ditampilkan (backend tidak tersedia)");
+    } catch (e) {
+      setItems([]);
+      setError(e instanceof Error ? e.message : "Gagal memuat bank");
     } finally {
       setLoading(false);
     }

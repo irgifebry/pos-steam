@@ -11,7 +11,6 @@ import {
   Users,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { dummyUsers } from "@/lib/dummy-data";
 import { rupiah } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -42,7 +41,7 @@ const emptyForm = {
 };
 
 export default function PenggunaPage() {
-  const [items, setItems] = useState<User[]>(dummyUsers as unknown as User[]);
+  const [items, setItems] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -62,9 +61,9 @@ export default function PenggunaPage() {
     try {
       const res = await apiFetch<{ data: User[] }>("/api/users");
       setItems(res.data);
-    } catch {
-      setItems(dummyUsers as unknown as User[]);
-      setError("Mode demo: data contoh ditampilkan (backend tidak tersedia)");
+    } catch (e) {
+      setItems([]);
+      setError(e instanceof Error ? e.message : "Gagal memuat pengguna");
     } finally {
       setLoading(false);
     }
