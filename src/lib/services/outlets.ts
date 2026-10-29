@@ -12,6 +12,7 @@ export type Outlet = {
   phone: string;
   receiptFooter: string;
   taxPercent: number;
+  defaultDailyRate: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -25,6 +26,7 @@ function toDomain(row: OutletRow): Outlet {
     phone: row.phone ?? "",
     receiptFooter: row.receiptFooter ?? "",
     taxPercent: Number(row.taxPercent),
+    defaultDailyRate: row.defaultDailyRate,
   };
 }
 
@@ -51,6 +53,7 @@ export async function updateOutlet(
   if (data.phone !== undefined) values.phone = data.phone;
   if (data.receiptFooter !== undefined) values.receiptFooter = data.receiptFooter;
   if (data.taxPercent !== undefined) values.taxPercent = String(data.taxPercent);
+  if (data.defaultDailyRate !== undefined) values.defaultDailyRate = data.defaultDailyRate;
 
   const [existing] = await db.select().from(outlets).where(eq(outlets.id, id)).limit(1);
   if (!existing) {

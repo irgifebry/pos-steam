@@ -1,7 +1,9 @@
 import { and, eq } from "drizzle-orm";
-import { user as userTable } from "@/lib/db/schema";
+import { outlets, user as userTable } from "@/lib/db/schema";
 import type { AppDatabase } from "@/lib/db/schema";
 import { HttpError } from "@/lib/http";
+import { settingsUpdateSchema } from "@/lib/schemas";
+import type { SettingsUpdate } from "@/lib/types";
 import { listBanks } from "./banks";
 import type { Bank } from "./banks";
 import { getOutlet } from "./outlets";
@@ -42,10 +44,33 @@ export async function getSettings(db: AppDatabase, outletId: string): Promise<Se
     throw new HttpError(404, "NOT_FOUND", "Outlet tidak ditemukan");
   }
 
-  const [banks, defaultDailyRate] = await Promise.all([
+  const [banks, fallbackDailyRate] = await Promise.all([
     listBanks(db, outletId),
     resolveDefaultDailyRate(db, outletId),
   ]);
 
-  return { outlet, banks, defaultDailyRate };
+  return {
+    outlet,
+    banks,
+    defaultDailyRate: outlet.defaultDailyRate > 0 ? outlet.defaultDailyRate : fallbackDailyRate,
+  };
+}
+
+export async function updateSettings(
+  db: AppDatabase,
+  outletId: string,
+  input: SettingsUpdate,
+): Promise<Settings> {
+  const data = settingsUpdateSchema.parse(input);
+  const updated = await db
+    .update(outlets)
+    .set({ defaultDailyRate: data.defaultDailyRate })
+    .where(eq(outlets.id, outletId))
+    .returning({ id: outlets.id });
+
+  if (updated.length === 0) {
+    throw new HttpError(404, "NOT_FOUND", "Outlet tidak ditemukan");
+  }
+
+  return getSettings(db, outletId);
 }

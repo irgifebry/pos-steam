@@ -37,6 +37,7 @@ export const outlets = pgTable("outlets", {
   phone: text("phone"),
   receiptFooter: text("receipt_footer"),
   taxPercent: numeric("tax_percent", { precision: 5, scale: 2 }).notNull().default("0"),
+  defaultDailyRate: integer("default_daily_rate").notNull().default(0),
   ...timestamps(),
 });
 
@@ -179,6 +180,7 @@ export const orders = pgTable(
       .notNull()
       .references(() => outlets.id, { onDelete: "cascade" }),
     invoiceNo: text("invoice_no").notNull(),
+    businessDate: date("business_date").notNull().defaultNow(),
     vehicleType: text("vehicle_type").notNull(),
     status: text("status").notNull().default("menunggu"),
     queueSeq: integer("queue_seq").notNull(),
@@ -203,6 +205,12 @@ export const orders = pgTable(
   },
   (table) => [
     unique("orders_outlet_invoice_unique").on(table.outletId, table.invoiceNo),
+    unique("orders_outlet_date_type_queue_unique").on(
+      table.outletId,
+      table.businessDate,
+      table.vehicleType,
+      table.queueSeq,
+    ),
   ],
 );
 
@@ -235,7 +243,9 @@ export const payments = pgTable("payments", {
   verifiedBy: text("verified_by").references(() => user.id, { onDelete: "set null" }),
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   ...timestamps(),
-});
+}, (table) => [
+  unique("payments_order_unique").on(table.orderId),
+]);
 
 export const attendance = pgTable("attendance", {
   id: id(),
@@ -254,7 +264,9 @@ export const attendance = pgTable("attendance", {
     .notNull()
     .references(() => user.id),
   ...timestamps(),
-});
+}, (table) => [
+  unique("attendance_outlet_user_date_unique").on(table.outletId, table.userId, table.date),
+]);
 
 export const payrollRuns = pgTable(
   "payroll_runs",
@@ -284,6 +296,8 @@ export const payrollItems = pgTable("payroll_items", {
     .references(() => user.id, { onDelete: "cascade" }),
   daysPresent: integer("days_present").notNull().default(0),
   dailyRate: integer("daily_rate").notNull().default(0),
+  allowance: integer("allowance").notNull().default(0),
+  overtimePay: integer("overtime_pay").notNull().default(0),
   overtimeHours: numeric("overtime_hours", { precision: 6, scale: 2 }).notNull().default("0"),
   gross: integer("gross").notNull().default(0),
   deductions: integer("deductions").notNull().default(0),
