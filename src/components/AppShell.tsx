@@ -43,7 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <nav aria-label="Menu utama" className="flex flex-col gap-1">
           {[
-            { href: "/kasir", label: "Kasir", icon: ShoppingCart, roles: ["admin", "kasir", "operator"] },
+            { href: "/kasir", label: "Kasir", icon: ShoppingCart, roles: ["admin", "kasir"] },
             { href: "/antrean", label: "Antrean", icon: ListChecks, roles: ["admin", "kasir", "operator"] },
             { href: "/laporan", label: "Laporan", icon: BarChart3, roles: ["admin", "kasir"] },
             { href: "/karyawan", label: "Karyawan", icon: Users, roles: ["admin", "kasir"] },

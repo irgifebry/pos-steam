@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Clock,
   Droplets,
-  Hash,
   Motorbike,
   Play,
   Receipt,
@@ -213,11 +212,26 @@ export default function AntreanPage() {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: "paid" } : o)));
   }
 
+  function resetDemo() {
+    setOrders(makeDemoOrders());
+    setNow(Date.now());
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-2xl font-extrabold text-ink">Antrean</h1>
         <p className="text-sm text-muted">Pantau cuci yang sedang berjalan hari ini</p>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-medium text-amber-900">
+          Mode demo: data antrean dan semua tindakan hanya tersimpan sementara di halaman ini, tidak
+          dikirim ke server.
+        </p>
+        <Button variant="accent" size="md" onClick={resetDemo}>
+          Reset demo
+        </Button>
       </div>
 
       {/* Summary cards */}
@@ -317,6 +331,9 @@ function SummaryCard({
 
   return (
     <div className="flex items-center gap-3 py-1">
+      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", toneClass)}>
+        <Icon className="h-5 w-5" />
+      </div>
       <div className="min-w-0">
         <p className={cn("text-sm font-medium", toneClass.split(" ")[1])}>{label}</p>
         <p className="font-display text-3xl font-bold text-ink leading-none mt-1 tabular-nums">{value}</p>
