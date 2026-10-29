@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 import type { Role } from "@/lib/types";
 
 const tabs: { href: string; label: string; icon: typeof ShoppingCart; roles: Role[] }[] = [
-  { href: "/kasir", label: "Kasir", icon: ShoppingCart, roles: ["admin", "kasir", "operator"] },
+  { href: "/kasir", label: "Kasir", icon: ShoppingCart, roles: ["admin", "kasir"] },
   { href: "/antrean", label: "Antrean", icon: ListChecks, roles: ["admin", "kasir", "operator"] },
   { href: "/laporan", label: "Laporan", icon: BarChart3, roles: ["admin", "kasir"] },
   { href: "/karyawan", label: "Karyawan", icon: Users, roles: ["admin", "kasir"] },

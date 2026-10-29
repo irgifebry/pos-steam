@@ -103,7 +103,10 @@ function buildDemoTransactions(today: Date): Tx[] {
 }
 
 function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function startOfDay(d: Date): Date {
@@ -173,9 +176,13 @@ export default function LaporanPage() {
 
   const trend = useMemo(() => {
     const days: { date: string; omzet: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
+    const length = period === "hari" ? 1 : period === "bulan" ? 30 : period === "custom" && customFrom && customTo
+      ? Math.min(90, Math.max(1, Math.round((new Date(customTo).getTime() - new Date(customFrom).getTime()) / 86400000) + 1))
+      : 7;
+    const endDate = period === "custom" && customTo ? new Date(`${customTo}T12:00:00`) : today;
+    for (let i = length - 1; i >= 0; i--) {
+      const d = new Date(endDate);
+      d.setDate(endDate.getDate() - i);
       const iso = isoDate(d);
       const dayOmzet = transactions
         .filter((t) => t.date === iso)
@@ -185,9 +192,14 @@ export default function LaporanPage() {
       days.push({ date: iso, omzet: dayOmzet });
     }
     return days;
-  }, [transactions, vehicleFilter, paymentFilter, today]);
+  }, [transactions, vehicleFilter, paymentFilter, today, period, customFrom, customTo]);
 
   const maxTrend = useMemo(() => Math.max(1, ...trend.map((t) => t.omzet)), [trend]);
+  const trendLabel = period === "hari" ? "Trend Harian (1 hari)"
+    : period === "bulan" ? "Trend Harian (30 hari)"
+    : period === "custom" && customFrom && customTo
+      ? `Trend Harian (${trend.length} hari)`
+      : "Trend Harian (7 hari)";
 
   const perPaket = useMemo(() => {
     const map = new Map<string, { jumlah: number; omzet: number }>();
@@ -304,6 +316,13 @@ export default function LaporanPage() {
         </div>
       </div>
 
+      <aside
+        role="note"
+        className="rounded-[var(--radius-sm)] border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+      >
+        <span className="font-semibold">Data demo:</span> seluruh transaksi dan angka di laporan ini sintetis, bukan data operasional terverifikasi.
+      </aside>
+
       <Card className="flex flex-col gap-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-ink">
           <Calendar className="h-4 w-4 text-muted" /> <span>Pilih periode laporan</span>
@@ -402,7 +421,7 @@ export default function LaporanPage() {
       </div>
 
       <Card className="flex flex-col gap-3">
-        <CardTitle className="text-base">Trend Harian (7 hari)</CardTitle>
+        <CardTitle className="text-base">{trendLabel}</CardTitle>
         <div className="flex items-end gap-2 h-40">
           {trend.map((t) => {
             const pct = (t.omzet / maxTrend) * 100;
@@ -416,7 +435,9 @@ export default function LaporanPage() {
                   />
                 </div>
                 <span className="text-[10px] font-semibold text-muted">
-                  {new Date(t.date).toLocaleDateString("id-ID", { weekday: "short" })}
+                  {(trend.length <= 14 || trend.indexOf(t) % Math.ceil(trend.length / 7) === 0)
+                    ? new Date(`${t.date}T12:00:00`).toLocaleDateString("id-ID", { day: "numeric", month: "short" })
+                    : ""}
                 </span>
               </div>
             );
@@ -512,6 +533,11 @@ export default function LaporanPage() {
           )}
         </tbody>
       </TableCard>
+
+      <Card className="flex flex-col gap-2">
+        <CardTitle className="text-base">Rekap kas harian</CardTitle>
+        <p className="text-sm text-muted">Belum tersedia: data saldo awal, pengeluaran, dan kas fisik tidak ada pada data demo laporan.</p>
+      </Card>
     </div>
   );
 }

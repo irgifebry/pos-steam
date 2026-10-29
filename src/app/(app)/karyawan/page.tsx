@@ -100,6 +100,7 @@ export default function KaryawanPage() {
 
   // Daftar state
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employeeDataIsDemo, setEmployeeDataIsDemo] = useState(false);
   const [loadingEmps, setLoadingEmps] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [empError, setEmpError] = useState("");
@@ -154,6 +155,7 @@ export default function KaryawanPage() {
           dailyRate: u.dailyRate,
           active: u.active,
         }));
+        setEmployeeDataIsDemo(mapped.length === 0);
         setEmployees(mapped.length ? mapped : DEMO_EMPLOYEES);
       } else {
         const res = await apiFetch<{ data: { id: string; name: string; role: string }[] }>("/api/users?light=1");
@@ -164,12 +166,14 @@ export default function KaryawanPage() {
           dailyRate: 0,
           active: true,
         }));
+        setEmployeeDataIsDemo(mapped.length === 0);
         setEmployees(mapped.length ? mapped : DEMO_EMPLOYEES);
       }
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) {
         setForbidden(true);
       }
+      setEmployeeDataIsDemo(true);
       setEmployees(DEMO_EMPLOYEES);
       if (!(e instanceof ApiError && e.status === 403)) {
         setEmpError(e instanceof Error ? e.message : "Gagal memuat data");
@@ -418,7 +422,8 @@ export default function KaryawanPage() {
         sakit = 0,
         alpha = 0,
         cuti = 0,
-        totalJam = 0;
+        totalJam = 0,
+        hariTercatat = 0;
       for (const d of monthDays) {
         try {
           const raw = localStorage.getItem(`absensi:${d}`);
@@ -426,6 +431,7 @@ export default function KaryawanPage() {
           const map: AttendanceMap = JSON.parse(raw);
           const rec = map[emp.id];
           if (!rec) continue;
+          hariTercatat++;
           switch (rec.status) {
             case "hadir":
               hadir++;
@@ -450,9 +456,23 @@ export default function KaryawanPage() {
       }
       const adj = adjustments[emp.id] || { tunjangan: 0, lembur: 0, potongan: 0 };
       const gaji = hadir * emp.dailyRate + adj.tunjangan + adj.lembur - adj.potongan;
-      return { emp, hadir, izin, sakit, alpha, cuti, totalJam, gaji, adj };
+      return { emp, hadir, izin, sakit, alpha, cuti, totalJam, hariTercatat, gaji, adj };
     });
   }, [activeEmployees, rekapMonth, adjustments]);
+
+  const rekapSummary = useMemo(() => rekapData.reduce(
+    (summary, row) => ({
+      hadir: summary.hadir + row.hadir,
+      izin: summary.izin + row.izin,
+      sakit: summary.sakit + row.sakit,
+      alpha: summary.alpha + row.alpha,
+      cuti: summary.cuti + row.cuti,
+      tercatat: summary.tercatat + row.hariTercatat,
+      totalJam: summary.totalJam + row.totalJam,
+      estimasiGaji: summary.estimasiGaji + row.gaji,
+    }),
+    { hadir: 0, izin: 0, sakit: 0, alpha: 0, cuti: 0, tercatat: 0, totalJam: 0, estimasiGaji: 0 },
+  ), [rekapData]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -694,10 +714,34 @@ export default function KaryawanPage() {
                 <Input type="month" value={rekapMonth} onChange={(e) => setRekapMonth(e.target.value)} />
               </Field>
             </div>
-            {finalized && <Badge tone="success">Sudah difinalisasi</Badge>}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge tone={finalized ? "success" : "muted"}>{finalized ? "Ditandai final di perangkat ini" : "Perkiraan · belum final"}</Badge>
+              {employeeDataIsDemo && <Badge tone="muted">Data karyawan demo</Badge>}
+            </div>
           </Card>
 
-          {rekapData.map(({ emp, hadir, izin, sakit, alpha, cuti, totalJam, gaji, adj }) => (
+          <Card>
+            <h2 className="text-base font-bold text-ink">Ringkasan bulanan</h2>
+            <p className="mt-1 text-sm text-muted">{rekapSummary.tercatat} catatan absensi tersimpan di perangkat ini · {rekapSummary.hadir} hari hadir</p>
+            <div className="mt-3 grid grid-cols-3 sm:grid-cols-5 gap-2 text-center">
+              {[...[['Hadir', rekapSummary.hadir], ['Izin', rekapSummary.izin], ['Sakit', rekapSummary.sakit], ['Alpha', rekapSummary.alpha], ['Cuti', rekapSummary.cuti]]].map(([label, count]) => (
+                <div key={label} className="rounded-[var(--radius-sm)] bg-stone-100 p-2">
+                  <p className="text-xs text-muted">{label}</p>
+                  <p className="font-bold text-ink">{count}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex items-end justify-between gap-3">
+              <div>
+                <p className="text-sm text-muted">Perkiraan total gaji</p>
+                <p className="text-2xl font-bold tabular-nums text-ink">{rupiah(rekapSummary.estimasiGaji)}</p>
+              </div>
+              <p className="max-w-48 text-right text-xs text-muted">{rekapSummary.totalJam.toFixed(1)} jam tercatat · hitungan lokal dari hari hadir, gaji harian, dan penyesuaian.</p>
+            </div>
+            <p className="mt-3 text-xs text-muted">Bukan data payroll tersimpan atau bukti pembayaran. Absensi yang belum dicatat tidak dihitung.</p>
+          </Card>
+
+          {rekapData.map(({ emp, hadir, izin, sakit, alpha, cuti, totalJam, hariTercatat, gaji, adj }) => (
             <Card key={emp.id} className="flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-3 min-w-0">
@@ -706,11 +750,11 @@ export default function KaryawanPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-bold text-ink truncate">{emp.name}</p>
-                    <p className="text-xs text-muted">{rupiah(emp.dailyRate)}/hari</p>
+                    <p className="text-xs text-muted">{employeeDataIsDemo ? "Demo · " : ""}{rupiah(emp.dailyRate)}/hari</p>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-xs text-muted">Gaji</p>
+                  <p className="text-xs text-muted">Perkiraan gaji</p>
                   <p className="font-extrabold text-brand">{rupiah(gaji)}</p>
                 </div>
               </div>
@@ -741,6 +785,7 @@ export default function KaryawanPage() {
               <div className="flex items-center gap-2 text-sm text-muted">
                 <Clock className="h-4 w-4" /> Total jam: <span className="font-semibold text-ink">{totalJam.toFixed(1)} jam</span>
               </div>
+              <p className="text-xs text-muted">{hariTercatat} tanggal tercatat di perangkat ini.</p>
 
               <div className="grid grid-cols-3 gap-2">
                 <Field label="Tunjangan">
@@ -749,7 +794,7 @@ export default function KaryawanPage() {
                     inputMode="numeric"
                     value={adj.tunjangan}
                     onChange={(e) => adjust(emp.id, "tunjangan", Number(e.target.value) || 0)}
-                    disabled={finalized && !isAdmin ? true : false}
+                    disabled={finalized && !isAdmin}
                   />
                 </Field>
                 <Field label="Lembur">
@@ -758,7 +803,7 @@ export default function KaryawanPage() {
                     inputMode="numeric"
                     value={adj.lembur}
                     onChange={(e) => adjust(emp.id, "lembur", Number(e.target.value) || 0)}
-                    disabled={finalized && !isAdmin ? true : false}
+                    disabled={finalized && !isAdmin}
                   />
                 </Field>
                 <Field label="Potongan">
@@ -767,10 +812,21 @@ export default function KaryawanPage() {
                     inputMode="numeric"
                     value={adj.potongan}
                     onChange={(e) => adjust(emp.id, "potongan", Number(e.target.value) || 0)}
-                    disabled={finalized && !isAdmin ? true : false}
+                    disabled={finalized && !isAdmin}
                   />
                 </Field>
               </div>
+              <details className="rounded-[var(--radius-sm)] border border-line p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-ink">Lihat slip gaji · perkiraan lokal</summary>
+                <div className="mt-3 flex flex-col gap-2 text-sm">
+                  <div className="flex justify-between gap-3"><span className="text-muted">Gaji pokok ({hadir} hari × {rupiah(emp.dailyRate)})</span><span className="font-medium text-ink">{rupiah(hadir * emp.dailyRate)}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-muted">Tunjangan</span><span className="font-medium text-ink">{rupiah(adj.tunjangan)}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-muted">Lembur</span><span className="font-medium text-ink">{rupiah(adj.lembur)}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-muted">Potongan</span><span className="font-medium text-ink">−{rupiah(adj.potongan)}</span></div>
+                  <div className="flex justify-between gap-3 border-t border-line pt-2 font-bold"><span>Total perkiraan</span><span>{rupiah(gaji)}</span></div>
+                  <p className="text-xs text-muted">Bukan slip payroll resmi atau bukti pembayaran. Penyesuaian dan finalisasi hanya tersimpan di perangkat ini.</p>
+                </div>
+              </details>
             </Card>
           ))}
 

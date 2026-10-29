@@ -57,6 +57,9 @@ type RecentTx = {
   total: number;
   paymentMethod: "tunai" | "transfer";
   time: string;
+  packageName?: string;
+  addons?: { name: string; qty: number; price: number }[];
+  plate?: string;
 };
 
 type SuccessInfo = {
@@ -65,47 +68,15 @@ type SuccessInfo = {
   total: number;
 };
 
-const DEMO_PACKAGES: Record<VehicleType, Package[]> = {
-  motor: [
-    { id: "mp1", name: "Cuci Motor Biasa", price: 25000, vehicleType: "motor", description: "Cuci body + bilas" },
-    { id: "mp2", name: "Cuci Motor + Wax", price: 35000, vehicleType: "motor", description: "Cuci + wax body" },
-    { id: "mp3", name: "Cuci Motor Premium", price: 50000, vehicleType: "motor", description: "Cuci lengkap + semir" },
-  ],
-  mobil: [
-    { id: "cp1", name: "Cuci Mobil Biasa", price: 50000, vehicleType: "mobil", description: "Cuci body + bilas" },
-    { id: "cp2", name: "Cuci Mobil + Wax", price: 70000, vehicleType: "mobil", description: "Cuci + wax body" },
-    { id: "cp3", name: "Cuci Mobil Premium", price: 100000, vehicleType: "mobil", description: "Cuci lengkap + interior" },
-  ],
-};
-
-const DEMO_ADDONS: Addon[] = [
-  { id: "a1", name: "Vacuum Interior", price: 10000, unitLabel: "kali", vehicleTypes: ["motor", "mobil"] },
-  { id: "a2", name: "Semir Ban", price: 5000, unitLabel: "kali", vehicleTypes: ["motor", "mobil"] },
-  { id: "a3", name: "Parfum Mobil", price: 8000, unitLabel: "pcs", vehicleTypes: ["mobil"] },
-  { id: "a4", name: "Fogging Disinfektan", price: 15000, unitLabel: "kali", vehicleTypes: ["mobil"] },
-];
-
-const DEMO_BANKS: Bank[] = [
-  { id: "b1", name: "BCA", accountNumber: "1234567890", accountName: "POS Cuci Steam" },
-  { id: "b2", name: "BRI", accountNumber: "0987654321", accountName: "POS Cuci Steam" },
-  { id: "b3", name: "Mandiri", accountNumber: "1122334455", accountName: "POS Cuci Steam" },
-  { id: "b4", name: "BNI", accountNumber: "5566778899", accountName: "POS Cuci Steam" },
-];
-
-const seedRecent: RecentTx[] = [
-  { id: "r1", queueNumber: "M-001", customer: "Budi Santoso", vehicleType: "motor", total: 35000, paymentMethod: "tunai", time: "09:12" },
-  { id: "r2", queueNumber: "M-002", customer: "Siti Aminah", vehicleType: "mobil", total: 70000, paymentMethod: "transfer", time: "09:45" },
-  { id: "r3", queueNumber: "M-003", customer: "Andi Wijaya", vehicleType: "motor", total: 25000, paymentMethod: "tunai", time: "10:02" },
-];
-
 export default function KasirPage() {
   const [vehicleType, setVehicleType] = useState<VehicleType>("motor");
 
-  const [packages, setPackages] = useState<Package[]>(DEMO_PACKAGES.motor);
+  const [packages, setPackages] = useState<Package[]>([]);
   const [packagesLoading, setPackagesLoading] = useState(false);
-  const [addons, setAddons] = useState<Addon[]>(DEMO_ADDONS);
+  const [addons, setAddons] = useState<Addon[]>([]);
   const [addonsLoading, setAddonsLoading] = useState(false);
-  const [banks, setBanks] = useState<Bank[]>(DEMO_BANKS);
+  const [banks, setBanks] = useState<Bank[]>([]);
+  const [catalogError, setCatalogError] = useState("");
   const [taxPercent, setTaxPercent] = useState<number>(0);
 
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
@@ -120,22 +91,37 @@ export default function KasirPage() {
   const [selectedBankId, setSelectedBankId] = useState<string>("");
   const [refNumber, setRefNumber] = useState("");
 
-  const [recent, setRecent] = useState<RecentTx[]>(seedRecent);
+  const [recent, setRecent] = useState<RecentTx[]>([]);
   const [queueCounter, setQueueCounter] = useState(4);
 
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<SuccessInfo | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [online, setOnline] = useState(true);
+  const [receipt, setReceipt] = useState<RecentTx | null>(null);
+
+  useEffect(() => {
+    const updateOnline = () => setOnline(navigator.onLine);
+    updateOnline();
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    return () => {
+      window.removeEventListener("online", updateOnline);
+      window.removeEventListener("offline", updateOnline);
+    };
+  }, []);
 
   // Fetch packages + addons when vehicle type changes
   const loadCatalog = useCallback(async (vt: VehicleType) => {
     setPackagesLoading(true);
     setAddonsLoading(true);
+    setCatalogError("");
     try {
       const pkgRes = await apiFetch<{ data: Package[] }>(`/api/packages?vehicleType=${vt}`);
-      setPackages(pkgRes?.data?.length ? pkgRes.data : DEMO_PACKAGES[vt]);
-    } catch {
-      setPackages(DEMO_PACKAGES[vt]);
+      setPackages(pkgRes?.data ?? []);
+    } catch (error) {
+      setPackages([]);
+      setCatalogError(error instanceof Error ? error.message : "Gagal memuat paket.");
     } finally {
       setPackagesLoading(false);
     }
@@ -144,9 +130,10 @@ export default function KasirPage() {
       const filtered = (addonRes?.data ?? []).filter((a) =>
         a.vehicleTypes ? a.vehicleTypes.includes(vt) : true,
       );
-      setAddons(filtered.length ? filtered : DEMO_ADDONS.filter((a) => a.vehicleTypes.includes(vt)));
-    } catch {
-      setAddons(DEMO_ADDONS.filter((a) => a.vehicleTypes.includes(vt)));
+      setAddons(filtered);
+    } catch (error) {
+      setAddons([]);
+      setCatalogError(error instanceof Error ? error.message : "Gagal memuat add-on.");
     } finally {
       setAddonsLoading(false);
     }
@@ -161,9 +148,9 @@ export default function KasirPage() {
     (async () => {
       try {
         const res = await apiFetch<{ data: Bank[] }>("/api/banks");
-        if (res?.data?.length) setBanks(res.data);
+        setBanks(res?.data ?? []);
       } catch {
-        /* keep demo */
+        setBanks([]);
       }
       try {
         const res = await apiFetch<{ data: { outlet: { taxPercent: number } } }>("/api/settings");
@@ -245,9 +232,17 @@ export default function KasirPage() {
       showToast("Pilih bank dulu ya");
       return;
     }
+    if (paymentMethod === "transfer" && banks.length === 0) {
+      showToast("Daftar bank belum tersedia. Transaksi transfer tidak dapat disimpan.");
+      return;
+    }
+    if (paymentMethod === "transfer" && !refNumber.trim()) {
+      showToast("Nomor referensi transfer wajib diisi");
+      return;
+    }
 
     setSubmitting(true);
-    const queueNumber = `M-${String(queueCounter).padStart(3, "0")}`;
+    const queueNumber = `${vehicleType === "motor" ? "M" : "C"}-${String(queueCounter).padStart(3, "0")}`;
     const order = {
       queueNumber,
       customer: custName.trim() || "Pelanggan",
@@ -264,14 +259,16 @@ export default function KasirPage() {
       phone: custPhone.trim(),
     };
 
-    // Attempt backend (ignore errors)
+    // Keep form intact unless backend confirms order creation.
     try {
       await apiFetch("/api/orders", {
         method: "POST",
         body: JSON.stringify(order),
       });
-    } catch {
-      /* demo: ignore */
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Gagal menyimpan transaksi. Coba lagi.");
+      setSubmitting(false);
+      return;
     }
 
     // Local order record
@@ -286,6 +283,9 @@ export default function KasirPage() {
         total,
         paymentMethod,
         time,
+        packageName: selectedPackage.name,
+        addons: addonLines.map(({ addon, qty }) => ({ name: addon.name, qty, price: addon.price })),
+        plate: custPlate.trim(),
       },
       ...prev,
     ]);
@@ -328,7 +328,9 @@ export default function KasirPage() {
               <h2 className="font-display text-base font-semibold text-ink">Kas masuk</h2>
             </div>
           </div>
-          <span className="text-sm text-muted">Hari ini</span>
+          <span className={cn("text-sm font-semibold", online ? "text-success" : "text-danger")}>
+            {online ? "Online" : "Offline · transaksi perlu koneksi"}
+          </span>
         </div>
         <div className="border-y border-line py-3">
           <p className="text-sm font-medium text-muted">Omzet</p>
@@ -373,10 +375,11 @@ export default function KasirPage() {
 
       {/* Packages */}
       <section className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <h3 className="font-display text-xl font-bold text-ink">Pilih paket</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-xl font-bold text-ink">Pilih paket</h3>
           {packagesLoading && <Spinner className="text-brand" />}
         </div>
+        {catalogError && <p role="alert" className="rounded-xl bg-danger-soft p-3 text-sm text-danger">{catalogError} Periksa koneksi lalu muat ulang halaman.</p>}
         <div className="flex flex-col gap-3">
           {packages.map((p) => {
             const active = selectedPackageId === p.id;
@@ -413,7 +416,7 @@ export default function KasirPage() {
             );
           })}
           {!packagesLoading && packages.length === 0 && (
-            <p className="text-sm text-muted text-center py-4">Belum ada paket</p>
+            <p className="text-sm text-muted text-center py-4">Paket belum tersedia. Transaksi tidak dapat dilanjutkan sampai katalog berhasil dimuat.</p>
           )}
         </div>
       </section>
@@ -654,7 +657,7 @@ export default function KasirPage() {
                 <span className="font-bold text-brand">{rupiah(t.total)}</span>
                 <button
                   type="button"
-                  onClick={() => showToast("Struk dicetak (demo)")}
+                  onClick={() => setReceipt(t)}
                   className="h-9 w-9 rounded-lg border border-line bg-surface flex items-center justify-center text-muted hover:text-brand"
                   aria-label="Cetak ulang"
                 >
@@ -717,28 +720,30 @@ export default function KasirPage() {
           </Card>
         </div>
       )}
+      {receipt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4">
+          <style>{`@page { size: 58mm auto; margin: 3mm; } @media print { html, body { width: 52mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; } body * { visibility: hidden !important; } .receipt-print, .receipt-print * { visibility: visible !important; } .receipt-print { position: fixed !important; inset: 0 auto auto 0 !important; width: 52mm !important; max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: #fff !important; color: #000 !important; } .no-print { display: none !important; } }`}</style>
+          <Card className="receipt-print w-full max-w-sm flex flex-col gap-3">
+            <h2 className="text-center text-xl font-bold">Struk transaksi</h2>
+            <p className="text-center text-sm text-muted">Pratinjau memakai data yang tersedia di sesi lokal ini; data struk tidak disimpan untuk sesi berikutnya.</p>
+            <div className="border-y border-line py-3 text-sm">
+              <p>{receipt.queueNumber} • {receipt.time}</p>
+              <p>{receipt.customer} • {receipt.vehicleType === "motor" ? "Motor" : "Mobil"}</p>
+              {receipt.plate && <p>Plat: {receipt.plate}</p>}
+              {receipt.packageName ? <p>{receipt.packageName}</p> : <p>Rincian paket tidak tersedia untuk transaksi demo ini.</p>}
+              {receipt.addons?.map((addon) => <p key={addon.name}>{addon.name} x{addon.qty} • {rupiah(addon.price * addon.qty)}</p>)}
+              {receipt.addons === undefined && receipt.packageName === undefined && <p>Rincian add-on tidak tersedia.</p>}
+              <p className="mt-2 font-bold">Total: {rupiah(receipt.total)}</p>
+              <p>Pembayaran: {receipt.paymentMethod === "tunai" ? "Tunai" : "Transfer"}</p>
+            </div>
+            <div className="no-print flex gap-2">
+              <Button fullWidth onClick={() => window.print()}><Printer className="h-4 w-4" /> Cetak</Button>
+              <Button fullWidth variant="secondary" onClick={() => setReceipt(null)}>Tutup</Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
 
-function StatTile({
-  label,
-  value,
-  icon,
-  small,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-  small?: boolean;
-}) {
-  return (
-    <div className="rounded-[var(--radius-sm)] bg-bg p-3 flex flex-col gap-1">
-      <div className="flex items-center gap-1.5 text-muted">
-        {icon}
-        <span className="text-xs font-semibold">{label}</span>
-      </div>
-      <p className={cn("font-extrabold text-ink leading-tight", small ? "text-sm" : "text-lg")}>{value}</p>
-    </div>
-  );
-}
