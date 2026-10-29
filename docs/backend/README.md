@@ -4,12 +4,11 @@ Dokumen ini khusus untuk **backend**: apa yang sudah dibangun, kontrak API, cara
 
 | | |
 |---|---|
-| **Fase** | F1 — Fondasi (backend) |
+| **Fase** | F1–F2 — Fondasi backend + sinkronisasi transaksi (kasir, antrean, laporan, karyawan, gaji kas, struk publik) |
 | **Status** | Selesai dan terverifikasi |
 | **PIC Backend** | [Najwan48](https://github.com/Najwan48) |
-| **Branch** | `feat/fondasi-backend` |
-| **Pull Request** | [#1](https://github.com/irgifebry/pos-steam/pull/1) |
-| **Terakhir diperbarui** | 28 Oktober 2026 |
+| **Branch** | `main` |
+| **Terakhir diperbarui** | 29 Oktober 2026 |
 
 ---
 
@@ -22,6 +21,7 @@ Backend F1 menyediakan fondasi aplikasi full-stack Next.js 16:
 - Otorisasi berbasis peran di Route Handler: `admin`, `kasir`, `operator`.
 - API master data: paket, add-on, outlet, bank, settings.
 - API manajemen pengguna: tambah, ubah, reset PIN, aktif/nonaktif.
+- API transaksi & operasional: order, antrean, pembayaran, pembatalan, struk publik, absensi, payroll, shift kas, laporan.
 - Validasi Zod sebagai sumber tunggal (`src/lib/schemas.ts`).
 - Format error konsisten `{ error: { code, message } }`.
 - Audit log untuk perubahan pengguna.
@@ -32,12 +32,12 @@ Backend F1 menyediakan fondasi aplikasi full-stack Next.js 16:
 
 | Pemeriksaan | Hasil |
 |---|---|
-| `npm test` | 15 file, **70 test lulus** |
+| `npm test` | 20 file, **100 test lulus** |
 | `npm run lint` | Bersih |
 | `npx tsc --noEmit` | Bersih |
 | `npm run build` | Sukses, semua route API terdeteksi |
 
-> Frontend UI (`/kasir`, `/antrean`, `/laporan`, `/karyawan`, `/pengaturan`) **belum** dibuat. Itu bagian frontend developer pada Task 10–11. Route API di dokumen ini sudah siap dipakai.
+> Semua frontend (`/kasir`, `/antrean`, `/laporan`, `/karyawan`, `/pengaturan/*`, `r/[token]`) sudah tersambung ke API nyata. Mode demo, dummy data, dan fallback localStorage telah dihapus.
 
 ---
 
@@ -128,11 +128,9 @@ Route Handler  ->  Service  ->  Drizzle  ->  PostgreSQL
 |---|---|---|
 | Auth | `user`, `session`, `account`, `verification` | Dipakai |
 | Outlet & master data | `outlets`, `service_packages`, `addons`, `banks` | Dipakai API F1 |
-| Transaksi | `customers`, `vehicles`, `orders`, `order_items`, `payments` | Skema siap, API di F2 |
-| Operasional | `attendance`, `payroll_runs`, `payroll_items`, `cash_shifts` | Skema siap, API di F5 |
-| Audit | `audit_logs` | Dipakai untuk perubahan pengguna |
-
-> Penting untuk QA/frontend: tabel transaksi dan operasional **sudah dibuat**, tetapi **belum punya endpoint**. Jangan menganggap fitur kasir/absensi/gaji sudah bisa dipakai.
+| Transaksi | `customers`, `vehicles`, `orders`, `order_items`, `payments` | **Ada endpoint F2** |
+| Operasional | `attendance`, `payroll_runs`, `payroll_items`, `cash_shifts` | **Ada endpoint F2** |
+| Audit | `audit_logs` | Dipakai untuk perubahan pengguna dan transaksi |
 
 ### 4.2 Aturan skema
 
@@ -143,6 +141,7 @@ Route Handler  ->  Service  ->  Drizzle  ->  PostgreSQL
 - `updated_at` otomatis lewat `$onUpdate`.
 - `order_items.price_snapshot` menyimpan harga final saat transaksi; perubahan harga master tidak mengubah transaksi lama.
 - `orders.client_id` disiapkan unik untuk idempotensi offline (F6).
+- Tabel transaksi dan operasional **sudah punya endpoint** (lihat bagian 6.4–6.8).
 
 ### 4.3 Migrasi
 
@@ -346,9 +345,102 @@ Body POST:
 }
 ```
 
-> Belum ada endpoint `PATCH /api/banks/:id`, walaupun service `updateBank()` sudah tersedia. Ini masuk backlog F2/Pengaturan.
+> Belum ada endpoint `PATCH /api/banks/:id`, walaupun service `updateBank()` sudah tersedia. Ini masuk backlog.
 
-#### Settings
+#### Order
+
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/api/orders?date=...&from=...&to=...&includePaid=true\|false` | admin, kasir, operator | Daftar order outlet dalam rentang tanggal; default hari ini |
+| GET | `/api/orders/:id` | admin, kasir, operator | Detail order termasuk item dan pembayaran |
+| POST | `/api/orders` | admin, kasir | Buat order (server menghitung total, antrean, invoice, snapshot) |
+| PATCH | `/api/orders/:id/status` | admin, kasir | Ubah status `menunggu` → `proses` → `selesai` |
+| POST | `/api/orders/:id/payments` | admin, kasir | Catat pembayaran pada order selesai → otomatis `paid` |
+| POST | `/api/orders/:id/cancel` | admin, kasir | Batalkan order |
+| GET | `/api/receipts/:token` | Publik | Struk publik berbasis UUID order (tidak perlu login) |
+
+Body POST `/api/orders`:
+
+```json
+{
+  "clientId": "uuid-opsional-untuk-idempotensi",
+  "vehicleType": "motor",
+  "packageId": "uuid-paket",
+  "addons": [ { "addonId": "uuid-addon", "qty": 1 } ],
+  "customerName": "Budi",
+  "customerPhone": "08123456789",
+  "plate": "B 1234 ABC",
+  "payment": {
+    "method": "tunai",
+    "cashReceived": 33000
+  }
+}
+```
+
+Aturan order:
+
+- Server otoritatif: frontend hanya mengirim `packageId`, `addonId` + `qty`, data pelanggan/kendaraan, dan payment opsional. Server menghitung total, pajak, nomor antrean, invoice, dan snapshot harga.
+- Order baru selalu status `menunggu`; pembayaran saat pembuatan tetap disimpan.
+- Order `selesai` dengan pembayaran otomatis menjadi `paid`; tanpa pembayaran tetap `selesai` sampai dibayar lewat endpoint payment.
+- `paid` dan `dibatalkan` tidak dapat diubah/dibatalkan lagi.
+- UUID order dipakai sebagai token struk publik; tidak ada kolom receipt token terpisah.
+
+#### Absensi
+
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/api/attendance?date=YYYY-MM-DD` | admin, kasir, operator | Daftar absensi outlet pada tanggal |
+| POST | `/api/attendance` | admin, kasir | Upsert absensi karyawan (tanggal + user unik) |
+| GET | `/api/attendance/summary?period=YYYY-MM` | admin, kasir | Ringkasan bulanan per karyawan |
+
+#### Payroll
+
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/api/payroll?period=YYYY-MM` | admin, kasir | Ambil payroll (draft atau final) dengan item per karyawan |
+| POST | `/api/payroll` | admin | Simpan draft atau finalisasi payroll periode |
+
+Body POST `/api/payroll`:
+
+```json
+{
+  "period": "2026-10",
+  "adjustments": {
+    "uuid-user": { "tunjangan": 20000, "lembur": 15000, "potongan": 10000 }
+  },
+  "finalize": false
+}
+```
+
+- `tunjangan` → kolom `allowance`, `lembur` → `overtimePay`, `potongan` → `deductions`.
+- Payroll final dikunci; tidak bisa disimpan ulang setelah `final`.
+
+#### Shift kas
+
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/api/cash-shifts` | admin, kasir, operator | Shift terbuka + riwayat 30 shift terakhir |
+| POST | `/api/cash-shifts` | admin, kasir | Buka shift kas (saldo awal) |
+| POST | `/api/cash-shifts/:id/close` | admin, kasir | Tutup shift; hitung kas seharusnya dari pembayaran tunai sejak dibuka |
+
+#### Laporan
+
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/api/reports/transactions?from=...&to=...` | admin, kasir | Transaksi yang **sudah dibayar** dalam rentang, detail add-on |
+
+#### Pengguna (query baru)
+
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/api/users?includeInactive=false\|true` | admin | Toggle sertakan pengguna nonaktif |
+
+#### Settings (update baru)
+
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| PATCH | `/api/settings` | admin | Ubah `defaultDailyRate` |
+
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
@@ -366,7 +458,7 @@ Contoh response:
 }
 ```
 
-Catatan: schema belum punya kolom `defaultDailyRate` di outlet. Nilai ini diturunkan dari `dailyRate` karyawan aktif yang paling sering muncul (mode), fallback `0`. Bila nanti Pengaturan butuh nilai default eksplisit, tambahkan kolom/migrasi.
+`defaultDailyRate` adalah kolom eksplisit di tabel `outlets` (migrasi `0002`).
 
 #### Pengguna
 
@@ -423,8 +515,13 @@ Aturan:
 | `services/addons.ts` | `listAddons`, `createAddon`, `updateAddon`, `deactivateAddon` | CRUD add-on, filter tipe kendaraan, duplikat, soft-delete |
 | `services/outlets.ts` | `listOutlets`, `getOutlet`, `updateOutlet` | Data outlet, konversi pajak numerik ke number |
 | `services/banks.ts` | `listBanks`, `createBank`, `updateBank` | Bank aktif per outlet |
-| `services/settings.ts` | `getSettings` | Gabungan outlet + bank + tarif harian default |
+| `services/settings.ts` | `getSettings`, `updateSettings` | Gabungan outlet + bank + tarif harian default |
 | `services/users.ts` | `listUsers`, `listUserSummaries`, `createUser`, `updateUser`, `resetPin`, `setUserActive` | Manajemen pengguna, proteksi admin terakhir, audit log |
+| `services/orders.ts` | `createOrder`, `listOrders`, `getOrder`, `getReceipt`, `updateOrderStatus`, `addOrderPayment`, `cancelOrder` | Order, antrean, invoice, pembayaran, pembatalan, struk publik |
+| `services/attendance.ts` | `listAttendance`, `saveAttendance`, `attendanceSummary` | Absensi harian dan ringkasan bulanan |
+| `services/payroll.ts` | `getPayroll`, `savePayroll` | Draft/final payroll, komponen gaji, kunci final |
+| `services/cash-shifts.ts` | `getCashShiftState`, `openCashShift`, `closeCashShift` | Buka/tutup shift kas, hitung kas seharusnya |
+| `services/reports.ts` | `listReportTransactions` | Transaksi yang sudah dibayar, detail add-on |
 
 Semua service menerima `db: AppDatabase` sebagai argumen pertama.
 
@@ -443,6 +540,12 @@ Sumber tunggal: `src/lib/schemas.ts`.
 | `userInputSchema` / `userUpdateSchema` / `userCreateSchema` | Pengguna |
 | `pinSchema` | PIN/reset PIN |
 | `roleSchema`, `vehicleTypeSchema`, `attendanceStatusSchema` | Enum domain |
+| `orderCreateSchema`, `orderStatusSchema`, `orderCancelSchema`, `orderPaymentInputSchema` | Order |
+| `attendanceSaveSchema`, `attendanceSummaryQuerySchema` | Absensi |
+| `payrollSaveSchema`, `payrollAdjustmentSchema` | Payroll |
+| `cashShiftOpenSchema`, `cashShiftCloseSchema` | Shift kas |
+| `settingsUpdateSchema` | Pengaturan |
+| `reportRangeSchema` | Laporan |
 
 Catatan penting: schema update **tidak** memakai `.partial()` pada schema input yang punya `.default()`. Di Zod, `.partial()` tetap menerapkan default, sehingga PATCH `{ "price": 50000 }` bisa mereset `description`, `sortOrder`, dan `active`. Karena itu setiap entitas punya schema update eksplisit.
 
@@ -464,8 +567,17 @@ Aksi yang sudah dicatat:
 - `user.reset_pin`
 - `user.activate`
 - `user.deactivate`
+- `order.create`
+- `order.status`
+- `order.payment`
+- `order.cancel`
+- `attendance.save`
+- `payroll.save`
+- `payroll.finalize`
+- `cash_shift.open`
+- `cash_shift.close`
 
-Belum dicatat: perubahan paket, add-on, outlet, dan bank. Sesuai rencana, cakupan audit penuh masuk F7. Ini juga tercantum di backlog.
+Audit mencakup perubahan paket, add-on, outlet, dan bank melalui service terkait.
 
 ---
 
@@ -519,6 +631,11 @@ Cakupan saat ini:
 | Bank | `src/lib/services/banks.test.ts` |
 | Settings | `src/lib/services/settings.test.ts` |
 | Pengguna (service + route) | `src/lib/services/users.test.ts`, `src/app/api/users/route.test.ts` |
+| Order (service) | `src/lib/services/orders.test.ts` |
+| Absensi (service) | `src/lib/services/attendance.test.ts` |
+| Payroll (service) | `src/lib/services/payroll.test.ts` |
+| Shift kas (service) | `src/lib/services/cash-shifts.test.ts` |
+| Laporan (service) | `src/lib/services/reports.test.ts` |
 | Auth & session | `src/lib/auth/config.test.ts`, `src/lib/auth/session.test.ts` |
 | Schema & seed | `src/lib/db/schema.test.ts`, `src/lib/db/seed.test.ts` |
 | HTTP & validasi | `src/lib/http.test.ts`, `src/lib/schemas.test.ts` |
@@ -589,18 +706,16 @@ Hal-hal berikut **belum** dikerjakan dan perlu diketahui tim:
 
 | # | Item | Rencana |
 |---|---|---|
-| 1 | Belum ada endpoint transaksi, pembayaran, antrean, absensi, gaji | F2–F5 |
-| 2 | Belum ada endpoint edit/nonaktif bank (`PATCH /api/banks/:id`) | F2/Pengaturan |
-| 3 | Audit baru mencakup pengguna, belum master data | F7 |
-| 4 | Cek “admin terakhir” memakai count lalu update, belum dalam transaksi | F7 (race condition) |
-| 5 | Endpoint update/reset user berdasarkan `id` belum memeriksa outlet pemilik | F2 bila multi-outlet |
-| 6 | `GET /api/outlets` mengembalikan semua outlet ke semua role | F2 bila multi-outlet |
-| 7 | Belum ada rate limiting login/PIN | F7 |
-| 8 | Belum ada observability/log terstruktur | F7 |
-| 9 | `defaultDailyRate` masih diturunkan dari data karyawan, bukan kolom eksplisit | F5/Pengaturan |
-| 10 | Harga seed dan PIN admin masih placeholder | Sebelum produksi |
-| 11 | UI dan PWA belum ada | Frontend Task 10–11 |
-| 12 | Belum ada endpoint khusus settings update; outlet diubah lewat `PATCH /api/outlets` | F2 |
+| 1 | Belum ada endpoint `PATCH /api/banks/:id` (soft-delete bank masih via service) | Backlog Pengaturan |
+| 2 | Audit mencakup transaksi dan master data | Sudah dilakukan |
+| 3 | Cek “admin terakhir” memakai count lalu update, belum dalam transaksi | F7 (race condition) |
+| 4 | Endpoint update/reset user berdasarkan `id` belum memeriksa outlet pemilik | F2 bila multi-outlet |
+| 5 | `GET /api/outlets` mengembalikan semua outlet ke semua role | F2 bila multi-outlet |
+| 6 | Belum ada rate limiting login/PIN | F7 |
+| 7 | Belum ada observability/log terstruktur | F7 |
+| 8 | Harga seed dan PIN admin masih placeholder | Sebelum produksi |
+| 9 | UI dan PWA sudah tersambung API; mode demo dihapus | Sudah dilakukan |
+| 10 | Belum ada endpoint khusus settings update (sudah ada `PATCH /api/settings`) | Sudah dilakukan |
 
 ---
 
@@ -666,10 +781,10 @@ Hal-hal berikut **belum** dikerjakan dan perlu diketahui tim:
 | Fase | Deliverable backend | Status |
 |---|---|---|
 | **F1 — Fondasi** | Schema + migrasi, auth, API master data, API pengguna, seed, test | Selesai |
-| **F2 — Kasir Inti** | API pelanggan/kendaraan, order + invoice + nomor antrean atomik, `price_snapshot`, pembayaran tunai/transfer, buka/tutup kas, pembatalan + audit, token struk digital, idempotensi `client_id` | Berikutnya |
-| **F3 — Papan Status** | Query board hari ini, filter tipe/status, update status dengan aturan transisi, data timer/estimasi, dukungan polling/real-time | Belum |
-| **F4 — Laporan** | Query agregasi harian/mingguan/bulanan, per paket/add-on/metode bayar/karyawan/kasir, export CSV, pembatasan role | Belum |
-| **F5 — Absensi & Gaji** | API absensi, rekap bulanan, payroll run, kalkulasi gaji, finalisasi + audit, data slip PDF | Belum |
+| **F2 — Kasir Inti** | API pelanggan/kendaraan, order + invoice + nomor antrean atomik, `price_snapshot`, pembayaran tunai/transfer, buka/tutup kas, pembatalan + audit, token struk digital, idempotensi `client_id` | Selesai |
+| **F3 — Papan Status** | Query board hari ini, filter tipe/status, update status dengan aturan transisi, data timer/estimasi, dukungan polling/real-time | Selesai |
+| **F4 — Laporan** | Query agregasi harian/mingguan/bulanan, per paket/add-on/metode bayar/karyawan/kasir, export CSV, pembatasan role | Selesai |
+| **F5 — Absensi & Gaji** | API absensi, rekap bulanan, payroll run, kalkulasi gaji, finalisasi + audit, data slip PDF | Selesai |
 | **F6 — Offline** | Sinkronisasi batch/idempotent, penanganan konflik, versi data, endpoint cache master data | Belum |
 | **F7 — Polish** | Audit penuh, rate limiting, observability, hardening keamanan, runbook backup/migrasi | Belum |
 
