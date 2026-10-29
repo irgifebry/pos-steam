@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X, Package } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { rupiah } from "@/lib/format";
-import { dummyPackages } from "@/lib/dummy-data";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
@@ -36,7 +35,7 @@ const emptyForm = {
 };
 
 export default function PaketPage() {
-  const [items, setItems] = useState<ServicePackage[]>(dummyPackages as ServicePackage[]);
+  const [items, setItems] = useState<ServicePackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<"all" | VehicleType>("all");
@@ -55,9 +54,9 @@ export default function PaketPage() {
       );
       setItems(res.data);
       setError("");
-    } catch {
-      setItems(dummyPackages as ServicePackage[]);
-      setError("Mode demo: data contoh ditampilkan (backend tidak tersedia)");
+    } catch (e) {
+      setItems([]);
+      setError(e instanceof Error ? e.message : "Gagal memuat paket");
     } finally {
       setLoading(false);
     }

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X, Puzzle } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
-import { dummyAddons } from "@/lib/dummy-data";
 import { rupiah } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -32,7 +31,7 @@ const emptyForm = {
 };
 
 export default function AddonPage() {
-  const [items, setItems] = useState<Addon[]>(dummyAddons as unknown as Addon[]);
+  const [items, setItems] = useState<Addon[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -47,9 +46,9 @@ export default function AddonPage() {
     try {
       const res = await apiFetch<{ data: Addon[] }>("/api/addons?includeInactive=true");
       setItems(res.data);
-    } catch {
-      setItems(dummyAddons as unknown as Addon[]);
-      setError("Mode demo: data contoh ditampilkan (backend tidak tersedia)");
+    } catch (e) {
+      setItems([]);
+      setError(e instanceof Error ? e.message : "Gagal memuat add-on");
     } finally {
       setLoading(false);
     }
