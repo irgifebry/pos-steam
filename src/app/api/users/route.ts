@@ -19,8 +19,9 @@ export async function GET(request: Request) {
     }
 
     const user = await requireUser(["admin"]);
+    const includeInactive = url.searchParams.get("includeInactive") !== "false";
     const data = await listUsers(getDatabase(), {
-      includeInactive: true,
+      includeInactive,
       outletId: user.outletId ?? undefined,
     });
     return Response.json({ data });

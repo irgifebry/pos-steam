@@ -5,11 +5,16 @@ import { bankInputSchema } from "@/lib/schemas";
 import { createBank, listBanks } from "@/lib/services/banks";
 import { initializeServer } from "@/lib/server-init";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await initializeServer();
     const user = await requireUser(["admin", "kasir", "operator"]);
-    const data = user.outletId ? await listBanks(getDatabase(), user.outletId) : [];
+    const includeInactive =
+      new URL(request.url).searchParams.get("includeInactive") === "true" &&
+      user.role === "admin";
+    const data = user.outletId
+      ? await listBanks(getDatabase(), user.outletId, { includeInactive })
+      : [];
     return Response.json({ data });
   } catch (error) {
     return jsonError(error);

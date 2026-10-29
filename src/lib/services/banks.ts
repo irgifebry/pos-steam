@@ -22,11 +22,20 @@ function toDomain(row: BankRow): Bank {
   return row;
 }
 
-export async function listBanks(db: AppDatabase, outletId: string): Promise<Bank[]> {
+export async function listBanks(
+  db: AppDatabase,
+  outletId: string,
+  opts: { includeInactive?: boolean } = {},
+): Promise<Bank[]> {
+  const filters = [
+    eq(banks.outletId, outletId),
+    opts.includeInactive ? undefined : eq(banks.active, true),
+  ].filter((filter) => filter !== undefined);
+
   const rows = await db
     .select()
     .from(banks)
-    .where(and(eq(banks.outletId, outletId), eq(banks.active, true)))
+    .where(and(...filters))
     .orderBy(asc(banks.name));
   return rows.map(toDomain);
 }
@@ -52,6 +61,7 @@ export async function updateBank(
   db: AppDatabase,
   id: string,
   input: BankUpdate,
+  outletId?: string,
 ): Promise<Bank> {
   const data = bankUpdateSchema.parse(input);
 
@@ -61,7 +71,15 @@ export async function updateBank(
   if (data.accountName !== undefined) values.accountName = data.accountName;
   if (data.active !== undefined) values.active = data.active;
 
-  const [existing] = await db.select().from(banks).where(eq(banks.id, id)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(banks)
+    .where(
+      outletId
+        ? and(eq(banks.id, id), eq(banks.outletId, outletId))
+        : eq(banks.id, id),
+    )
+    .limit(1);
   if (!existing) {
     throw new HttpError(404, "NOT_FOUND", "Bank tidak ditemukan");
   }

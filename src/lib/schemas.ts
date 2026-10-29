@@ -31,6 +31,7 @@ export const outletInputSchema = z.object({
   phone: z.string().trim().max(30).default(""),
   receiptFooter: z.string().trim().max(200).default(""),
   taxPercent: z.number().min(0).max(100).default(0),
+  defaultDailyRate: z.number().int().nonnegative().default(0),
 });
 
 export const bankInputSchema = z.object({
@@ -73,6 +74,7 @@ export const outletUpdateSchema = z.object({
   phone: z.string().trim().max(30).optional(),
   receiptFooter: z.string().trim().max(200).optional(),
   taxPercent: z.number().min(0).max(100).optional(),
+  defaultDailyRate: z.number().int().nonnegative().optional(),
 });
 
 export const bankUpdateSchema = z.object({
@@ -99,4 +101,93 @@ export const userCreateSchema = userInputSchema.extend({
 
 export const userActiveSchema = z.object({
   active: z.boolean(),
+});
+
+const isoDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal tidak valid");
+
+const periodSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}$/, "Format periode tidak valid");
+
+const clockSchema = z
+  .string()
+  .regex(/^\d{2}:\d{2}$/, "Format jam tidak valid");
+
+export const orderAddonSchema = z.object({
+  addonId: z.string().min(1, "Add-on tidak valid"),
+  qty: z.number().int().positive("Jumlah add-on minimal 1").max(99),
+});
+
+export const orderPaymentInputSchema = z.object({
+  method: z.enum(["tunai", "transfer"]),
+  cashReceived: z.number().int().nonnegative().optional(),
+  bankId: z.string().min(1).optional(),
+  referenceNo: z.string().trim().max(100).optional(),
+});
+
+export const orderCreateSchema = z.object({
+  clientId: z.string().uuid().optional(),
+  vehicleType: vehicleTypeSchema,
+  packageId: z.string().min(1, "Paket wajib dipilih"),
+  addons: z.array(orderAddonSchema).default([]),
+  customerName: z.string().trim().max(80).default(""),
+  customerPhone: z.string().trim().max(30).default(""),
+  plate: z.string().trim().max(20).default(""),
+  payment: orderPaymentInputSchema.optional(),
+});
+
+export const orderStatusSchema = z.object({
+  status: z.enum(["proses", "selesai"]),
+});
+
+export const orderCancelSchema = z.object({
+  reason: z.string().trim().min(3, "Alasan pembatalan wajib diisi").max(300),
+});
+
+export const attendanceRecordSchema = z.object({
+  status: attendanceStatusSchema,
+  checkIn: clockSchema.optional(),
+  checkOut: clockSchema.optional(),
+  note: z.string().trim().max(200).optional(),
+});
+
+export const attendanceSaveSchema = z.object({
+  date: isoDateSchema,
+  records: z.record(z.string(), attendanceRecordSchema),
+});
+
+export const attendanceSummaryQuerySchema = z.object({
+  period: periodSchema,
+});
+
+export const payrollAdjustmentSchema = z.object({
+  tunjangan: z.number().int().nonnegative().default(0),
+  lembur: z.number().int().nonnegative().default(0),
+  potongan: z.number().int().nonnegative().default(0),
+});
+
+export const payrollSaveSchema = z.object({
+  period: periodSchema,
+  adjustments: z.record(z.string(), payrollAdjustmentSchema).default({}),
+  finalize: z.boolean().default(false),
+});
+
+export const cashShiftOpenSchema = z.object({
+  openingCash: z.number().int().nonnegative("Saldo awal tidak boleh negatif"),
+  note: z.string().trim().max(200).default(""),
+});
+
+export const cashShiftCloseSchema = z.object({
+  closingCash: z.number().int().nonnegative("Kas akhir tidak boleh negatif"),
+});
+
+export const settingsUpdateSchema = z.object({
+  defaultDailyRate: z.number().int().nonnegative("Gaji harian tidak boleh negatif"),
+});
+
+export const reportRangeSchema = z.object({
+  from: isoDateSchema,
+  to: isoDateSchema,
 });
