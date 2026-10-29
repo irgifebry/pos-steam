@@ -41,12 +41,32 @@ type AttendanceRecord = {
 
 type AttendanceMap = Record<string, AttendanceRecord>;
 
-const DEMO_EMPLOYEES: Employee[] = [
-  { id: "demo-1", name: "Budi Santoso", email: "budi@contoh.id", role: "operator", phone: "081234567890", dailyRate: 75000, active: true },
-  { id: "demo-2", name: "Sari Wulandari", email: "sari@contoh.id", role: "kasir", phone: "081298765432", dailyRate: 80000, active: true },
-  { id: "demo-3", name: "Andi Pratama", email: "andi@contoh.id", role: "operator", phone: "082112223333", dailyRate: 70000, active: true },
-  { id: "demo-4", name: "Dewi Lestari", email: "dewi@contoh.id", role: "operator", phone: "085677788899", dailyRate: 75000, active: false },
-];
+type PayrollItem = {
+  userId: string;
+  name: string;
+  role: string;
+  dailyRate: number;
+  daysPresent: number;
+  hadir: number;
+  izin: number;
+  sakit: number;
+  alpha: number;
+  cuti: number;
+  totalHours: number;
+  allowance: number;
+  overtimePay: number;
+  deductions: number;
+  gross: number;
+  net: number;
+};
+
+type PayrollResponse = {
+  period: string;
+  status: "draft" | "final";
+  finalizedAt: string | null;
+  items: PayrollItem[];
+  totals: { gross: number; net: number };
+};
 
 const STATUS_OPTIONS: { value: AttendanceStatus; label: string; color: string }[] = [
   { value: "hadir", label: "Hadir", color: "bg-success-soft text-success border-success" },
@@ -71,27 +91,6 @@ function currentMonthISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function hoursBetween(checkIn?: string, checkOut?: string): number {
-  if (!checkIn || !checkOut) return 0;
-  const [h1, m1] = checkIn.split(":").map(Number);
-  const [h2, m2] = checkOut.split(":").map(Number);
-  if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return 0;
-  const start = h1 * 60 + m1;
-  let end = h2 * 60 + m2;
-  if (end <= start) end += 24 * 60;
-  return (end - start) / 60;
-}
-
-function daysInMonth(month: string): string[] {
-  const [y, m] = month.split("-").map(Number);
-  const last = new Date(y, m, 0).getDate();
-  const out: string[] = [];
-  for (let i = 1; i <= last; i++) {
-    out.push(`${month}-${String(i).padStart(2, "0")}`);
-  }
-  return out;
-}
-
 export default function KaryawanPage() {
   const { role: currentRole } = useAppSession();
   const isAdmin = currentRole === "admin";
@@ -100,7 +99,6 @@ export default function KaryawanPage() {
 
   // Daftar state
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [employeeDataIsDemo, setEmployeeDataIsDemo] = useState(false);
   const [loadingEmps, setLoadingEmps] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [empError, setEmpError] = useState("");
@@ -137,7 +135,11 @@ export default function KaryawanPage() {
   // Rekap state
   const [rekapMonth, setRekapMonth] = useState(currentMonthISO());
   const [adjustments, setAdjustments] = useState<Record<string, { tunjangan: number; lembur: number; potongan: number }>>({});
-  const [finalized, setFinalized] = useState(false);
+  const [payroll, setPayroll] = useState<PayrollResponse | null>(null);
+  const [payrollLoading, setPayrollLoading] = useState(false);
+  const [payrollError, setPayrollError] = useState("");
+  const [payrollMsg, setPayrollMsg] = useState("");
+  const finalized = payroll?.status === "final";
 
   async function loadEmployees() {
     setLoadingEmps(true);
@@ -155,8 +157,7 @@ export default function KaryawanPage() {
           dailyRate: u.dailyRate,
           active: u.active,
         }));
-        setEmployeeDataIsDemo(mapped.length === 0);
-        setEmployees(mapped.length ? mapped : DEMO_EMPLOYEES);
+        setEmployees(mapped);
       } else {
         const res = await apiFetch<{ data: { id: string; name: string; role: string }[] }>("/api/users?light=1");
         const mapped = (res.data || []).map((u) => ({
@@ -166,15 +167,13 @@ export default function KaryawanPage() {
           dailyRate: 0,
           active: true,
         }));
-        setEmployeeDataIsDemo(mapped.length === 0);
-        setEmployees(mapped.length ? mapped : DEMO_EMPLOYEES);
+        setEmployees(mapped);
       }
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) {
         setForbidden(true);
       }
-      setEmployeeDataIsDemo(true);
-      setEmployees(DEMO_EMPLOYEES);
+      setEmployees([]);
       if (!(e instanceof ApiError && e.status === 403)) {
         setEmpError(e instanceof Error ? e.message : "Gagal memuat data");
       }
@@ -183,35 +182,66 @@ export default function KaryawanPage() {
     }
   }
 
+  async function loadAttendance(date: string) {
+    setAttSavedMsg("");
+    try {
+      const res = await apiFetch<{ data: { userId: string; status: AttendanceStatus; checkIn: string | null; checkOut: string | null }[] }>(
+        `/api/attendance?date=${encodeURIComponent(date)}`,
+      );
+      const map: AttendanceMap = {};
+      for (const row of res.data) {
+        map[row.userId] = {
+          status: row.status,
+          checkIn: row.checkIn ?? undefined,
+          checkOut: row.checkOut ?? undefined,
+        };
+      }
+      setAttendance(map);
+    } catch (e) {
+      setAttendance({});
+      setAttSavedMsg(e instanceof Error ? e.message : "Gagal memuat absensi");
+    }
+  }
+
+  async function loadPayroll(month: string) {
+    setPayrollLoading(true);
+    setPayrollError("");
+    try {
+      const res = await apiFetch<{ data: PayrollResponse }>(
+        `/api/payroll?period=${encodeURIComponent(month)}`,
+      );
+      setPayroll(res.data);
+      setAdjustments(
+        Object.fromEntries(
+          res.data.items.map((item) => [
+            item.userId,
+            {
+              tunjangan: item.allowance,
+              lembur: item.overtimePay,
+              potongan: item.deductions,
+            },
+          ]),
+        ),
+      );
+    } catch (e) {
+      setPayroll(null);
+      setPayrollError(e instanceof Error ? e.message : "Gagal memuat payroll");
+    } finally {
+      setPayrollLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadEmployees();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
 
-  // Load attendance from localStorage on date change
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(`absensi:${attDate}`);
-      setAttendance(raw ? JSON.parse(raw) : {});
-    } catch {
-      setAttendance({});
-    }
-    setAttSavedMsg("");
+    void loadAttendance(attDate);
   }, [attDate]);
 
-  // Load adjustments + finalized on month change
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(`payroll-adj:${rekapMonth}`);
-      setAdjustments(raw ? JSON.parse(raw) : {});
-    } catch {
-      setAdjustments({});
-    }
-    try {
-      setFinalized(localStorage.getItem(`payroll-finalized:${rekapMonth}`) === "1");
-    } catch {
-      setFinalized(false);
-    }
+    void loadPayroll(rekapMonth);
   }, [rekapMonth]);
 
   const activeEmployees = useMemo(() => employees.filter((e) => e.active), [employees]);
@@ -231,22 +261,21 @@ export default function KaryawanPage() {
   }
 
   async function saveAttendance() {
+    setAttSavedMsg("");
     try {
-      localStorage.setItem(`absensi:${attDate}`, JSON.stringify(attendance));
-    } catch {
-      // ignore
-    }
-    // attempt POST (demo endpoint may not exist)
-    try {
-      await apiFetch("/api/absensi", {
+      await apiFetch("/api/attendance", {
         method: "POST",
         body: JSON.stringify({ date: attDate, records: attendance }),
       });
-    } catch {
-      // demo: ignore
+      await loadAttendance(attDate);
+      if (rekapMonth === attDate.slice(0, 7)) {
+        await loadPayroll(rekapMonth);
+      }
+      setAttSavedMsg("Absensi tersimpan.");
+      setTimeout(() => setAttSavedMsg(""), 2500);
+    } catch (e) {
+      setAttSavedMsg(e instanceof Error ? e.message : "Gagal menyimpan absensi");
     }
-    setAttSavedMsg("Tersimpan di HP (demo).");
-    setTimeout(() => setAttSavedMsg(""), 2500);
   }
 
   async function handleAdd() {
@@ -384,81 +413,81 @@ export default function KaryawanPage() {
   }
 
   function adjust(empId: string, field: "tunjangan" | "lembur" | "potongan", value: number) {
-    setAdjustments((prev) => {
-      const next = {
-        ...prev,
-        [empId]: {
-          tunjangan: prev[empId]?.tunjangan ?? 0,
-          lembur: prev[empId]?.lembur ?? 0,
-          potongan: prev[empId]?.potongan ?? 0,
-          [field]: value,
-        },
-      };
-      try {
-        localStorage.setItem(`payroll-adj:${rekapMonth}`, JSON.stringify(next));
-      } catch {
-        // ignore
-      }
-      return next;
-    });
+    setAdjustments((prev) => ({
+      ...prev,
+      [empId]: {
+        tunjangan: prev[empId]?.tunjangan ?? 0,
+        lembur: prev[empId]?.lembur ?? 0,
+        potongan: prev[empId]?.potongan ?? 0,
+        [field]: value,
+      },
+    }));
+  }
+
+  async function persistPayroll(finalize: boolean) {
+    if (!isAdmin) return;
+    setPayrollLoading(true);
+    setPayrollMsg("");
+    setPayrollError("");
+    try {
+      const res = await apiFetch<{ data: PayrollResponse }>("/api/payroll", {
+        method: "POST",
+        body: JSON.stringify({
+          period: rekapMonth,
+          adjustments,
+          finalize,
+        }),
+      });
+      setPayroll(res.data);
+      setPayrollMsg(finalize ? "Payroll berhasil difinalisasi." : "Draft payroll tersimpan.");
+      setTimeout(() => setPayrollMsg(""), 2500);
+    } catch (e) {
+      setPayrollError(e instanceof Error ? e.message : "Gagal menyimpan payroll");
+    } finally {
+      setPayrollLoading(false);
+    }
   }
 
   function finalizePayroll() {
-    if (!isAdmin) return;
-    try {
-      localStorage.setItem(`payroll-finalized:${rekapMonth}`, "1");
-    } catch {
-      // ignore
+    if (!isAdmin || finalized) return;
+    if (!window.confirm("Finalisasi payroll bulan ini? Perubahan absensi setelah final tidak akan mengubah nominal.")) {
+      return;
     }
-    setFinalized(true);
+    void persistPayroll(true);
   }
 
   // Rekap data
   const rekapData = useMemo(() => {
-    const monthDays = daysInMonth(rekapMonth);
-    return activeEmployees.map((emp) => {
-      let hadir = 0,
-        izin = 0,
-        sakit = 0,
-        alpha = 0,
-        cuti = 0,
-        totalJam = 0,
-        hariTercatat = 0;
-      for (const d of monthDays) {
-        try {
-          const raw = localStorage.getItem(`absensi:${d}`);
-          if (!raw) continue;
-          const map: AttendanceMap = JSON.parse(raw);
-          const rec = map[emp.id];
-          if (!rec) continue;
-          hariTercatat++;
-          switch (rec.status) {
-            case "hadir":
-              hadir++;
-              break;
-            case "izin":
-              izin++;
-              break;
-            case "sakit":
-              sakit++;
-              break;
-            case "alpha":
-              alpha++;
-              break;
-            case "cuti":
-              cuti++;
-              break;
-          }
-          totalJam += hoursBetween(rec.checkIn, rec.checkOut);
-        } catch {
-          // ignore
-        }
-      }
-      const adj = adjustments[emp.id] || { tunjangan: 0, lembur: 0, potongan: 0 };
-      const gaji = hadir * emp.dailyRate + adj.tunjangan + adj.lembur - adj.potongan;
-      return { emp, hadir, izin, sakit, alpha, cuti, totalJam, hariTercatat, gaji, adj };
+    return (payroll?.items ?? []).map((item) => {
+      const adj = adjustments[item.userId] || {
+        tunjangan: item.allowance,
+        lembur: item.overtimePay,
+        potongan: item.deductions,
+      };
+      const gaji =
+        item.daysPresent * item.dailyRate + adj.tunjangan + adj.lembur - adj.potongan;
+      return {
+        emp: {
+          id: item.userId,
+          name: item.name,
+          email: "",
+          role: item.role,
+          phone: "",
+          dailyRate: item.dailyRate,
+          active: true,
+        } as Employee,
+        hadir: item.hadir,
+        izin: item.izin,
+        sakit: item.sakit,
+        alpha: item.alpha,
+        cuti: item.cuti,
+        totalJam: item.totalHours,
+        hariTercatat: item.daysPresent,
+        gaji,
+        adj,
+      };
     });
-  }, [activeEmployees, rekapMonth, adjustments]);
+  }, [payroll, adjustments]);
 
   const rekapSummary = useMemo(() => rekapData.reduce(
     (summary, row) => ({
@@ -715,14 +744,16 @@ export default function KaryawanPage() {
               </Field>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Badge tone={finalized ? "success" : "muted"}>{finalized ? "Ditandai final di perangkat ini" : "Perkiraan · belum final"}</Badge>
-              {employeeDataIsDemo && <Badge tone="muted">Data karyawan demo</Badge>}
+              <Badge tone={finalized ? "success" : "muted"}>{finalized ? "Payroll final" : "Draft · belum final"}</Badge>
+              {payrollLoading && <span className="text-xs text-muted">Memuat...</span>}
             </div>
+            {payrollError && <p className="mt-2 text-sm text-danger">{payrollError}</p>}
+            {payrollMsg && <p className="mt-2 text-sm text-success">{payrollMsg}</p>}
           </Card>
 
           <Card>
             <h2 className="text-base font-bold text-ink">Ringkasan bulanan</h2>
-            <p className="mt-1 text-sm text-muted">{rekapSummary.tercatat} catatan absensi tersimpan di perangkat ini · {rekapSummary.hadir} hari hadir</p>
+            <p className="mt-1 text-sm text-muted">{rekapSummary.tercatat} hari hadir tercatat di server · {rekapSummary.hadir} hari hadir</p>
             <div className="mt-3 grid grid-cols-3 sm:grid-cols-5 gap-2 text-center">
               {[...[['Hadir', rekapSummary.hadir], ['Izin', rekapSummary.izin], ['Sakit', rekapSummary.sakit], ['Alpha', rekapSummary.alpha], ['Cuti', rekapSummary.cuti]]].map(([label, count]) => (
                 <div key={label} className="rounded-[var(--radius-sm)] bg-stone-100 p-2">
@@ -733,12 +764,12 @@ export default function KaryawanPage() {
             </div>
             <div className="mt-4 flex items-end justify-between gap-3">
               <div>
-                <p className="text-sm text-muted">Perkiraan total gaji</p>
+                <p className="text-sm text-muted">Total gaji</p>
                 <p className="text-2xl font-bold tabular-nums text-ink">{rupiah(rekapSummary.estimasiGaji)}</p>
               </div>
-              <p className="max-w-48 text-right text-xs text-muted">{rekapSummary.totalJam.toFixed(1)} jam tercatat · hitungan lokal dari hari hadir, gaji harian, dan penyesuaian.</p>
+              <p className="max-w-48 text-right text-xs text-muted">{rekapSummary.totalJam.toFixed(1)} jam tercatat · dihitung dari absensi server, gaji harian, dan penyesuaian.</p>
             </div>
-            <p className="mt-3 text-xs text-muted">Bukan data payroll tersimpan atau bukti pembayaran. Absensi yang belum dicatat tidak dihitung.</p>
+            <p className="mt-3 text-xs text-muted">Angka mengikuti absensi yang tersimpan. Finalisasi mengunci payroll periode ini.</p>
           </Card>
 
           {rekapData.map(({ emp, hadir, izin, sakit, alpha, cuti, totalJam, hariTercatat, gaji, adj }) => (
@@ -750,11 +781,11 @@ export default function KaryawanPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-bold text-ink truncate">{emp.name}</p>
-                    <p className="text-xs text-muted">{employeeDataIsDemo ? "Demo · " : ""}{rupiah(emp.dailyRate)}/hari</p>
+                    <p className="text-xs text-muted">{rupiah(emp.dailyRate)}/hari</p>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-xs text-muted">Perkiraan gaji</p>
+                  <p className="text-xs text-muted">Gaji</p>
                   <p className="font-extrabold text-brand">{rupiah(gaji)}</p>
                 </div>
               </div>
@@ -785,7 +816,7 @@ export default function KaryawanPage() {
               <div className="flex items-center gap-2 text-sm text-muted">
                 <Clock className="h-4 w-4" /> Total jam: <span className="font-semibold text-ink">{totalJam.toFixed(1)} jam</span>
               </div>
-              <p className="text-xs text-muted">{hariTercatat} tanggal tercatat di perangkat ini.</p>
+              <p className="text-xs text-muted">{hariTercatat} tanggal hadir tercatat.</p>
 
               <div className="grid grid-cols-3 gap-2">
                 <Field label="Tunjangan">
@@ -794,7 +825,8 @@ export default function KaryawanPage() {
                     inputMode="numeric"
                     value={adj.tunjangan}
                     onChange={(e) => adjust(emp.id, "tunjangan", Number(e.target.value) || 0)}
-                    disabled={finalized && !isAdmin}
+                    onBlur={() => void persistPayroll(false)}
+                    disabled={!isAdmin || finalized}
                   />
                 </Field>
                 <Field label="Lembur">
@@ -803,7 +835,8 @@ export default function KaryawanPage() {
                     inputMode="numeric"
                     value={adj.lembur}
                     onChange={(e) => adjust(emp.id, "lembur", Number(e.target.value) || 0)}
-                    disabled={finalized && !isAdmin}
+                    onBlur={() => void persistPayroll(false)}
+                    disabled={!isAdmin || finalized}
                   />
                 </Field>
                 <Field label="Potongan">
@@ -812,19 +845,20 @@ export default function KaryawanPage() {
                     inputMode="numeric"
                     value={adj.potongan}
                     onChange={(e) => adjust(emp.id, "potongan", Number(e.target.value) || 0)}
-                    disabled={finalized && !isAdmin}
+                    onBlur={() => void persistPayroll(false)}
+                    disabled={!isAdmin || finalized}
                   />
                 </Field>
               </div>
               <details className="rounded-[var(--radius-sm)] border border-line p-3">
-                <summary className="cursor-pointer text-sm font-semibold text-ink">Lihat slip gaji · perkiraan lokal</summary>
+                <summary className="cursor-pointer text-sm font-semibold text-ink">Lihat slip gaji</summary>
                 <div className="mt-3 flex flex-col gap-2 text-sm">
                   <div className="flex justify-between gap-3"><span className="text-muted">Gaji pokok ({hadir} hari × {rupiah(emp.dailyRate)})</span><span className="font-medium text-ink">{rupiah(hadir * emp.dailyRate)}</span></div>
                   <div className="flex justify-between gap-3"><span className="text-muted">Tunjangan</span><span className="font-medium text-ink">{rupiah(adj.tunjangan)}</span></div>
                   <div className="flex justify-between gap-3"><span className="text-muted">Lembur</span><span className="font-medium text-ink">{rupiah(adj.lembur)}</span></div>
                   <div className="flex justify-between gap-3"><span className="text-muted">Potongan</span><span className="font-medium text-ink">−{rupiah(adj.potongan)}</span></div>
-                  <div className="flex justify-between gap-3 border-t border-line pt-2 font-bold"><span>Total perkiraan</span><span>{rupiah(gaji)}</span></div>
-                  <p className="text-xs text-muted">Bukan slip payroll resmi atau bukti pembayaran. Penyesuaian dan finalisasi hanya tersimpan di perangkat ini.</p>
+                  <div className="flex justify-between gap-3 border-t border-line pt-2 font-bold"><span>Total</span><span>{rupiah(gaji)}</span></div>
+                  <p className="text-xs text-muted">{finalized ? "Payroll final; nominal terkunci." : "Draft payroll. Penyesuaian tersimpan ke server saat kolom ditinggalkan atau saat finalisasi."}</p>
                 </div>
               </details>
             </Card>
@@ -835,8 +869,8 @@ export default function KaryawanPage() {
           )}
 
           {isAdmin && (
-            <Button onClick={finalizePayroll} disabled={finalized} fullWidth size="lg" variant={finalized ? "secondary" : "primary"}>
-              <Check className="h-5 w-5" /> {finalized ? "Sudah Difinalisasi" : "Finalisasi Gaji Bulan Ini"}
+            <Button onClick={finalizePayroll} disabled={finalized || payrollLoading} fullWidth size="lg" variant={finalized ? "secondary" : "primary"}>
+              <Check className="h-5 w-5" /> {finalized ? "Sudah Difinalisasi" : payrollLoading ? "Menyimpan..." : "Finalisasi Gaji Bulan Ini"}
             </Button>
           )}
         </div>

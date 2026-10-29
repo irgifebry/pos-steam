@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/cn";
+import { apiFetch } from "@/lib/api-client";
 import { formatWaktu, rupiah } from "@/lib/format";
 
 type VehicleType = "motor" | "mobil";
@@ -27,9 +28,24 @@ type Order = {
   vehicleType: VehicleType;
   packageName: string;
   packagePrice: number;
+  total: number;
   customerName: string;
   status: Status;
   entryTime: Date;
+  estimatedMin: number;
+};
+
+type ApiOrder = {
+  id: string;
+  queueNo: string;
+  plate: string;
+  vehicleType: VehicleType;
+  packageName: string;
+  packagePrice: number;
+  grandTotal: number;
+  customerName: string;
+  status: Status;
+  createdAt: string;
   estimatedMin: number;
 };
 
@@ -76,116 +92,47 @@ function formatElapsed(ms: number): string {
   return `${m} menit ${s.toString().padStart(2, "0")} detik`;
 }
 
-function makeDemoOrders(): Order[] {
-  const now = Date.now();
-  const min = (n: number) => n * 60 * 1000;
-  const rows: (Omit<Order, "entryTime"> & { agoMin: number })[] = [
-    {
-      id: "1",
-      queueNo: "M-001",
-      plate: "B 1234 ABC",
-      vehicleType: "motor",
-      packageName: "Cuci + Semir",
-      packagePrice: 35000,
-      customerName: "Pak Budi",
-      status: "proses",
-      estimatedMin: 15,
-      agoMin: 8,
-    },
-    {
-      id: "2",
-      queueNo: "C-001",
-      plate: "D 5678 EFG",
-      vehicleType: "mobil",
-      packageName: "Cuci Premium",
-      packagePrice: 75000,
-      customerName: "Bu Sari",
-      status: "menunggu",
-      estimatedMin: 30,
-      agoMin: 3,
-    },
-    {
-      id: "3",
-      queueNo: "M-002",
-      plate: "F 9012 HIJ",
-      vehicleType: "motor",
-      packageName: "Cuci Reguler",
-      packagePrice: 25000,
-      customerName: "Mas Andi",
-      status: "menunggu",
-      estimatedMin: 12,
-      agoMin: 1,
-    },
-    {
-      id: "4",
-      queueNo: "C-002",
-      plate: "B 3456 KLM",
-      vehicleType: "mobil",
-      packageName: "Cuci + Wax",
-      packagePrice: 90000,
-      customerName: "Ibu Ratna",
-      status: "selesai",
-      estimatedMin: 35,
-      agoMin: 42,
-    },
-    {
-      id: "5",
-      queueNo: "M-003",
-      plate: "E 7890 NOP",
-      vehicleType: "motor",
-      packageName: "Cuci Reguler",
-      packagePrice: 25000,
-      customerName: "Kak Rizky",
-      status: "selesai",
-      estimatedMin: 12,
-      agoMin: 55,
-    },
-    {
-      id: "6",
-      queueNo: "C-003",
-      plate: "A 2468 QRS",
-      vehicleType: "mobil",
-      packageName: "Cuci Premium",
-      packagePrice: 75000,
-      customerName: "Pak Hendra",
-      status: "proses",
-      estimatedMin: 30,
-      agoMin: 18,
-    },
-    {
-      id: "7",
-      queueNo: "M-004",
-      plate: "H 1357 TUV",
-      vehicleType: "motor",
-      packageName: "Cuci + Semir",
-      packagePrice: 35000,
-      customerName: "Bu Lina",
-      status: "menunggu",
-      estimatedMin: 15,
-      agoMin: 0.5,
-    },
-  ];
-
-  return rows.map((r) => {
-    const { agoMin, ...rest } = r;
-    return { ...rest, entryTime: new Date(now - min(agoMin)) };
-  });
-}
-
 export default function AntreanPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState<Filter>("semua");
   const [now, setNow] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function load() {
+    try {
+      const res = await apiFetch<{ data: ApiOrder[] }>("/api/orders?includePaid=false");
+      setOrders(
+        res.data.map((order) => ({
+          id: order.id,
+          queueNo: order.queueNo,
+          plate: order.plate,
+          vehicleType: order.vehicleType,
+          packageName: order.packageName,
+          packagePrice: order.packagePrice,
+          total: order.grandTotal,
+          customerName: order.customerName,
+          status: order.status,
+          entryTime: new Date(order.createdAt),
+          estimatedMin: order.estimatedMin,
+        })),
+      );
+      setError("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal memuat antrean");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    const init = setTimeout(() => {
-      setOrders(makeDemoOrders());
-      setNow(Date.now());
-    }, 0);
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    void load();
+    const poll = window.setInterval(() => void load(), 5_000);
+    const tick = window.setInterval(() => setNow(Date.now()), 1_000);
     return () => {
-      clearTimeout(init);
-      clearInterval(t);
+      window.clearInterval(poll);
+      window.clearInterval(tick);
     };
   }, []);
 
@@ -204,17 +151,34 @@ export default function AntreanPage() {
       .sort((a, b) => a.entryTime.getTime() - b.entryTime.getTime());
   }, [orders, filter]);
 
-  function updateStatus(id: string, next: Status) {
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: next } : o)));
+  async function updateStatus(id: string, next: "proses" | "selesai") {
+    setBusyId(id);
+    try {
+      await apiFetch(`/api/orders/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: next }),
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal memperbarui status");
+    } finally {
+      setBusyId(null);
+    }
   }
 
-  function handleBayar(id: string) {
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: "paid" } : o)));
-  }
-
-  function resetDemo() {
-    setOrders(makeDemoOrders());
-    setNow(Date.now());
+  async function handleBayar(order: Order) {
+    setBusyId(order.id);
+    try {
+      await apiFetch(`/api/orders/${order.id}/payments`, {
+        method: "POST",
+        body: JSON.stringify({ method: "tunai", cashReceived: order.total }),
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mencatat pembayaran");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   return (
@@ -224,15 +188,11 @@ export default function AntreanPage() {
         <p className="text-sm text-muted">Pantau cuci yang sedang berjalan hari ini</p>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-medium text-amber-900">
-          Mode demo: data antrean dan semua tindakan hanya tersimpan sementara di halaman ini, tidak
-          dikirim ke server.
-        </p>
-        <Button variant="accent" size="md" onClick={resetDemo}>
-          Reset demo
-        </Button>
-      </div>
+      {error && (
+        <div className="rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+          {error}
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-x-5 gap-y-3 rounded-2xl bg-surface px-4 py-3 border border-line">
@@ -281,7 +241,9 @@ export default function AntreanPage() {
       </div>
 
       {/* List */}
-      {visible.length === 0 ? (
+      {loading ? (
+        <Card className="py-10 text-center text-sm text-muted">Memuat antrean...</Card>
+      ) : visible.length === 0 ? (
         <Card className="flex flex-col items-center text-center gap-3 py-10">
           <div className="h-16 w-16 rounded-full bg-brand-soft text-brand flex items-center justify-center">
             <CheckCircle2 className="h-8 w-8" />
@@ -300,9 +262,10 @@ export default function AntreanPage() {
               key={order.id}
               order={order}
               now={now}
+              busy={busyId === order.id}
               onMulai={() => updateStatus(order.id, "proses")}
               onSelesai={() => updateStatus(order.id, "selesai")}
-              onBayar={() => handleBayar(order.id)}
+              onBayar={() => handleBayar(order)}
             />
           ))}
         </div>
@@ -345,12 +308,14 @@ function SummaryCard({
 function QueueCard({
   order,
   now,
+  busy,
   onMulai,
   onSelesai,
   onBayar,
 }: {
   order: Order;
   now: number;
+  busy: boolean;
   onMulai: () => void;
   onSelesai: () => void;
   onBayar: () => void;
@@ -426,18 +391,18 @@ function QueueCard({
       {/* Quick actions */}
       <div className="flex gap-2">
         {order.status === "menunggu" && (
-          <Button variant="primary" size="md" fullWidth onClick={onMulai}>
-            <Play className="h-4 w-4" /> Mulai
+          <Button variant="primary" size="md" fullWidth onClick={onMulai} disabled={busy}>
+            <Play className="h-4 w-4" /> {busy ? "Memproses..." : "Mulai"}
           </Button>
         )}
         {order.status === "proses" && (
-          <Button variant="accent" size="md" fullWidth onClick={onSelesai}>
-            <CheckCircle2 className="h-4 w-4" /> Selesai
+          <Button variant="accent" size="md" fullWidth onClick={onSelesai} disabled={busy}>
+            <CheckCircle2 className="h-4 w-4" /> {busy ? "Menyimpan..." : "Selesai"}
           </Button>
         )}
         {order.status === "selesai" && (
-          <Button variant="primary" size="md" fullWidth onClick={onBayar}>
-            <Wallet className="h-4 w-4" /> Bayar
+          <Button variant="primary" size="md" fullWidth onClick={onBayar} disabled={busy}>
+            <Wallet className="h-4 w-4" /> {busy ? "Menyimpan..." : "Bayar"}
           </Button>
         )}
       </div>
