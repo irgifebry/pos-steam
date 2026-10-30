@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Pencil, Trash2, X, Landmark } from "lucide-react";
 import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/api-client";
@@ -35,10 +35,20 @@ export default function BankPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
   const showToast = useCallback((msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(msg);
-    setTimeout(() => setToast(null), 2500);
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, []);
+
+  const { role, isLoading } = useAppSession();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,10 +64,14 @@ export default function BankPage() {
   }, [showToast]);
 
   useEffect(() => {
+    if (isLoading || role !== "admin") return;
     load();
-  }, [load]);
+  }, [isLoading, role, load]);
 
-  const { role, isLoading } = useAppSession();
+  useEffect(() => {
+    if (modalOpen) modalRef.current?.focus();
+  }, [modalOpen]);
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-10">
@@ -94,6 +108,7 @@ export default function BankPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setFormError("");
     if (!form.name.trim()) {
       setFormError("Nama bank wajib diisi");
@@ -207,10 +222,22 @@ export default function BankPage() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-float)] max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bank-modal-title"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setModalOpen(false);
+          }}
+        >
+          <div
+            ref={modalRef}
+            tabIndex={-1}
+            className="w-full max-w-lg bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-float)] max-h-[90vh] overflow-y-auto outline-none"
+          >
             <div className="flex items-center justify-between px-5 py-4 border-b border-line">
-              <h2 className="text-xl font-bold text-ink">
+              <h2 id="bank-modal-title" className="text-xl font-bold text-ink">
                 {editing ? "Edit Bank" : "Tambah Bank"}
               </h2>
               <button

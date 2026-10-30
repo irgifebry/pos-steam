@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Banknote, Clock3, Wallet } from "lucide-react";
 import { useAppSession } from "@/components/SessionProvider";
 import { Button } from "@/components/ui/Button";
@@ -45,19 +45,27 @@ export default function GajiKasPage() {
   const [openingAmount, setOpeningAmount] = useState("");
   const [closingAmount, setClosingAmount] = useState("");
   const [note, setNote] = useState("");
-  const [cash, setCash] = useState<CashState>({ open: null, history: [] });
+  const [cash, setCash] = useState<CashState | null>(null);
   const [cashLoading, setCashLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
-
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showToast = useCallback((msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(msg);
-    setTimeout(() => setToast(null), 2500);
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, []);
+
+  const { role, isLoading } = useAppSession();
 
   const loadSettings = useCallback(async () => {
     try {
-      const res = await apiFetch<{ data: { defaultDailyRate: number } }>("/api/settings");
-      setDailyRate(String(res.data.defaultDailyRate || ""));
+      const res = await apiFetch<{ data: { defaultDailyRate: number } | null }>("/api/settings");
+      setDailyRate(String(res.data?.defaultDailyRate ?? ""));
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Gagal memuat pengaturan gaji");
     } finally {
@@ -67,8 +75,8 @@ export default function GajiKasPage() {
 
   const loadCash = useCallback(async () => {
     try {
-      const res = await apiFetch<{ data: CashState }>("/api/cash-shifts");
-      setCash(res.data);
+      const res = await apiFetch<{ data: CashState | null }>("/api/cash-shifts");
+      setCash(res.data ?? null);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Gagal memuat data kas");
     } finally {
@@ -77,11 +85,11 @@ export default function GajiKasPage() {
   }, [showToast]);
 
   useEffect(() => {
+    if (isLoading || role !== "admin") return;
     void loadSettings();
     void loadCash();
-  }, [loadSettings, loadCash]);
+  }, [isLoading, role, loadSettings, loadCash]);
 
-  const { role, isLoading } = useAppSession();
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-10">
@@ -138,7 +146,7 @@ export default function GajiKasPage() {
 
   async function closeCash(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!cash.open) return;
+    if (!cash?.open) return;
     const amount = Number(closingAmount);
     if (!Number.isSafeInteger(amount) || amount < 0) {
       showToast("Masukkan jumlah kas akhir berupa angka bulat, minimal Rp0.");
@@ -170,7 +178,7 @@ export default function GajiKasPage() {
         </div>
       ) : null}
 
-      {!loadingSettings && !cashLoading && (
+      {!loadingSettings && !cashLoading && cash && (
         <>
           <Card>
             <div className="mb-4 flex items-center gap-3">
@@ -246,7 +254,11 @@ export default function GajiKasPage() {
       )}
 
       {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold"
+        >
           {toast}
         </div>
       )}
