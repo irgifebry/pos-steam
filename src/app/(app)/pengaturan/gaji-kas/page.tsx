@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Banknote, Clock3, Wallet } from "lucide-react";
+import { useAppSession } from "@/components/SessionProvider";
 import { Button } from "@/components/ui/Button";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { apiFetch } from "@/lib/api-client";
 import { rupiah } from "@/lib/format";
+import { Spinner } from "@/components/ui/Spinner";
 
 type CashShift = {
   id: string;
@@ -38,49 +40,68 @@ function formatDateTime(value: string) {
 
 export default function GajiKasPage() {
   const [dailyRate, setDailyRate] = useState("");
-  const [salaryMessage, setSalaryMessage] = useState("");
   const [loadingSettings, setLoadingSettings] = useState(true);
 
   const [openingAmount, setOpeningAmount] = useState("");
   const [closingAmount, setClosingAmount] = useState("");
   const [note, setNote] = useState("");
   const [cash, setCash] = useState<CashState>({ open: null, history: [] });
-  const [cashMessage, setCashMessage] = useState("");
   const [cashLoading, setCashLoading] = useState(true);
+  const [toast, setToast] = useState<string | null>(null);
 
-  async function loadSettings() {
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  }, []);
+
+  const loadSettings = useCallback(async () => {
     try {
       const res = await apiFetch<{ data: { defaultDailyRate: number } }>("/api/settings");
       setDailyRate(String(res.data.defaultDailyRate || ""));
     } catch (e) {
-      setSalaryMessage(e instanceof Error ? e.message : "Gagal memuat pengaturan gaji");
+      showToast(e instanceof Error ? e.message : "Gagal memuat pengaturan gaji");
     } finally {
       setLoadingSettings(false);
     }
-  }
+  }, [showToast]);
 
-  async function loadCash() {
+  const loadCash = useCallback(async () => {
     try {
       const res = await apiFetch<{ data: CashState }>("/api/cash-shifts");
       setCash(res.data);
     } catch (e) {
-      setCashMessage(e instanceof Error ? e.message : "Gagal memuat data kas");
+      showToast(e instanceof Error ? e.message : "Gagal memuat data kas");
     } finally {
       setCashLoading(false);
     }
-  }
+  }, [showToast]);
 
   useEffect(() => {
     void loadSettings();
     void loadCash();
-  }, []);
+  }, [loadSettings, loadCash]);
+
+  const { role, isLoading } = useAppSession();
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10">
+        <Spinner className="text-brand" />
+      </div>
+    );
+  }
+  if (role !== "admin") {
+    return (
+      <Card className="text-center text-muted py-10">
+        <p>Hanya admin yang dapat mengakses halaman ini.</p>
+      </Card>
+    );
+  }
 
   async function saveDailyRate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSalaryMessage("");
     const amount = Number(dailyRate);
     if (!Number.isSafeInteger(amount) || amount < 0) {
-      setSalaryMessage("Masukkan gaji harian berupa angka bulat, minimal Rp0.");
+      showToast("Masukkan gaji harian berupa angka bulat, minimal Rp0.");
       return;
     }
     try {
@@ -88,18 +109,17 @@ export default function GajiKasPage() {
         method: "PATCH",
         body: JSON.stringify({ defaultDailyRate: amount }),
       });
-      setSalaryMessage("Gaji harian default tersimpan.");
+      showToast("Gaji harian default tersimpan.");
     } catch (e) {
-      setSalaryMessage(e instanceof Error ? e.message : "Gagal menyimpan gaji harian");
+      showToast(e instanceof Error ? e.message : "Gagal menyimpan gaji harian");
     }
   }
 
   async function openCash(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setCashMessage("");
     const amount = Number(openingAmount);
     if (!Number.isSafeInteger(amount) || amount < 0) {
-      setCashMessage("Masukkan saldo awal berupa angka bulat, minimal Rp0.");
+      showToast("Masukkan saldo awal berupa angka bulat, minimal Rp0.");
       return;
     }
     try {
@@ -110,19 +130,18 @@ export default function GajiKasPage() {
       setCash(res.data);
       setOpeningAmount("");
       setNote("");
-      setCashMessage("Shift kas dibuka.");
+      showToast("Shift kas dibuka.");
     } catch (e) {
-      setCashMessage(e instanceof Error ? e.message : "Gagal membuka kas");
+      showToast(e instanceof Error ? e.message : "Gagal membuka kas");
     }
   }
 
   async function closeCash(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setCashMessage("");
     if (!cash.open) return;
     const amount = Number(closingAmount);
     if (!Number.isSafeInteger(amount) || amount < 0) {
-      setCashMessage("Masukkan jumlah kas akhir berupa angka bulat, minimal Rp0.");
+      showToast("Masukkan jumlah kas akhir berupa angka bulat, minimal Rp0.");
       return;
     }
     try {
@@ -132,93 +151,105 @@ export default function GajiKasPage() {
       });
       setCash(res.data);
       setClosingAmount("");
-      setCashMessage("Shift kas ditutup.");
+      showToast("Shift kas ditutup.");
     } catch (e) {
-      setCashMessage(e instanceof Error ? e.message : "Gagal menutup kas");
+      showToast(e instanceof Error ? e.message : "Gagal menutup kas");
     }
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 pb-36">
       <div>
-        <h1 className="text-2xl font-extrabold text-ink">Gaji &amp; Kas</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Gaji & Kas</h1>
         <p className="mt-1 text-muted">Atur acuan gaji harian dan catat pergantian kas.</p>
       </div>
 
-      <Card>
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-soft text-brand"><Banknote className="h-5 w-5" /></div>
-          <div><CardTitle>Pengaturan gaji</CardTitle><p className="text-sm text-muted">Acuan gaji harian untuk karyawan baru.</p></div>
+      {loadingSettings || cashLoading ? (
+        <div className="flex justify-center py-10">
+          <Spinner className="text-brand" />
         </div>
-        <form className="flex flex-col gap-4" onSubmit={saveDailyRate}>
-          <Field label="Gaji harian default (Rp)">
-            <Input type="number" min="0" step="1" inputMode="numeric" value={dailyRate} onChange={(event) => { setDailyRate(event.target.value); setSalaryMessage(""); }} placeholder="Masukkan nominal" disabled={loadingSettings} />
-          </Field>
-          <p className="text-sm text-muted">Tarif gaji tiap karyawan tetap diatur pada data karyawan.</p>
-          {salaryMessage && <p role="status" className="text-sm text-muted">{salaryMessage}</p>}
-          <Button type="submit" fullWidth disabled={loadingSettings}>Simpan gaji harian</Button>
-        </form>
-      </Card>
+      ) : null}
 
-      <Card>
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-success-soft text-success"><Wallet className="h-5 w-5" /></div>
-          <div>
-            <CardTitle>{cash.open ? "Kas sedang buka" : "Buka kas"}</CardTitle>
-            <p className="text-sm text-muted">
-              {cash.open ? `Dibuka ${formatDateTime(cash.open.openedAt)} oleh ${cash.open.openedByName}` : "Catat saldo awal sebelum mulai transaksi."}
-            </p>
-          </div>
-        </div>
-        {cash.open ? (
-          <form className="flex flex-col gap-4" onSubmit={closeCash}>
-            <div className="rounded-xl bg-bg p-3 text-sm">
-              <span className="text-muted">Saldo awal tercatat</span>
-              <p className="font-semibold text-ink">{rupiah(cash.open.openingCash)}</p>
+      {!loadingSettings && !cashLoading && (
+        <>
+          <Card>
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-soft text-brand"><Banknote className="h-5 w-5" /></div>
+              <div><CardTitle>Pengaturan gaji</CardTitle><p className="text-sm text-muted">Acuan gaji harian untuk karyawan baru.</p></div>
             </div>
-            <Field label="Kas akhir terhitung (Rp)"><Input type="number" min="0" step="1" inputMode="numeric" value={closingAmount} onChange={(event) => setClosingAmount(event.target.value)} placeholder="Masukkan jumlah kas fisik" /></Field>
-            <p className="text-sm text-muted">Kas seharusnya dihitung server dari saldo awal ditambah pembayaran tunai sejak shift dibuka.</p>
-            <Button type="submit" fullWidth>Tutup kas</Button>
-          </form>
-        ) : (
-          <form className="flex flex-col gap-4" onSubmit={openCash}>
-            <Field label="Saldo awal (Rp)"><Input type="number" min="0" step="1" inputMode="numeric" value={openingAmount} onChange={(event) => setOpeningAmount(event.target.value)} placeholder="Masukkan saldo awal" /></Field>
-            <Field label="Catatan (opsional)"><Input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Contoh: pergantian shift pagi" /></Field>
-            <Button type="submit" fullWidth>Buka kas</Button>
-          </form>
-        )}
-        {cashMessage && <p role="status" className="mt-3 text-sm text-muted">{cashMessage}</p>}
-      </Card>
+            <form className="flex flex-col gap-4" onSubmit={saveDailyRate}>
+              <Field label="Gaji harian default (Rp)">
+                <Input type="number" min="0" step="1" inputMode="numeric" value={dailyRate} onChange={(event) => { setDailyRate(event.target.value); }} placeholder="Masukkan nominal" disabled={loadingSettings} />
+              </Field>
+              <p className="text-sm text-muted">Tarif gaji tiap karyawan tetap diatur pada data karyawan.</p>
+              <Button type="submit" fullWidth disabled={loadingSettings}>Simpan gaji harian</Button>
+            </form>
+          </Card>
 
-      <Card>
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-info-soft text-info"><Clock3 className="h-5 w-5" /></div>
-          <div><CardTitle>Riwayat kas</CardTitle><p className="text-sm text-muted">Tersimpan di server outlet.</p></div>
-        </div>
-        {cashLoading ? (
-          <p className="py-4 text-center text-sm text-muted">Memuat riwayat kas...</p>
-        ) : cash.history.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted">Belum ada sesi kas tercatat.</p>
-        ) : (
-          <ul className="flex flex-col divide-y divide-line">
-            {cash.history.map((item) => (
-              <li key={item.id} className="py-3 first:pt-0 last:pb-0">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-semibold text-ink">{item.closedAt ? "Kas ditutup" : "Kas masih terbuka"}</span>
-                  <span className="text-xs text-muted">{item.closedAt ? formatDateTime(item.closedAt) : formatDateTime(item.openedAt)}</span>
-                </div>
-                <p className="mt-1 text-sm text-muted">
-                  Saldo awal: {rupiah(item.openingCash)}
-                  {item.closingCash !== null ? ` · Kas akhir: ${rupiah(item.closingCash)}` : ""}
-                  {item.expectedCash !== null ? ` · Seharusnya: ${rupiah(item.expectedCash)}` : ""}
-                  {item.difference !== null ? ` · Selisih: ${rupiah(item.difference)}` : ""}
+          <Card>
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-success-soft text-success"><Wallet className="h-5 w-5" /></div>
+              <div>
+                <CardTitle>{cash.open ? "Kas sedang buka" : "Buka kas"}</CardTitle>
+                <p className="text-sm text-muted">
+                  {cash.open ? `Dibuka ${formatDateTime(cash.open.openedAt)} oleh ${cash.open.openedByName}` : "Catat saldo awal sebelum mulai transaksi."}
                 </p>
-                {item.note && <p className="text-sm text-muted">{item.note}</p>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+              </div>
+            </div>
+            {cash.open ? (
+              <form className="flex flex-col gap-4" onSubmit={closeCash}>
+                <div className="rounded-xl bg-bg p-3 text-sm">
+                  <span className="text-muted">Saldo awal tercatat</span>
+                  <p className="font-semibold text-ink">{rupiah(cash.open.openingCash)}</p>
+                </div>
+                <Field label="Kas akhir terhitung (Rp)"><Input type="number" min="0" step="1" inputMode="numeric" value={closingAmount} onChange={(event) => setClosingAmount(event.target.value)} placeholder="Masukkan jumlah kas fisik" /></Field>
+                <p className="text-sm text-muted">Kas seharusnya dihitung server dari saldo awal ditambah pembayaran tunai sejak shift dibuka.</p>
+                <Button type="submit" fullWidth>Tutup kas</Button>
+              </form>
+            ) : (
+              <form className="flex flex-col gap-4" onSubmit={openCash}>
+                <Field label="Saldo awal (Rp)"><Input type="number" min="0" step="1" inputMode="numeric" value={openingAmount} onChange={(event) => setOpeningAmount(event.target.value)} placeholder="Masukkan saldo awal" /></Field>
+                <Field label="Catatan (opsional)"><Input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Contoh: pergantian shift pagi" /></Field>
+                <Button type="submit" fullWidth>Buka kas</Button>
+              </form>
+            )}
+          </Card>
+
+          <Card>
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-info-soft text-info"><Clock3 className="h-5 w-5" /></div>
+              <div><CardTitle>Riwayat kas</CardTitle><p className="text-sm text-muted">Tersimpan di server outlet.</p></div>
+            </div>
+            {cash.history.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted">Belum ada sesi kas tercatat.</p>
+            ) : (
+              <ul className="flex flex-col divide-y divide-line">
+                {cash.history.map((item) => (
+                  <li key={item.id} className="py-3 first:pt-0 last:pb-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-semibold text-ink">{item.closedAt ? "Kas ditutup" : "Kas masih terbuka"}</span>
+                      <span className="text-xs text-muted">{item.closedAt ? formatDateTime(item.closedAt) : formatDateTime(item.openedAt)}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-muted">
+                      Saldo awal: {rupiah(item.openingCash)}
+                      {item.closingCash !== null ? ` · Kas akhir: ${rupiah(item.closingCash)}` : ""}
+                      {item.expectedCash !== null ? ` · Seharusnya: ${rupiah(item.expectedCash)}` : ""}
+                      {item.difference !== null ? ` · Selisih: ${rupiah(item.difference)}` : ""}
+                    </p>
+                    {item.note && <p className="text-sm text-muted">{item.note}</p>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </>
+      )}
+
+      {toast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

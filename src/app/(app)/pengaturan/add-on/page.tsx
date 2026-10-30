@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X, Puzzle } from "lucide-react";
+import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/api-client";
 import { rupiah } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
@@ -30,33 +31,69 @@ const emptyForm = {
   active: true,
 };
 
+function showToastFn(setToast: React.Dispatch<React.SetStateAction<string | null>>) {
+  return (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  };
+}
+
 export default function AddonPage() {
   const [items, setItems] = useState<Addon[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [filter, setFilter] = useState<"all" | VehicleType>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Addon | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+  const showToast = showToastFn(setToast);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError("");
     try {
-      const res = await apiFetch<{ data: Addon[] }>("/api/addons?includeInactive=true");
-      setItems(res.data);
+      const fetched: Addon[] = [];
+      if (filter === "all") {
+        const [motorRes, mobilRes] = await Promise.all([
+          apiFetch<{ data: Addon[] }>("/api/addons?vehicleType=motor"),
+          apiFetch<{ data: Addon[] }>("/api/addons?vehicleType=mobil"),
+        ]);
+        fetched.push(...(motorRes.data ?? []), ...(mobilRes.data ?? []));
+      } else {
+        const res = await apiFetch<{ data: Addon[] }>(
+          `/api/addons?vehicleType=${filter}`,
+        );
+        fetched.push(...(res.data ?? []));
+      }
+      setItems(fetched);
     } catch (e) {
       setItems([]);
-      setError(e instanceof Error ? e.message : "Gagal memuat add-on");
+      showToast(e instanceof Error ? e.message : "Gagal memuat add-on");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filter, showToast]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  const { role, isLoading } = useAppSession();
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10">
+        <Spinner className="text-brand" />
+      </div>
+    );
+  }
+  if (role !== "admin") {
+    return (
+      <Card className="text-center text-muted py-10">
+        <p>Hanya admin yang dapat mengakses halaman ini.</p>
+      </Card>
+    );
+  }
 
   function openAdd() {
     setEditing(null);
@@ -81,9 +118,7 @@ export default function AddonPage() {
   function toggleVehicle(v: VehicleType) {
     setForm((f) => {
       const has = f.vehicleTypes.includes(v);
-      const next = has
-        ? f.vehicleTypes.filter((x) => x !== v)
-        : [...f.vehicleTypes, v];
+      const next = has ? f.vehicleTypes.filter((x) => x !== v) : [...f.vehicleTypes, v];
       return { ...f, vehicleTypes: next };
     });
   }
@@ -125,9 +160,10 @@ export default function AddonPage() {
         });
       }
       setModalOpen(false);
+      showToast(editing ? "Add-on diperbarui" : "Add-on ditambahkan");
       await load();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "Gagal menyimpan");
+      showToast(e instanceof Error ? e.message : "Gagal menyimpan add-on");
     } finally {
       setSaving(false);
     }
@@ -137,11 +173,16 @@ export default function AddonPage() {
     if (!confirm(`Nonaktifkan add-on "${item.name}"?`)) return;
     try {
       await apiFetch(`/api/addons/${item.id}`, { method: "DELETE" });
+      showToast("Add-on dinonaktifkan");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal menonaktifkan");
+      showToast(e instanceof Error ? e.message : "Gagal menonaktifkan add-on");
     }
   }
+
+  const filtered = items.filter((it) =>
+    filter === "all" ? true : it.vehicleTypes.includes(filter),
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -155,13 +196,28 @@ export default function AddonPage() {
         </Button>
       </div>
 
+      <div className="flex gap-2">
+        {(["all", "motor", "mobil"] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setFilter(v)}
+            className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${
+              filter === v
+                ? "bg-brand text-white border-brand"
+                : "bg-surface text-ink border-line"
+            }`}
+          >
+            {v === "all" ? "Semua" : v === "motor" ? "Motor" : "Mobil"}
+          </button>
+        ))}
+      </div>
+
       {loading && (
         <div className="flex justify-center py-10">
           <Spinner className="text-brand" />
         </div>
       )}
-      {error && <p className="text-danger text-center">{error}</p>}
-      {!loading && !error && items.length === 0 && (
+      {!loading && items.length === 0 && (
         <Card className="text-center text-muted py-8">
           <Puzzle className="h-10 w-10 mx-auto mb-2 opacity-40" />
           Belum ada add-on
@@ -169,7 +225,7 @@ export default function AddonPage() {
       )}
 
       <div className="flex flex-col gap-3">
-        {items.map((it) => (
+        {filtered.map((it) => (
           <Card key={it.id} className="flex items-start gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -177,12 +233,12 @@ export default function AddonPage() {
                 <Badge tone={it.active ? "success" : "muted"}>
                   {it.active ? "Aktif" : "Nonaktif"}
                 </Badge>
+                {it.vehicleTypes.map((vt) => (
+                  <Badge key={vt} tone="info">{vt === "motor" ? "Motor" : "Mobil"}</Badge>
+                ))}
               </div>
               <p className="text-brand font-bold mt-1">{rupiah(it.price)}</p>
-              <p className="text-sm text-muted">
-                per {it.unitLabel} •{" "}
-                {it.vehicleTypes.map((v) => (v === "motor" ? "Motor" : "Mobil")).join(", ")}
-              </p>
+              <p className="text-sm text-muted">per {it.unitLabel}</p>
             </div>
             <div className="flex gap-1">
               <button
@@ -281,6 +337,12 @@ export default function AddonPage() {
               </Button>
             </form>
           </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
+          {toast}
         </div>
       )}
     </div>
