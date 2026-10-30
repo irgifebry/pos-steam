@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X, Package } from "lucide-react";
+import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/api-client";
 import { rupiah } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
@@ -34,37 +35,70 @@ const emptyForm = {
   active: true,
 };
 
+function showToastFn(setToast: React.Dispatch<React.SetStateAction<string | null>>) {
+  return (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  };
+}
+
 export default function PaketPage() {
   const [items, setItems] = useState<ServicePackage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [filter, setFilter] = useState<"all" | VehicleType>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<ServicePackage | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+  const showToast = showToastFn(setToast);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError("");
     try {
-      const res = await apiFetch<{ data: ServicePackage[] }>(
-        "/api/packages?includeInactive=true",
-      );
-      setItems(res.data);
-      setError("");
+      const fetched: ServicePackage[] = [];
+      if (filter === "all") {
+        const [motorRes, mobilRes] = await Promise.all([
+          apiFetch<{ data: ServicePackage[] }>("/api/packages?vehicleType=motor"),
+          apiFetch<{ data: ServicePackage[] }>("/api/packages?vehicleType=mobil"),
+        ]);
+        fetched.push(...(motorRes.data ?? []), ...(mobilRes.data ?? []));
+      } else {
+        const res = await apiFetch<{ data: ServicePackage[] }>(
+          `/api/packages?vehicleType=${filter}`,
+        );
+        fetched.push(...(res.data ?? []));
+      }
+      fetched.sort((a, b) => a.sortOrder - b.sortOrder);
+      setItems(fetched);
     } catch (e) {
       setItems([]);
-      setError(e instanceof Error ? e.message : "Gagal memuat paket");
+      showToast(e instanceof Error ? e.message : "Gagal memuat paket");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filter, showToast]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  const { role, isLoading } = useAppSession();
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10">
+        <Spinner className="text-brand" />
+      </div>
+    );
+  }
+  if (role !== "admin") {
+    return (
+      <Card className="text-center text-muted py-10">
+        <p>Hanya admin yang dapat mengakses halaman ini.</p>
+      </Card>
+    );
+  }
 
   function openAdd() {
     setEditing(null);
@@ -128,9 +162,10 @@ export default function PaketPage() {
         });
       }
       setModalOpen(false);
+      showToast(editing ? "Paket diperbarui" : "Paket ditambahkan");
       await load();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "Gagal menyimpan");
+      showToast(e instanceof Error ? e.message : "Gagal menyimpan paket");
     } finally {
       setSaving(false);
     }
@@ -140,9 +175,10 @@ export default function PaketPage() {
     if (!confirm(`Nonaktifkan paket "${item.name}"?`)) return;
     try {
       await apiFetch(`/api/packages/${item.id}`, { method: "DELETE" });
+      showToast("Paket dinonaktifkan");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal menonaktifkan");
+      showToast(e instanceof Error ? e.message : "Gagal menonaktifkan paket");
     }
   }
 
@@ -150,12 +186,14 @@ export default function PaketPage() {
     filter === "all" ? true : it.vehicleType === filter,
   );
 
+  const VehicleLabel = (vt: VehicleType) => (vt === "motor" ? "Motor" : "Mobil");
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-extrabold text-ink">Paket Layanan</h1>
-          <p className="text-muted mt-1">Atur paket cuci</p>
+          <p className="text-muted mt-1">Atur paket cuci motor & mobil</p>
         </div>
         <Button size="sm" onClick={openAdd}>
           <Plus className="h-5 w-5" /> Tambah
@@ -183,8 +221,7 @@ export default function PaketPage() {
           <Spinner className="text-brand" />
         </div>
       )}
-      {error && <p className="text-danger text-center">{error}</p>}
-      {!loading && !error && filtered.length === 0 && (
+      {!loading && items.length === 0 && (
         <Card className="text-center text-muted py-8">
           <Package className="h-10 w-10 mx-auto mb-2 opacity-40" />
           Belum ada paket
@@ -200,7 +237,7 @@ export default function PaketPage() {
                 <Badge tone={it.active ? "success" : "muted"}>
                   {it.active ? "Aktif" : "Nonaktif"}
                 </Badge>
-                <Badge tone="info">{it.vehicleType === "motor" ? "Motor" : "Mobil"}</Badge>
+                <Badge tone="info">{VehicleLabel(it.vehicleType)}</Badge>
               </div>
               <p className="text-brand font-bold mt-1">{rupiah(it.price)}</p>
               <p className="text-sm text-muted">
@@ -316,6 +353,12 @@ export default function PaketPage() {
               </Button>
             </form>
           </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
+          {toast}
         </div>
       )}
     </div>

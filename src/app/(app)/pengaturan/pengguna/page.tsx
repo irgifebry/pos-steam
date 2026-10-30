@@ -10,6 +10,7 @@ import {
   UserX,
   Users,
 } from "lucide-react";
+import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/api-client";
 import { rupiah } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
@@ -40,38 +41,54 @@ const emptyForm = {
   password: "",
 };
 
+function showToastFn(setToast: React.Dispatch<React.SetStateAction<string | null>>) {
+  return (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  };
+}
+
 export default function PenggunaPage() {
   const [items, setItems] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-
   const [pinModal, setPinModal] = useState<User | null>(null);
   const [newPin, setNewPin] = useState("");
   const [pinSaving, setPinSaving] = useState(false);
   const [pinError, setPinError] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+  const showToast = showToastFn(setToast);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError("");
     try {
       const res = await apiFetch<{ data: User[] }>("/api/users");
-      setItems(res.data);
+      setItems(res.data ?? []);
     } catch (e) {
       setItems([]);
-      setError(e instanceof Error ? e.message : "Gagal memuat pengguna");
+      showToast(e instanceof Error ? e.message : "Gagal memuat pengguna");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  const { role: currentRole } = useAppSession();
+  const isAdmin = currentRole === "admin";
+  if (!isAdmin) {
+    return (
+      <Card className="text-center text-muted py-10">
+        <p>Hanya admin yang dapat mengakses halaman ini.</p>
+      </Card>
+    );
+  }
 
   function openAdd() {
     setEditing(null);
@@ -143,9 +160,10 @@ export default function PenggunaPage() {
         });
       }
       setModalOpen(false);
+      showToast(editing ? "Pengguna diperbarui" : "Pengguna ditambahkan");
       await load();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "Gagal menyimpan");
+      showToast(e instanceof Error ? e.message : "Gagal menyimpan pengguna");
     } finally {
       setSaving(false);
     }
@@ -159,9 +177,10 @@ export default function PenggunaPage() {
         method: "POST",
         body: JSON.stringify({ active: !item.active }),
       });
+      showToast(`Pengguna ${action}`);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal mengubah status");
+      showToast(e instanceof Error ? e.message : "Gagal mengubah status");
     }
   }
 
@@ -181,6 +200,7 @@ export default function PenggunaPage() {
       });
       setPinModal(null);
       setNewPin("");
+      showToast("PIN berhasil di-reset");
     } catch (e) {
       setPinError(e instanceof Error ? e.message : "Gagal reset PIN");
     } finally {
@@ -205,8 +225,7 @@ export default function PenggunaPage() {
           <Spinner className="text-brand" />
         </div>
       )}
-      {error && <p className="text-danger text-center">{error}</p>}
-      {!loading && !error && items.length === 0 && (
+      {!loading && items.length === 0 && (
         <Card className="text-center text-muted py-8">
           <Users className="h-10 w-10 mx-auto mb-2 opacity-40" />
           Belum ada pengguna
@@ -366,6 +385,12 @@ export default function PenggunaPage() {
               </Button>
             </form>
           </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
+          {toast}
         </div>
       )}
     </div>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Save, Store } from "lucide-react";
+import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -31,13 +32,16 @@ export default function OutletPage() {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [formError, setFormError] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  }, []);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      setError("");
       try {
         const res = await apiFetch<{ data: Outlet[] }>("/api/outlets");
         const first = res.data[0] ?? null;
@@ -53,24 +57,39 @@ export default function OutletPage() {
         }
       } catch (e) {
         setOutlet(null);
-        setError(e instanceof Error ? e.message : "Gagal memuat outlet");
+        showToast(e instanceof Error ? e.message : "Gagal memuat outlet");
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [showToast]);
+
+  const { role, isLoading } = useAppSession();
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10">
+        <Spinner className="text-brand" />
+      </div>
+    );
+  }
+  if (role !== "admin") {
+    return (
+      <Card className="text-center text-muted py-10">
+        <p>Hanya admin yang dapat mengakses halaman ini.</p>
+      </Card>
+    );
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    setSuccess("");
+    setFormError("");
     if (!form.name.trim()) {
-      setError("Nama outlet wajib diisi");
+      setFormError("Nama outlet wajib diisi");
       return;
     }
     const tax = Number(form.taxPercent);
     if (Number.isNaN(tax) || tax < 0 || tax > 100) {
-      setError("Pajak harus 0-100");
+      setFormError("Pajak harus 0-100");
       return;
     }
     setSaving(true);
@@ -86,9 +105,9 @@ export default function OutletPage() {
         }),
       });
       setOutlet(res.data);
-      setSuccess("Data outlet tersimpan");
+      showToast("Data outlet tersimpan");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal menyimpan");
+      showToast(e instanceof Error ? e.message : "Gagal menyimpan outlet");
     } finally {
       setSaving(false);
     }
@@ -152,14 +171,19 @@ export default function OutletPage() {
               onChange={(e) => setForm({ ...form, taxPercent: e.target.value })}
             />
           </Field>
-          {error && <p className="text-sm text-danger">{error}</p>}
-          {success && <p className="text-sm text-success">{success}</p>}
+          {formError && <p className="text-sm text-danger">{formError}</p>}
           <Button type="submit" fullWidth size="lg" disabled={saving}>
             <Save className="h-5 w-5" />
             {saving ? "Menyimpan..." : "Simpan"}
           </Button>
         </form>
       </Card>
+
+      {toast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
