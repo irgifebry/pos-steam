@@ -3,12 +3,14 @@ import type { ReactNode } from "react";
 
 export function Field({
   label,
+  htmlFor,
   error,
   hint,
   children,
   className,
 }: {
   label?: string;
+  htmlFor?: string;
   error?: string;
   hint?: string;
   children: ReactNode;
@@ -16,9 +18,13 @@ export function Field({
 }) {
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      {label && <label className="text-sm font-semibold text-ink">{label}</label>}
+      {label && (
+        <label htmlFor={htmlFor} className="text-sm font-semibold text-ink">
+          {label}
+        </label>
+      )}
       {children}
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && <p id={htmlFor ? `${htmlFor}-error` : undefined} role="alert" className="text-sm text-danger">{error}</p>}
       {!error && hint && <p className="text-sm text-muted">{hint}</p>}
     </div>
   );
