@@ -205,7 +205,7 @@ export default function KaryawanPage() {
       setPayroll(res.data);
       setAdjustments(
         Object.fromEntries(
-          res.data.items.map((it) => [
+          res.data?.items.map((it) => [
             it.userId,
             { tunjangan: it.allowance, lembur: it.overtimePay, potongan: it.deductions },
           ]),
