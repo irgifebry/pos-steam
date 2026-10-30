@@ -176,7 +176,7 @@ export default function AddonPage() {
     }
   }
 
-  const filtered = items.filter((it) =>
+  const filtered = (items ?? []).filter((it) =>
     filter === "all" ? true : it.vehicleTypes.includes(filter),
   );
 
