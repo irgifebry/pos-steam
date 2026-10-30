@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Pencil, Trash2, X, Package } from "lucide-react";
 import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/api-client";
@@ -45,9 +45,20 @@ export default function PaketPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (modalOpen) modalRef.current?.focus();
+  }, [modalOpen]);
   const showToast = useCallback((msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(msg);
-    setTimeout(() => setToast(null), 2500);
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
   }, []);
 
   const load = useCallback(async () => {
@@ -76,12 +87,14 @@ export default function PaketPage() {
     }
   }, [filter, showToast]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const { role, isLoading: sessionLoading } = useAppSession();
 
-  const { role, isLoading } = useAppSession();
-  if (isLoading) {
+  useEffect(() => {
+    if (sessionLoading || role !== "admin") return;
+    load();
+  }, [sessionLoading, role, load]);
+
+  if (sessionLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-10">
         <Spinner className="text-brand" />
@@ -126,12 +139,12 @@ export default function PaketPage() {
       setFormError("Nama paket wajib diisi");
       return;
     }
-    if (!price || price <= 0) {
+    if (!Number.isFinite(price) || price <= 0) {
       setFormError("Harga harus lebih dari 0");
       return;
     }
     const dur = Number(form.durationMin);
-    if (!dur || dur <= 0) {
+    if (!Number.isFinite(dur) || dur <= 0) {
       setFormError("Durasi harus lebih dari 0");
       return;
     }
@@ -201,6 +214,7 @@ export default function PaketPage() {
           <button
             key={v}
             onClick={() => setFilter(v)}
+            aria-pressed={filter === v}
             className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${
               filter === v
                 ? "bg-brand text-white border-brand"
@@ -217,7 +231,7 @@ export default function PaketPage() {
           <Spinner className="text-brand" />
         </div>
       )}
-      {!loading && items.length === 0 && (
+      {!loading && filtered.length === 0 && (
         <Card className="text-center text-muted py-8">
           <Package className="h-10 w-10 mx-auto mb-2 opacity-40" />
           Belum ada paket
@@ -264,10 +278,22 @@ export default function PaketPage() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-float)] max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="paket-modal-title"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setModalOpen(false);
+          }}
+        >
+          <div
+            ref={modalRef}
+            tabIndex={-1}
+            className="w-full max-w-lg bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-float)] max-h-[90vh] overflow-y-auto outline-none"
+          >
             <div className="flex items-center justify-between px-5 py-4 border-b border-line">
-              <h2 className="text-xl font-bold text-ink">
+              <h2 id="paket-modal-title" className="text-xl font-bold text-ink">
                 {editing ? "Edit Paket" : "Tambah Paket"}
               </h2>
               <button
@@ -353,7 +379,11 @@ export default function PaketPage() {
       )}
 
       {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold"
+        >
           {toast}
         </div>
       )}

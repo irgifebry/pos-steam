@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Save, Store } from "lucide-react";
 import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/api-client";
@@ -34,17 +34,28 @@ export default function OutletPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showToast = useCallback((msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(msg);
-    setTimeout(() => setToast(null), 2500);
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
   }, []);
 
+  const { role, isLoading: sessionLoading } = useAppSession();
+
   useEffect(() => {
+    if (sessionLoading || role !== "admin") return;
     (async () => {
       setLoading(true);
       try {
         const res = await apiFetch<{ data: Outlet[] }>("/api/outlets");
-        const first = res.data[0] ?? null;
+        const data = Array.isArray(res.data) ? res.data : [];
+        const first = data[0] ?? null;
         setOutlet(first);
         if (first) {
           setForm({
@@ -62,10 +73,9 @@ export default function OutletPage() {
         setLoading(false);
       }
     })();
-  }, [showToast]);
+  }, [sessionLoading, role, showToast]);
 
-  const { role, isLoading } = useAppSession();
-  if (isLoading) {
+  if (sessionLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-10">
         <Spinner className="text-brand" />
@@ -104,7 +114,7 @@ export default function OutletPage() {
           taxPercent: tax,
         }),
       });
-      setOutlet(res.data);
+      setOutlet(res.data ?? null);
       showToast("Data outlet tersimpan");
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Gagal menyimpan outlet");
@@ -180,7 +190,11 @@ export default function OutletPage() {
       </Card>
 
       {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold"
+        >
           {toast}
         </div>
       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -54,10 +54,22 @@ export default function PenggunaPage() {
   const [pinSaving, setPinSaving] = useState(false);
   const [pinError, setPinError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pinModalRef = useRef<HTMLDivElement>(null);
   const showToast = useCallback((msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(msg);
-    setTimeout(() => setToast(null), 2500);
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (pinModal) pinModalRef.current?.focus();
+  }, [pinModal]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,7 +88,14 @@ export default function PenggunaPage() {
     load();
   }, [load]);
 
-  const { role: currentRole } = useAppSession();
+  const { role: currentRole, isLoading: sessionLoading } = useAppSession();
+  if (sessionLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10">
+        <Spinner className="text-brand" />
+      </div>
+    );
+  }
   const isAdmin = currentRole === "admin";
   if (!isAdmin) {
     return (
@@ -119,7 +138,11 @@ export default function PenggunaPage() {
       return;
     }
     const dailyRate = Number(form.dailyRate);
-    if (Number.isNaN(dailyRate) || dailyRate < 0) {
+    if (
+      !Number.isFinite(dailyRate) ||
+      !Number.isSafeInteger(dailyRate) ||
+      dailyRate < 0
+    ) {
       setFormError("Gaji harian tidak boleh negatif");
       return;
     }
@@ -196,6 +219,7 @@ export default function PenggunaPage() {
       });
       setPinModal(null);
       setNewPin("");
+      setPinError("");
       showToast("PIN berhasil di-reset");
     } catch (e) {
       setPinError(e instanceof Error ? e.message : "Gagal reset PIN");
@@ -352,12 +376,32 @@ export default function PenggunaPage() {
       )}
 
       {pinModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-float)]">
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pin-modal-title"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setPinModal(null);
+              setNewPin("");
+              setPinError("");
+            }
+          }}
+        >
+          <div
+            ref={pinModalRef}
+            tabIndex={-1}
+            className="w-full max-w-sm bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-float)] outline-none"
+          >
             <div className="flex items-center justify-between px-5 py-4 border-b border-line">
-              <h2 className="text-xl font-bold text-ink">Reset PIN</h2>
+              <h2 id="pin-modal-title" className="text-xl font-bold text-ink">Reset PIN</h2>
               <button
-                onClick={() => setPinModal(null)}
+                onClick={() => {
+                  setPinModal(null);
+                  setNewPin("");
+                  setPinError("");
+                }}
                 className="h-10 w-10 rounded-xl flex items-center justify-center text-muted hover:bg-bg"
                 aria-label="Tutup"
               >

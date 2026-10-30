@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Printer, ReceiptText, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
@@ -20,7 +20,7 @@ type ReceiptData = {
     tax: number;
     packageName: string;
     packagePrice: number;
-    addons: { id: string; name: string; qty: number; price: number; subtotal: number }[];
+    addons?: { id: string; name: string; qty: number; price: number; subtotal: number }[];
     payment: {
       method: string;
       amount: number;
@@ -42,34 +42,34 @@ type ReceiptData = {
 };
 
 export default function ReceiptPage() {
-  const router = useRouter();
   const params = useParams<{ token: string }>();
   const token = params?.token;
   const [data, setData] = useState<ReceiptData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!token) return;
-    let cancelled = false;
+  const loadReceipt = useCallback(async () => {
+    if (!token) {
+      setLoading(false);
+      setError("");
+      return;
+    }
     setLoading(true);
-    apiFetch<{ data: ReceiptData }>(`/api/receipts/${encodeURIComponent(token)}`)
-      .then((res) => {
-        if (!cancelled) {
-          setData(res.data);
-          setError("");
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Struk tidak ditemukan");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    setError("");
+    try {
+      const res = await apiFetch<{ data: ReceiptData }>(`/api/receipts/${encodeURIComponent(token)}`);
+      setData(res.data);
+    } catch (err) {
+      setData(null);
+      setError(err instanceof Error ? err.message : "Struk tidak ditemukan");
+    } finally {
+      setLoading(false);
+    }
   }, [token]);
+
+  useEffect(() => {
+    loadReceipt();
+  }, [loadReceipt]);
 
   if (loading) {
     return (
@@ -95,13 +95,13 @@ export default function ReceiptPage() {
           <h1 id="receipt-title" className="font-display text-3xl font-bold tracking-tight">
             Struk tidak ditemukan
           </h1>
-          <p role="status" className="mt-4 max-w-sm text-muted">
+          <p role="alert" className="mt-4 max-w-sm text-muted">
             {error || "Tautan struk tidak valid atau sudah tidak tersedia."}
           </p>
           <div className="mt-6 flex gap-2">
             <button
               type="button"
-              onClick={() => router.refresh()}
+              onClick={loadReceipt}
               className="inline-flex h-11 items-center gap-2 rounded-[var(--radius-sm)] border border-line bg-surface px-4 text-sm font-semibold text-ink"
             >
               <RefreshCw className="h-4 w-4" /> Coba lagi
@@ -160,7 +160,7 @@ export default function ReceiptPage() {
             <span>{order.packageName}</span>
             <span>{rupiah(order.packagePrice)}</span>
           </div>
-          {order.addons.map((addon) => (
+          {(order.addons ?? []).map((addon) => (
             <div key={addon.id} className="mt-1 flex justify-between gap-3">
               <span className="text-muted">{addon.name} × {addon.qty}</span>
               <span>{rupiah(addon.subtotal)}</span>
@@ -182,7 +182,7 @@ export default function ReceiptPage() {
           <div className="flex justify-between gap-3">
             <span className="text-muted">Pembayaran</span>
             <span className="font-semibold">
-              {order.payment?.method === "transfer" ? "Transfer" : "Tunai"}
+              {order.payment ? (order.payment.method === "transfer" ? "Transfer" : "Tunai") : "—"}
             </span>
           </div>
           <div className="flex justify-between gap-3">

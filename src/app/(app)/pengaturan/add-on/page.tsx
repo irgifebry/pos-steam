@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Pencil, Trash2, X, Puzzle } from "lucide-react";
 import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/api-client";
@@ -41,10 +41,21 @@ export default function AddonPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
   const showToast = useCallback((msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(msg);
-    setTimeout(() => setToast(null), 2500);
+    toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, []);
+  useEffect(() => {
+    if (modalOpen) modalRef.current?.focus();
+  }, [modalOpen]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -55,7 +66,12 @@ export default function AddonPage() {
           apiFetch<{ data: Addon[] }>("/api/addons?vehicleType=motor"),
           apiFetch<{ data: Addon[] }>("/api/addons?vehicleType=mobil"),
         ]);
-        fetched.push(...(motorRes.data ?? []), ...(mobilRes.data ?? []));
+        const seen = new Set<string>();
+        for (const it of [...(motorRes.data ?? []), ...(mobilRes.data ?? [])]) {
+          if (seen.has(it.id)) continue;
+          seen.add(it.id);
+          fetched.push(it);
+        }
       } else {
         const res = await apiFetch<{ data: Addon[] }>(
           `/api/addons?vehicleType=${filter}`,
@@ -127,7 +143,7 @@ export default function AddonPage() {
       setFormError("Nama add-on wajib diisi");
       return;
     }
-    if (!price || price <= 0) {
+    if (!Number.isFinite(price) || price <= 0) {
       setFormError("Harga harus lebih dari 0");
       return;
     }
@@ -213,7 +229,7 @@ export default function AddonPage() {
           <Spinner className="text-brand" />
         </div>
       )}
-      {!loading && items.length === 0 && (
+      {!loading && filtered.length === 0 && (
         <Card className="text-center text-muted py-8">
           <Puzzle className="h-10 w-10 mx-auto mb-2 opacity-40" />
           Belum ada add-on
@@ -259,10 +275,22 @@ export default function AddonPage() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-float)] max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="addon-modal-title"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setModalOpen(false);
+          }}
+        >
+          <div
+            ref={modalRef}
+            tabIndex={-1}
+            className="w-full max-w-lg bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-float)] max-h-[90vh] overflow-y-auto outline-none"
+          >
             <div className="flex items-center justify-between px-5 py-4 border-b border-line">
-              <h2 className="text-xl font-bold text-ink">
+              <h2 id="addon-modal-title" className="text-xl font-bold text-ink">
                 {editing ? "Edit Add-on" : "Tambah Add-on"}
               </h2>
               <button
@@ -337,7 +365,11 @@ export default function AddonPage() {
       )}
 
       {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold"
+        >
           {toast}
         </div>
       )}
