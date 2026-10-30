@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Banknote,
   Car,
@@ -112,6 +112,7 @@ export default function KasirPage() {
 
   const [recent, setRecent] = useState<RecentTx[]>([]);
   const [ordersError, setOrdersError] = useState("");
+  const [ordersLoading, setOrdersLoading] = useState(true);
 
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<SuccessInfo | null>(null);
@@ -130,9 +131,10 @@ export default function KasirPage() {
     };
   }, []);
 
-  const loadOrders = useCallback(async () => {
+  const ordersLoadedRef = useRef(false);
+  const loadOrders = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await apiFetch<{ data: ApiOrder[] }>("/api/orders?includePaid=true");
+      const res = await apiFetch<{ data: ApiOrder[] }>("/api/orders?includePaid=true", { signal });
       const timeFormatter = new Intl.DateTimeFormat("id-ID", {
         timeZone: "Asia/Jakarta",
         hour: "2-digit",
@@ -160,65 +162,88 @@ export default function KasirPage() {
         })),
       );
       setOrdersError("");
+      ordersLoadedRef.current = true;
     } catch (error) {
+      if (signal?.aborted) return;
       setOrdersError(error instanceof Error ? error.message : "Gagal memuat transaksi hari ini.");
+    } finally {
+      setOrdersLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadOrders();
-    const timer = window.setInterval(() => void loadOrders(), 15_000);
-    return () => window.clearInterval(timer);
+    const controller = new AbortController();
+    void loadOrders(controller.signal);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadOrders();
+    }, 15_000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void loadOrders();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [loadOrders]);
 
   // Fetch packages + addons when vehicle type changes
-  const loadCatalog = useCallback(async (vt: VehicleType) => {
+  const loadCatalog = useCallback(async (vt: VehicleType, signal?: AbortSignal) => {
     setPackagesLoading(true);
     setAddonsLoading(true);
     setCatalogError("");
     try {
-      const pkgRes = await apiFetch<{ data: Package[] }>(`/api/packages?vehicleType=${vt}`);
+      const pkgRes = await apiFetch<{ data: Package[] }>(`/api/packages?vehicleType=${vt}`, { signal });
+      if (signal?.aborted) return;
       setPackages(pkgRes?.data ?? []);
     } catch (error) {
+      if (signal?.aborted) return;
       setPackages([]);
       setCatalogError(error instanceof Error ? error.message : "Gagal memuat paket.");
     } finally {
-      setPackagesLoading(false);
+      if (!signal?.aborted) setPackagesLoading(false);
     }
     try {
-      const addonRes = await apiFetch<{ data: Addon[] }>(`/api/addons?vehicleType=${vt}`);
+      const addonRes = await apiFetch<{ data: Addon[] }>(`/api/addons?vehicleType=${vt}`, { signal });
       const filtered = (addonRes?.data ?? []).filter((a) =>
         a.vehicleTypes ? a.vehicleTypes.includes(vt) : true,
       );
+      if (signal?.aborted) return;
       setAddons(filtered);
     } catch (error) {
+      if (signal?.aborted) return;
       setAddons([]);
       setCatalogError(error instanceof Error ? error.message : "Gagal memuat add-on.");
     } finally {
-      setAddonsLoading(false);
+      if (!signal?.aborted) setAddonsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadCatalog(vehicleType);
+    const controller = new AbortController();
+    loadCatalog(vehicleType, controller.signal);
+    return () => controller.abort();
   }, [vehicleType, loadCatalog]);
 
   // Fetch banks + settings once
   useEffect(() => {
+    const controller = new AbortController();
     (async () => {
       try {
-        const res = await apiFetch<{ data: Bank[] }>("/api/banks");
+        const res = await apiFetch<{ data: Bank[] }>("/api/banks", { signal: controller.signal });
         setBanks(res?.data ?? []);
       } catch {
-        setBanks([]);
+        if (!controller.signal.aborted) setBanks([]);
       }
       try {
-        const res = await apiFetch<{ data: { outlet: { taxPercent: number } } }>("/api/settings");
+        const res = await apiFetch<{ data: { outlet: { taxPercent: number } } }>("/api/settings", { signal: controller.signal });
         if (res?.data?.outlet) setTaxPercent(Number(res.data.outlet.taxPercent) || 0);
       } catch {
         /* keep default 0 */
       }
     })();
+    return () => controller.abort();
   }, []);
 
   // Reset selection when vehicle type changes
@@ -226,6 +251,13 @@ export default function KasirPage() {
     setSelectedPackageId(null);
     setAddonQty({});
   }, [vehicleType]);
+
+  // Clear stale selected package
+  useEffect(() => {
+    if (selectedPackageId && !packages.some((p) => p.id === selectedPackageId)) {
+      setSelectedPackageId(null);
+    }
+  }, [packages, selectedPackageId]);
 
   const selectedPackage = useMemo(
     () => packages.find((p) => p.id === selectedPackageId) ?? null,
@@ -260,10 +292,18 @@ export default function KasirPage() {
     return { count, omzet, cash, transfer, avg };
   }, [recent]);
 
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   function showToast(msg: string) {
     setToast(msg);
-    setTimeout(() => setToast(null), 2500);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2500);
   }
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   function toggleAddon(id: string) {
     setAddonQty((prev) => {
@@ -281,6 +321,10 @@ export default function KasirPage() {
   }
 
   async function handleSubmit() {
+    if (!online) {
+      showToast("Transaksi memerlukan koneksi internet");
+      return;
+    }
     if (!selectedPackage) {
       showToast("Pilih paket dulu ya");
       return;
@@ -305,7 +349,7 @@ export default function KasirPage() {
     setSubmitting(true);
 
     const body = {
-      clientId: crypto.randomUUID(),
+      clientId: crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
       vehicleType,
       packageId: selectedPackage.id,
       addons: addonLines.map(({ addon, qty }) => ({ addonId: addon.id, qty })),
@@ -361,6 +405,24 @@ export default function KasirPage() {
     if (!selectedBankId && banks.length) setSelectedBankId(banks[0].id);
   }, [banks, selectedBankId]);
 
+  useEffect(() => {
+    if (!success) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSuccess(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [success]);
+
+  useEffect(() => {
+    if (!receipt) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setReceipt(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [receipt]);
+
   const VehicleIcon = vehicleType === "motor" ? Bike : Car;
 
   return (
@@ -397,6 +459,7 @@ export default function KasirPage() {
         <button
           type="button"
           onClick={() => setVehicleType("motor")}
+          aria-pressed={vehicleType === "motor"}
           className={cn(
             "h-16 rounded-[var(--radius-md)] border-2 flex items-center justify-center gap-3 text-lg font-extrabold transition active:scale-[0.98]",
             vehicleType === "motor"
@@ -410,6 +473,7 @@ export default function KasirPage() {
         <button
           type="button"
           onClick={() => setVehicleType("mobil")}
+          aria-pressed={vehicleType === "mobil"}
           className={cn(
             "h-16 rounded-[var(--radius-md)] border-2 flex items-center justify-center gap-3 text-lg font-extrabold transition active:scale-[0.98]",
             vehicleType === "mobil"
@@ -437,6 +501,7 @@ export default function KasirPage() {
                 key={p.id}
                 type="button"
                 onClick={() => setSelectedPackageId(p.id)}
+                  aria-pressed={active}
                 className={cn(
                   "w-full text-left rounded-[var(--radius-md)] border p-4 flex items-center justify-between gap-3 transition active:scale-[0.99]",
                   active
@@ -494,6 +559,8 @@ export default function KasirPage() {
                 <button
                   type="button"
                   onClick={() => toggleAddon(a.id)}
+                    role="switch"
+                    aria-checked={checked}
                   className={cn(
                     "h-7 w-7 rounded-md border-2 flex items-center justify-center shrink-0 transition",
                     checked ? "bg-brand border-brand text-white" : "border-line bg-surface",
@@ -541,27 +608,33 @@ export default function KasirPage() {
         <Card className="flex flex-col gap-3">
           <Field label="Nama pelanggan">
             <Input
+              id="cust-name"
               value={custName}
               onChange={(e) => setCustName(e.target.value)}
               placeholder="Budi Santoso (opsional)"
               className="h-12 text-base"
+              aria-label="Nama pelanggan"
             />
           </Field>
           <Field label="No. WhatsApp">
             <Input
+              id="cust-phone"
               value={custPhone}
               onChange={(e) => setCustPhone(e.target.value)}
               placeholder="0812xxxx (opsional)"
               inputMode="tel"
               className="h-12 text-base"
+              aria-label="No. WhatsApp"
             />
           </Field>
           <Field label="Plat nomor">
             <Input
+              id="cust-plate"
               value={custPlate}
               onChange={(e) => setCustPlate(e.target.value.toUpperCase())}
               placeholder="B 1234 ABC (opsional)"
               className="h-12 text-base"
+              aria-label="Plat nomor"
             />
           </Field>
         </Card>
@@ -618,6 +691,7 @@ export default function KasirPage() {
           <button
             type="button"
             onClick={() => setPaymentMethod("tunai")}
+            aria-pressed={paymentMethod === "tunai"}
             className={cn(
               "h-14 rounded-[var(--radius-md)] border-2 flex items-center justify-center gap-2 font-bold transition active:scale-[0.98]",
               paymentMethod === "tunai"
@@ -631,6 +705,7 @@ export default function KasirPage() {
           <button
             type="button"
             onClick={() => setPaymentMethod("transfer")}
+            aria-pressed={paymentMethod === "transfer"}
             className={cn(
               "h-14 rounded-[var(--radius-md)] border-2 flex items-center justify-center gap-2 font-bold transition active:scale-[0.98]",
               paymentMethod === "transfer"
@@ -647,11 +722,14 @@ export default function KasirPage() {
           <Card className="flex flex-col gap-3">
             <Field label="Uang diterima">
               <Input
+                id="cash-received"
                 value={cashReceived}
-                onChange={(e) => setCashReceived(e.target.value)}
+                onChange={(e) => setCashReceived(e.target.value.replace(/[^0-9]/g, ""))}
                 placeholder="0"
                 inputMode="numeric"
                 className="h-12 text-base"
+                aria-invalid={cashReceived !== "" && cashNum < total}
+                aria-label="Uang diterima"
               />
             </Field>
             <div className="flex items-center justify-between">
@@ -665,9 +743,11 @@ export default function KasirPage() {
           <Card className="flex flex-col gap-3">
             <Field label="Pilih bank">
               <select
+                id="bank-select"
                 value={selectedBankId}
                 onChange={(e) => setSelectedBankId(e.target.value)}
                 className="w-full h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface text-base text-ink focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none"
+                aria-label="Pilih bank"
               >
                 <option value="">-- Pilih bank --</option>
                 {banks.map((b) => (
@@ -679,10 +759,12 @@ export default function KasirPage() {
             </Field>
             <Field label="No. referensi">
               <Input
+                id="ref-number"
                 value={refNumber}
                 onChange={(e) => setRefNumber(e.target.value)}
                 placeholder="Nomor referensi transfer"
                 className="h-12 text-base"
+                aria-label="No. referensi"
               />
             </Field>
           </Card>
@@ -694,7 +776,8 @@ export default function KasirPage() {
         <h3 className="text-base font-bold text-ink">Transaksi Terakhir Hari Ini</h3>
         {ordersError && <p className="text-sm text-danger">{ordersError}</p>}
         <Card className="flex flex-col gap-2 p-3">
-          {recent.length === 0 && <p className="text-sm text-muted text-center py-2">Belum ada transaksi</p>}
+          {ordersLoading && <p className="text-sm text-muted text-center py-2">Memuat transaksi...</p>}
+          {!ordersLoading && recent.length === 0 && <p className="text-sm text-muted text-center py-2">Belum ada transaksi</p>}
           {recent.map((t) => (
             <div key={t.id} className="flex items-center justify-between gap-2 py-2 border-b border-line last:border-0">
               <div className="min-w-0">
@@ -746,23 +829,23 @@ export default function KasirPage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
+        <div role="status" aria-live="polite" className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
           {toast}
         </div>
       )}
 
       {/* Success modal */}
       {success && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4">
-          <Card className="w-full max-w-sm flex flex-col items-center gap-3 text-center">
+        <div role="dialog" aria-modal="true" aria-labelledby="success-modal-title" className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4" onClick={() => setSuccess(null)}>
+          <Card className="w-full max-w-sm flex flex-col items-center gap-3 text-center" onClick={(e) => e.stopPropagation()}>
             <div className="h-16 w-16 rounded-full bg-success-soft text-success flex items-center justify-center">
               <CheckCircle2 className="h-8 w-8" />
             </div>
-            <h2 className="text-xl font-extrabold text-ink">Transaksi tersimpan</h2>
+            <h2 id="success-modal-title" className="text-xl font-extrabold text-ink">Transaksi tersimpan</h2>
             <p className="text-sm text-muted">Nomor antrean</p>
             <p className="text-4xl font-extrabold text-brand">{success.queueNumber}</p>
             <p className="text-sm text-muted">
-              {success.customer} • {rupiah(success.total)}
+              {(success.customer?.trim() ? success.customer : "—")} • {rupiah(success.total)}
             </p>
             <Button fullWidth size="lg" onClick={() => setSuccess(null)}>
               Selesai
@@ -771,10 +854,10 @@ export default function KasirPage() {
         </div>
       )}
       {receipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4">
+        <div role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title" className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4" onClick={() => setReceipt(null)}>
           <style>{`@page { size: 58mm auto; margin: 3mm; } @media print { html, body { width: 52mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; } body * { visibility: hidden !important; } .receipt-print, .receipt-print * { visibility: visible !important; } .receipt-print { position: fixed !important; inset: 0 auto auto 0 !important; width: 52mm !important; max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: #fff !important; color: #000 !important; } .no-print { display: none !important; } }`}</style>
-          <Card className="receipt-print w-full max-w-sm flex flex-col gap-3">
-            <h2 className="text-center text-xl font-bold">Struk transaksi</h2>
+          <Card className="receipt-print w-full max-w-sm flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
+            <h2 id="receipt-modal-title" className="text-center text-xl font-bold">Struk transaksi</h2>
             <p className="text-center text-sm text-muted">{receipt.invoiceNo}</p>
             <div className="border-y border-line py-3 text-sm">
               <p>{receipt.queueNumber} • {receipt.time}</p>

@@ -76,6 +76,12 @@ function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// Bangun Date lokal dari string "YYYY-MM-DD" agar kunci hari cocok dengan t.date.
+function parseLocalDate(iso: string): Date {
+  const [y, m, d] = iso.split("-").map((v) => Number(v));
+  return new Date(y, m - 1, d);
+}
+
 // formatTanggal berzona UTC bisa geser hari untuk string "YYYY-MM-DD"; bangun Date lokal dulu.
 function tgl(iso: string): string {
   const [y, m, d] = iso.split("-").map((v) => Number(v));
@@ -114,29 +120,55 @@ export default function LaporanPage() {
   const [toast, setToast] = useState("");
 
   const cancelled = useRef(false);
+  const controllersRef = useRef<Map<Tab, AbortController>>(new Map());
 
   const fetchTab = useCallback(async (t: Tab, f: string, tto: string) => {
+    controllersRef.current.get(t)?.abort();
+    const controller = new AbortController();
+    controllersRef.current.set(t, controller);
     try {
       if (t === "kas") {
-        const res = await apiFetch<{ data: CashReport }>(`/api/reports/cash?date=${encodeURIComponent(f)}`);
+        const res = await apiFetch<{ data: CashReport }>(`/api/reports/cash?date=${encodeURIComponent(f)}`, {
+          signal: controller.signal,
+        });
+        if (cancelled.current || controller.signal.aborted) return;
         setData((prev) => ({ ...prev, kas: res?.data ?? null }));
       } else {
         const res = await apiFetch<{ data: unknown[] }>(
           `/api/reports/${ENDPOINT[t]}?from=${encodeURIComponent(f)}&to=${encodeURIComponent(tto)}`,
+          { signal: controller.signal },
         );
-        setData((prev) => ({ ...prev, [t]: res?.data ?? [] }));
+        if (cancelled.current || controller.signal.aborted) return;
+        const rows = Array.isArray(res?.data) ? res.data : [];
+        setData((prev) => ({ ...prev, [t]: rows }));
       }
+      if (cancelled.current || controller.signal.aborted) return;
       setError((prev) => ({ ...prev, [t]: "" }));
     } catch (e) {
+      if (controller.signal.aborted || cancelled.current) return;
       setData((prev) => ({ ...prev, [t]: t === "kas" ? null : [] }));
       setError((prev) => ({ ...prev, [t]: e instanceof Error ? e.message : "Gagal memuat data." }));
     } finally {
-      setLoading((prev) => ({ ...prev, [t]: false }));
+      if (!controller.signal.aborted) {
+        setLoading((prev) => ({ ...prev, [t]: false }));
+      }
     }
   }, []);
 
+  const rangeFrom = mode === "single" ? date : from;
+  const rangeTo = mode === "single" ? date : to;
+  const invalidRange = mode === "range" && rangeFrom > rangeTo;
+
   useEffect(() => {
     cancelled.current = false;
+    if (invalidRange) {
+      setLoading({ omzet: false, paket: false, addon: false, pembayaran: false, karyawan: false, kas: false });
+      return () => {
+        cancelled.current = true;
+        controllersRef.current.forEach((c) => c.abort());
+        controllersRef.current.clear();
+      };
+    }
     const f = mode === "single" ? date : from;
     const t = mode === "single" ? date : to;
 
@@ -151,23 +183,25 @@ export default function LaporanPage() {
         await fetchTab("kas", f, f);
       } else {
         setData((prev) => ({ ...prev, kas: null }));
+        setLoading((prev) => ({ ...prev, kas: false }));
+        setError((prev) => ({ ...prev, kas: "" }));
       }
     })();
 
     return () => {
       cancelled.current = true;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const controllers = controllersRef.current;
+      controllers.forEach((c) => c.abort());
+      controllers.clear();
     };
-  }, [mode, date, from, to, fetchTab]);
+  }, [mode, date, from, to, fetchTab, invalidRange]);
 
-  const rangeFrom = mode === "single" ? date : from;
-  const rangeTo = mode === "single" ? date : to;
-  const invalidRange = mode === "range" && rangeFrom > rangeTo;
-
-  const txs = useMemo(() => (data.omzet ?? []) as ReportTx[], [data.omzet]);
-  const paketRows = useMemo(() => (data.paket ?? []) as PaketRow[], [data.paket]);
-  const addonRows = useMemo(() => (data.addon ?? []) as AddonRow[], [data.addon]);
-  const paymentRows = useMemo(() => (data.pembayaran ?? []) as PaymentRow[], [data.pembayaran]);
-  const employeeRows = useMemo(() => (data.karyawan ?? []) as EmployeeRow[], [data.karyawan]);
+  const txs = useMemo(() => (Array.isArray(data.omzet) ? (data.omzet as ReportTx[]) : []), [data.omzet]);
+  const paketRows = useMemo(() => (Array.isArray(data.paket) ? (data.paket as PaketRow[]) : []), [data.paket]);
+  const addonRows = useMemo(() => (Array.isArray(data.addon) ? (data.addon as AddonRow[]) : []), [data.addon]);
+  const paymentRows = useMemo(() => (Array.isArray(data.pembayaran) ? (data.pembayaran as PaymentRow[]) : []), [data.pembayaran]);
+  const employeeRows = useMemo(() => (Array.isArray(data.karyawan) ? (data.karyawan as EmployeeRow[]) : []), [data.karyawan]);
   const cash = (data.kas as CashReport | null) ?? null;
 
   const omzetHari = txs.reduce((s, t) => s + t.total, 0);
@@ -182,8 +216,8 @@ export default function LaporanPage() {
     const map = new Map<string, number>();
     txs.forEach((t) => map.set(t.date, (map.get(t.date) ?? 0) + t.total));
     const days: { date: string; omzet: number }[] = [];
-    const d = new Date(rangeFrom);
-    const end = new Date(rangeTo);
+    const d = parseLocalDate(rangeFrom);
+    const end = parseLocalDate(rangeTo);
     while (d <= end) {
       const iso = isoDate(d);
       days.push({ date: iso, omzet: map.get(iso) ?? 0 });
@@ -255,6 +289,7 @@ export default function LaporanPage() {
         <div className="flex items-center gap-3 text-sm font-semibold text-ink">
           <button
             type="button"
+            aria-pressed={mode === "single"}
             onClick={() => setMode("single")}
             className={cn(
               "h-9 px-3 rounded-md border transition",
@@ -265,6 +300,7 @@ export default function LaporanPage() {
           </button>
           <button
             type="button"
+            aria-pressed={mode === "range"}
             onClick={() => setMode("range")}
             className={cn(
               "h-9 px-3 rounded-md border transition",
@@ -336,7 +372,7 @@ export default function LaporanPage() {
               return (
                 <div key={t.date} className="flex-1 flex flex-col items-center gap-1">
                   <div className="w-full flex-1 flex items-end">
-                    <div className="w-full rounded-t-md bg-brand/80 hover:bg-brand transition" style={{ height: `${Math.max(4, pct)}%` }} title={rupiah(t.omzet)} />
+                    <div className="w-full rounded-t-md bg-brand/80 hover:bg-brand transition" style={{ height: `${Math.max(4, pct)}%` }} title={rupiah(t.omzet)} aria-label={`${tgl(t.date)}: ${rupiah(t.omzet)}`} />
                   </div>
                   <span className="text-[10px] font-semibold text-muted">{tgl(t.date)}</span>
                 </div>
@@ -357,6 +393,7 @@ export default function LaporanPage() {
             <button
               key={t.key}
               type="button"
+              aria-pressed={tab === t.key}
               onClick={() => setTab(t.key)}
               className={cn(
                 "h-10 px-3 rounded-md border text-sm font-semibold transition active:scale-[0.98] whitespace-nowrap",
@@ -422,7 +459,7 @@ export default function LaporanPage() {
                         <td className="py-2 px-2 text-sm text-ink">{t.vehicleType === "motor" ? "Motor" : "Mobil"}</td>
                         <td className="py-2 px-2 text-sm text-ink truncate">{t.packageName}</td>
                         <td className="py-2 px-2 text-sm text-muted truncate">
-                          {t.addons.map((a) => `${a.name} x${a.qty}`).join(", ") || "—"}
+                          {(Array.isArray(t.addons) ? t.addons : []).map((a) => `${a.name} x${a.qty}`).join(", ") || "—"}
                         </td>
                         <td className="py-2 px-2 text-sm text-ink">{t.employee}</td>
                         <td className="py-2 px-2 text-sm text-ink">{t.paymentMethod}</td>
@@ -729,20 +766,20 @@ export default function LaporanPage() {
                   </Card>
                   <Card className="p-3 flex flex-col gap-1">
                     <p className="text-xs text-muted">Saldo akhir teori</p>
-                    <p className={cn("font-bold tabular-nums", cash?.expectedCash === null ? "text-muted" : "text-ink")}>
-                      {cash?.expectedCash === null ? "-" : rupiah(Number(cash?.expectedCash ?? 0))}
+                    <p className={cn("font-bold tabular-nums", cash?.expectedCash == null ? "text-muted" : "text-ink")}>
+                      {cash?.expectedCash == null ? "-" : rupiah(Number(cash?.expectedCash ?? 0))}
                     </p>
                   </Card>
                   <Card className="p-3 flex flex-col gap-1">
                     <p className="text-xs text-muted">Kas aktual</p>
-                    <p className={cn("font-bold tabular-nums", (cash?.closingCash ?? cash?.actual) === null ? "text-muted" : "text-ink")}>
-                      {(cash?.closingCash ?? cash?.actual) === null ? "-" : rupiah(Number(cash?.closingCash ?? cash?.actual ?? 0))}
+                    <p className={cn("font-bold tabular-nums", (cash?.closingCash ?? cash?.actual) == null ? "text-muted" : "text-ink")}>
+                      {(cash?.closingCash ?? cash?.actual) == null ? "-" : rupiah(Number(cash?.closingCash ?? cash?.actual ?? 0))}
                     </p>
                   </Card>
                   <Card className="p-3 flex flex-col gap-1">
                     <p className="text-xs text-muted">Selisih</p>
-                    <p className={cn("font-bold tabular-nums", cash?.difference === null ? "text-muted" : (cash?.difference ?? 0) < 0 ? "text-danger" : "text-ink")}>
-                      {cash?.difference === null ? "-" : rupiah(Number(cash?.difference ?? 0))}
+                    <p className={cn("font-bold tabular-nums", cash?.difference == null ? "text-muted" : (cash?.difference ?? 0) < 0 ? "text-danger" : "text-ink")}>
+                      {cash?.difference == null ? "-" : rupiah(Number(cash?.difference ?? 0))}
                     </p>
                   </Card>
                 </div>

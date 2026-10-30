@@ -82,7 +82,7 @@ export default function AntreanPage() {
   const [orders, setOrders] = useState<BoardOrder[]>([]);
   const [summary, setSummary] = useState<BoardSummary>({ menunggu: 0, proses: 0, selesai: 0, total: 0 });
   const [filter, setFilter] = useState<Filter>("semua");
-  const [now, setNow] = useState<number>(0);
+  const [now, setNow] = useState<number>(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -91,23 +91,36 @@ export default function AntreanPage() {
   const [cashReceived, setCashReceived] = useState("");
   const [refNo, setRefNo] = useState("");
   const [payLoading, setPayLoading] = useState(false);
+  const [banks, setBanks] = useState<{ id: string; name: string; accountNumber: string }[]>([]);
+  const [selectedBankId, setSelectedBankId] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const refreshing = useRef(false);
+  const hasLoadedRef = useRef(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 2500);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
   const load = useCallback(async () => {
     if (refreshing.current) return;
     refreshing.current = true;
-    setLoading(true);
+    if (!hasLoadedRef.current) setLoading(true);
     try {
       const res = await apiFetch<BoardResponse>("/api/board");
       setOrders(res.data.orders);
       setSummary(res.data.summary);
       setError("");
+      hasLoadedRef.current = true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memuat papan antrean");
     } finally {
@@ -118,6 +131,14 @@ export default function AntreanPage() {
 
   useEffect(() => {
     void load();
+    (async () => {
+      try {
+        const res = await apiFetch<{ data: { id: string; name: string; accountNumber: string }[] }>("/api/banks");
+        setBanks(res?.data ?? []);
+      } catch {
+        setBanks([]);
+      }
+    })();
     const poll = window.setInterval(() => void load(), 5_000);
     const tick = window.setInterval(() => setNow(Date.now()), 1_000);
     return () => {
@@ -133,14 +154,18 @@ export default function AntreanPage() {
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }, [orders, filter]);
 
+  const cashAmount = Number((cashReceived || "").replace(/\\D/g, ""));
+  const change = payOrder ? cashAmount - payOrder.grandTotal : NaN;
+
   const counts = useMemo(() => {
+    const cancelled = orders.filter((o) => o.status === "dibatalkan").length;
     return {
       waiting: summary.menunggu,
       washing: summary.proses,
       doneUnpaid: summary.selesai,
-      totalToday: summary.total,
+      totalToday: Math.max(0, summary.total - cancelled),
     };
-  }, [summary]);
+  }, [summary, orders]);
 
   async function updateStatus(id: string, next: "proses" | "selesai") {
     setBusyId(id);
@@ -160,21 +185,39 @@ export default function AntreanPage() {
 
   async function handlePay() {
     if (!payOrder) return;
+    if (payMethod === "transfer") {
+      if (!selectedBankId) {
+        showToast("Pilih bank dulu ya");
+        return;
+      }
+      if (!refNo.trim()) {
+        showToast("Nomor referensi transfer wajib diisi");
+        return;
+      }
+    }
+    if (payMethod === "tunai") {
+      const cashNum = Number((cashReceived || "").replace(/\D/g, "")) || 0;
+      if (cashNum < payOrder.grandTotal) {
+        showToast("Uang diterima kurang");
+        return;
+      }
+    }
     setPayLoading(true);
     try {
-      const body: { method: "tunai" | "transfer"; cashReceived?: number; referenceNo?: string } = {
+      const body: {
+        method: "tunai" | "transfer";
+        cashReceived?: number;
+        bankId?: string;
+        referenceNo?: string;
+      } = {
         method: payMethod,
       };
       if (payMethod === "tunai") {
-        const cashNum = Number(cashReceived.replace(/\D/g, "")) || 0;
-        if (cashNum < payOrder.grandTotal) {
-          showToast("Uang diterima kurang");
-          setPayLoading(false);
-          return;
-        }
+        const cashNum = Number((cashReceived || "").replace(/\D/g, "")) || 0;
         body.cashReceived = cashNum;
       } else {
-        body.referenceNo = refNo.trim() || undefined;
+        body.bankId = selectedBankId;
+        body.referenceNo = refNo.trim();
       }
 
       await apiFetch(`/api/orders/${payOrder.id}/payments`, {
@@ -185,6 +228,7 @@ export default function AntreanPage() {
       setPayMethod("tunai");
       setCashReceived("");
       setRefNo("");
+      setSelectedBankId("");
       showToast("Pembayaran diterima");
       await load();
     } catch (err) {
@@ -194,6 +238,22 @@ export default function AntreanPage() {
       setPayLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!payOrder) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !payLoading) setPayOrder(null);
+    };
+    window.addEventListener("keydown", onKey);
+    const t = window.setTimeout(() => {
+      const el = document.querySelector('[role="dialog"] input, [role="dialog"] select') as HTMLElement | null;
+      el?.focus();
+    }, 0);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.clearTimeout(t);
+    };
+  }, [payOrder, payLoading]);
 
   return (
     <div className="flex flex-col gap-4 pb-36">
@@ -228,6 +288,7 @@ export default function AntreanPage() {
             key={f}
             type="button"
             onClick={() => setFilter(f)}
+            aria-pressed={filter === f}
             className={cn(
               "shrink-0 px-4 py-2 rounded-full text-sm font-semibold border transition active:scale-[0.98]",
               filter === f
@@ -275,18 +336,26 @@ export default function AntreanPage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
+        <div role="status" aria-live="polite" className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
           {toast}
         </div>
       )}
 
       {/* Modal pembayaran */}
       {payOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm px-4" onClick={() => setPayOrder(null)}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pay-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm px-4"
+          onClick={() => {
+            if (!payLoading) setPayOrder(null);
+          }}
+        >
           <Card className="w-full max-w-sm flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-brand" />
-              <h2 className="font-bold text-ink">Pembayaran {payOrder.queueNo}</h2>
+              <h2 id="pay-modal-title" className="font-bold text-ink">Pembayaran {payOrder.queueNo}</h2>
             </div>
             <p className="text-sm text-muted">
               {payOrder.customerName} • {payOrder.plate}
@@ -324,28 +393,49 @@ export default function AntreanPage() {
                 <Field label="Uang diterima">
                   <Input
                     value={cashReceived}
-                    onChange={(e) => setCashReceived(e.target.value)}
+                    onChange={(e) => setCashReceived(e.target.value.replace(/[^0-9]/g, ""))}
                     placeholder="0"
                     inputMode="numeric"
                     className="h-12 text-base"
+                    aria-invalid={cashReceived !== "" && !Number.isFinite(cashAmount)}
                   />
                 </Field>
                 <div className="flex items-center justify-between">
                   <span className="text-muted">Kembalian</span>
                   <span className="text-lg font-extrabold text-success">
-                    {rupiah(Math.max(0, Number(cashReceived.replace(/\D/g, "")) || 0 - payOrder.grandTotal))}
+                    {Number.isFinite(change) && cashReceived.trim() !== ""
+                      ? rupiah(Math.max(0, change))
+                      : "—"}
                   </span>
                 </div>
               </Card>
             ) : (
-              <Field label="Nomor referensi transfer">
-                <Input
-                  value={refNo}
-                  onChange={(e) => setRefNo(e.target.value)}
-                  placeholder="Nomor referensi transfer"
-                  className="h-12 text-base"
-                />
-              </Field>
+              <div className="flex flex-col gap-3">
+                <Field label="Pilih bank">
+                  <select
+                    value={selectedBankId}
+                    onChange={(e) => setSelectedBankId(e.target.value)}
+                    className="w-full h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface text-base text-ink focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none"
+                    aria-label="Pilih bank"
+                  >
+                    <option value="">-- Pilih bank --</option>
+                    {banks.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} - {b.accountNumber}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Nomor referensi transfer">
+                  <Input
+                    value={refNo}
+                    onChange={(e) => setRefNo(e.target.value)}
+                    placeholder="Nomor referensi transfer"
+                    className="h-12 text-base"
+                    aria-invalid={refNo.trim() === ""}
+                  />
+                </Field>
+              </div>
             )}
             <div className="flex gap-2">
               <Button
