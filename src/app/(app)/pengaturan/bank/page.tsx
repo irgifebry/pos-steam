@@ -26,13 +26,6 @@ const emptyForm = {
   active: true,
 };
 
-function showToastFn(setToast: React.Dispatch<React.SetStateAction<string | null>>) {
-  return (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2500);
-  };
-}
-
 export default function BankPage() {
   const [items, setItems] = useState<Bank[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +35,10 @@ export default function BankPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-  const showToast = showToastFn(setToast);
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);

@@ -41,13 +41,6 @@ const emptyForm = {
   password: "",
 };
 
-function showToastFn(setToast: React.Dispatch<React.SetStateAction<string | null>>) {
-  return (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2500);
-  };
-}
-
 export default function PenggunaPage() {
   const [items, setItems] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +54,10 @@ export default function PenggunaPage() {
   const [pinSaving, setPinSaving] = useState(false);
   const [pinError, setPinError] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-  const showToast = showToastFn(setToast);
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
