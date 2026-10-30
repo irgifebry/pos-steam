@@ -16,18 +16,21 @@ const tabs: { href: string; label: string; icon: typeof ShoppingCart; roles: Rol
 
 export function BottomNav({ role }: { role: Role }) {
   const pathname = usePathname();
+  const visibleTabs = tabs.filter((t) => t.roles.includes(role));
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-line bg-surface md:hidden">
-      <div className="mx-auto max-w-lg grid grid-cols-5">
-        {tabs
-          .filter((t) => t.roles.includes(role))
-          .map((t) => {
+      <div
+        className="mx-auto max-w-lg grid"
+        style={{ gridTemplateColumns: `repeat(${Math.max(visibleTabs.length, 1)}, minmax(0, 1fr))` }}
+      >
+        {visibleTabs.map((t) => {
             const active = pathname === t.href || pathname.startsWith(t.href + "/");
             const Icon = t.icon;
             return (
               <Link
                 key={t.href}
                 href={t.href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 py-2 text-xs font-medium tap-target",
                   active ? "text-ink" : "text-muted",

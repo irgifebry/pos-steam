@@ -21,13 +21,16 @@ const SessionCtx = createContext<Ctx>({
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const { data, isPending } = authClient.useSession();
   const u = data?.user as Record<string, unknown> | undefined;
+  const validRoles: Role[] = ["admin", "kasir", "operator"];
+  const rawRole = u?.role;
+  const role: Role = validRoles.includes(rawRole as Role) ? (rawRole as Role) : "kasir";
 
   const user = u
     ? {
         id: String(u.id),
         name: String(u.name ?? ""),
         email: String(u.email ?? ""),
-        role: (u.role as Role) ?? "kasir",
+        role,
       }
     : null;
 

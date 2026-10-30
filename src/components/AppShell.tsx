@@ -59,7 +59,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-30 h-[57px] border-b border-line bg-bg md:h-12 md:border-0">
         <div className="mx-auto flex h-full max-w-lg items-center gap-3 px-4 md:max-w-none md:px-6">
           <div className="h-11 w-11 rounded-2xl bg-brand text-white flex items-center justify-center">
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 3c-3 4-5 6.5-5 9a5 5 0 0 0 10 0c0-2.5-2-5-5-9z" />
               <path d="M9 14c.6.8 1.4 1.2 3 1.2s2.4-.4 3-1.2" opacity="0.6" />
             </svg>
@@ -76,7 +76,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <RefreshCw className="h-5 w-5" />
           </button>
           <button
-            onClick={() => signOut()}
+            onClick={() => void signOut()}
             className="h-10 w-10 rounded-xl border border-line bg-surface flex items-center justify-center text-muted hover:text-danger"
             aria-label="Keluar"
           >
@@ -85,7 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-lg px-4 py-4 md:mx-0 md:max-w-none md:px-6 md:py-6">{children}</main>
+      <main className="mx-auto max-w-lg px-4 py-4 pb-24 md:mx-0 md:max-w-none md:px-6 md:py-6 md:pb-6">{children}</main>
       <BottomNav role={role} />
 
       {switcherOpen && <OperatorSwitcher onClose={() => setSwitcherOpen(false)} />}

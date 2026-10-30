@@ -20,8 +20,9 @@ export function OperatorSwitcher({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    const controller = new AbortController();
     const path = currentRole === "admin" ? "/api/users?includeInactive=false" : "/api/users?light=1";
-    apiFetch<{ data: AppUser[] | AppUserSummary[] }>(path)
+    apiFetch<{ data: AppUser[] | AppUserSummary[] }>(path, { signal: controller.signal })
       .then((r) => {
         const mapped = (r.data as Array<AppUser | AppUserSummary>).map((u) => ({
           id: u.id,
@@ -31,7 +32,10 @@ export function OperatorSwitcher({ onClose }: { onClose: () => void }) {
         }));
         setUsers(mapped);
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        if (e?.name !== "AbortError") setError(e.message);
+      });
+    return () => controller.abort();
   }, [currentRole]);
 
   const canSwitch = users.some((u) => u.email);
@@ -54,7 +58,11 @@ export function OperatorSwitcher({ onClose }: { onClose: () => void }) {
     }
     setLoading(true);
     try {
-      await authClient.signIn.email({ email: u.email, password: pin });
+      const result = await authClient.signIn.email({ email: u.email, password: pin });
+      if (result?.error) {
+        setError(result.error.message || "Gagal ganti operator");
+        return;
+      }
       window.location.reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal ganti operator");
@@ -64,11 +72,23 @@ export function OperatorSwitcher({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="operator-switcher-title"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+    >
       <div className="w-full max-w-md bg-surface rounded-[var(--radius-lg)] p-5 shadow-[var(--shadow-float)]">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Ganti Operator</h2>
-          <button onClick={onClose} className="h-10 w-10 rounded-xl border border-line flex items-center justify-center">
+          <h2 id="operator-switcher-title" className="text-xl font-bold">Ganti Operator</h2>
+          <button
+            onClick={onClose}
+            aria-label="Tutup"
+            className="h-10 w-10 rounded-xl border border-line flex items-center justify-center"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
