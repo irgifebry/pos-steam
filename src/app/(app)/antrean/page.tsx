@@ -1,57 +1,55 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  Car,
-  CheckCircle2,
-  Clock,
-  Droplets,
-  Motorbike,
-  Play,
-  Receipt,
-  Wallet,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Car, CheckCircle2, Clock, Droplets, Motorbike, Play, Receipt, Wallet } from "lucide-react";
+
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { cn } from "@/lib/cn";
+import { Field } from "@/components/ui/Field";
+import { Input } from "@/components/ui/Input";
+import { Spinner } from "@/components/ui/Spinner";
+import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/api-client";
-import { formatWaktu, rupiah } from "@/lib/format";
+import { cn } from "@/lib/cn";
+import { formatTanggal, formatWaktu, rupiah } from "@/lib/format";
+import type { VehicleType } from "@/lib/types";
 
-type VehicleType = "motor" | "mobil";
-type Status = "menunggu" | "proses" | "selesai" | "paid";
+type BoardStatus = "menunggu" | "proses" | "selesai" | "paid" | "dibatalkan";
 
-type Order = {
+type BoardOrder = {
   id: string;
   queueNo: string;
-  plate: string;
   vehicleType: VehicleType;
-  packageName: string;
-  packagePrice: number;
-  total: number;
+  status: BoardStatus;
   customerName: string;
-  status: Status;
-  entryTime: Date;
-  estimatedMin: number;
-};
-
-type ApiOrder = {
-  id: string;
-  queueNo: string;
+  customerPhone: string;
   plate: string;
-  vehicleType: VehicleType;
   packageName: string;
   packagePrice: number;
   grandTotal: number;
-  customerName: string;
-  status: Status;
   createdAt: string;
+  startedAt: string | null;
   estimatedMin: number;
 };
 
-const FILTERS = ["semua", "motor", "mobil"] as const;
-type Filter = (typeof FILTERS)[number];
+type BoardSummary = {
+  menunggu: number;
+  proses: number;
+  selesai: number;
+  total: number;
+};
 
+type BoardResponse = {
+  data: {
+    orders: BoardOrder[];
+    summary: BoardSummary;
+  };
+};
+
+type Filter = "semua" | "motor" | "mobil";
+
+const FILTERS: Filter[] = ["semua", "motor", "mobil"];
 const FILTER_LABEL: Record<Filter, string> = {
   semua: "Semua",
   motor: "Motor",
@@ -59,27 +57,14 @@ const FILTER_LABEL: Record<Filter, string> = {
 };
 
 const STATUS_META: Record<
-  Exclude<Status, "paid">,
-  { label: string; tone: "accent" | "info" | "success"; color: string; dot: string }
+  BoardStatus,
+  { label: string; tone: "brand" | "accent" | "success" | "danger" | "muted" | "info"; dotBg: string }
 > = {
-  menunggu: {
-    label: "Menunggu",
-    tone: "accent",
-    color: "text-amber-700",
-    dot: "bg-accent",
-  },
-  proses: {
-    label: "Sedang dicuci",
-    tone: "info",
-    color: "text-info",
-    dot: "bg-info",
-  },
-  selesai: {
-    label: "Selesai (belum bayar)",
-    tone: "success",
-    color: "text-success",
-    dot: "bg-success",
-  },
+  menunggu: { label: "Menunggu", tone: "info", dotBg: "bg-info" },
+  proses: { label: "Sedang dicuci", tone: "accent", dotBg: "bg-accent text-ink" },
+  selesai: { label: "Selesai (belum bayar)", tone: "success", dotBg: "bg-success" },
+  paid: { label: "Lunas", tone: "brand", dotBg: "bg-brand" },
+  dibatalkan: { label: "Dibatalkan", tone: "muted", dotBg: "bg-ink text-white" },
 };
 
 function formatElapsed(ms: number): string {
@@ -89,42 +74,47 @@ function formatElapsed(ms: number): string {
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
   if (h > 0) return `${h} jam ${m} mnt`;
-  return `${m} menit ${s.toString().padStart(2, "0")} detik`;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 export default function AntreanPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const { role } = useAppSession();
+  const [orders, setOrders] = useState<BoardOrder[]>([]);
+  const [summary, setSummary] = useState<BoardSummary>({ menunggu: 0, proses: 0, selesai: 0, total: 0 });
   const [filter, setFilter] = useState<Filter>("semua");
   const [now, setNow] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [payOrder, setPayOrder] = useState<BoardOrder | null>(null);
+  const [payMethod, setPayMethod] = useState<"tunai" | "transfer">("tunai");
+  const [cashReceived, setCashReceived] = useState("");
+  const [refNo, setRefNo] = useState("");
+  const [payLoading, setPayLoading] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const refreshing = useRef(false);
 
-  async function load() {
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  }, []);
+
+  const load = useCallback(async () => {
+    if (refreshing.current) return;
+    refreshing.current = true;
+    setLoading(true);
     try {
-      const res = await apiFetch<{ data: ApiOrder[] }>("/api/orders?includePaid=false");
-      setOrders(
-        res.data.map((order) => ({
-          id: order.id,
-          queueNo: order.queueNo,
-          plate: order.plate,
-          vehicleType: order.vehicleType,
-          packageName: order.packageName,
-          packagePrice: order.packagePrice,
-          total: order.grandTotal,
-          customerName: order.customerName,
-          status: order.status,
-          entryTime: new Date(order.createdAt),
-          estimatedMin: order.estimatedMin,
-        })),
-      );
+      const res = await apiFetch<BoardResponse>("/api/board");
+      setOrders(res.data.orders);
+      setSummary(res.data.summary);
       setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal memuat antrean");
+      setError(err instanceof Error ? err.message : "Gagal memuat papan antrean");
     } finally {
       setLoading(false);
+      refreshing.current = false;
     }
-  }
+  }, []);
 
   useEffect(() => {
     void load();
@@ -134,22 +124,23 @@ export default function AntreanPage() {
       window.clearInterval(poll);
       window.clearInterval(tick);
     };
-  }, []);
-
-  const counts = useMemo(() => {
-    const waiting = orders.filter((o) => o.status === "menunggu").length;
-    const washing = orders.filter((o) => o.status === "proses").length;
-    const doneUnpaid = orders.filter((o) => o.status === "selesai").length;
-    const totalToday = orders.length;
-    return { waiting, washing, doneUnpaid, totalToday };
-  }, [orders]);
+  }, [load]);
 
   const visible = useMemo(() => {
     return orders
       .filter((o) => o.status !== "paid")
       .filter((o) => filter === "semua" || o.vehicleType === filter)
-      .sort((a, b) => a.entryTime.getTime() - b.entryTime.getTime());
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }, [orders, filter]);
+
+  const counts = useMemo(() => {
+    return {
+      waiting: summary.menunggu,
+      washing: summary.proses,
+      doneUnpaid: summary.selesai,
+      totalToday: summary.total,
+    };
+  }, [summary]);
 
   async function updateStatus(id: string, next: "proses" | "selesai") {
     setBusyId(id);
@@ -161,31 +152,59 @@ export default function AntreanPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memperbarui status");
+      showToast(err instanceof Error ? err.message : "Gagal memperbarui status");
     } finally {
       setBusyId(null);
     }
   }
 
-  async function handleBayar(order: Order) {
-    setBusyId(order.id);
+  async function handlePay() {
+    if (!payOrder) return;
+    setPayLoading(true);
     try {
-      await apiFetch(`/api/orders/${order.id}/payments`, {
+      const body: { method: "tunai" | "transfer"; cashReceived?: number; referenceNo?: string } = {
+        method: payMethod,
+      };
+      if (payMethod === "tunai") {
+        const cashNum = Number(cashReceived.replace(/\D/g, "")) || 0;
+        if (cashNum < payOrder.grandTotal) {
+          showToast("Uang diterima kurang");
+          setPayLoading(false);
+          return;
+        }
+        body.cashReceived = cashNum;
+      } else {
+        body.referenceNo = refNo.trim() || undefined;
+      }
+
+      await apiFetch(`/api/orders/${payOrder.id}/payments`, {
         method: "POST",
-        body: JSON.stringify({ method: "tunai", cashReceived: order.total }),
+        body: JSON.stringify(body),
       });
+      setPayOrder(null);
+      setPayMethod("tunai");
+      setCashReceived("");
+      setRefNo("");
+      showToast("Pembayaran diterima");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal mencatat pembayaran");
+      showToast(err instanceof Error ? err.message : "Gagal mencatat pembayaran");
     } finally {
-      setBusyId(null);
+      setPayLoading(false);
     }
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 pb-36">
       <div>
         <h1 className="text-2xl font-extrabold text-ink">Antrean</h1>
-        <p className="text-sm text-muted">Pantau cuci yang sedang berjalan hari ini</p>
+        <p className="text-sm text-muted flex items-center gap-2 mt-1">
+          {formatTanggal(new Date())}
+          <span className="bg-surface border border-line px-2 py-0.5 rounded-md text-xs font-semibold text-ink">
+            Posisi: {role}
+          </span>
+        </p>
       </div>
 
       {error && (
@@ -196,30 +215,10 @@ export default function AntreanPage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-x-5 gap-y-3 rounded-2xl bg-surface px-4 py-3 border border-line">
-        <SummaryCard
-          icon={Clock}
-          label="Menunggu"
-          value={counts.waiting}
-          tone="accent"
-        />
-        <SummaryCard
-          icon={Droplets}
-          label="Sedang dicuci"
-          value={counts.washing}
-          tone="info"
-        />
-        <SummaryCard
-          icon={CheckCircle2}
-          label="Selesai belum bayar"
-          value={counts.doneUnpaid}
-          tone="success"
-        />
-        <SummaryCard
-          icon={Receipt}
-          label="Total hari ini"
-          value={counts.totalToday}
-          tone="brand"
-        />
+        <SummaryCard icon={Clock} label="Menunggu" value={counts.waiting} tone="info" />
+        <SummaryCard icon={Droplets} label="Sedang dicuci" value={counts.washing} tone="accent" />
+        <SummaryCard icon={CheckCircle2} label="Selesai belum bayar" value={counts.doneUnpaid} tone="success" />
+        <SummaryCard icon={Receipt} label="Total hari ini" value={counts.totalToday} tone="brand" />
       </div>
 
       {/* Filter chips */}
@@ -227,6 +226,7 @@ export default function AntreanPage() {
         {FILTERS.map((f) => (
           <button
             key={f}
+            type="button"
             onClick={() => setFilter(f)}
             className={cn(
               "shrink-0 px-4 py-2 rounded-full text-sm font-semibold border transition active:scale-[0.98]",
@@ -242,9 +242,11 @@ export default function AntreanPage() {
 
       {/* List */}
       {loading ? (
-        <Card className="py-10 text-center text-sm text-muted">Memuat antrean...</Card>
+        <Card className="py-12 text-center text-sm text-muted">
+          <Spinner className="text-brand mx-auto mb-3" /> Memuat antrean...
+        </Card>
       ) : visible.length === 0 ? (
-        <Card className="flex flex-col items-center text-center gap-3 py-10">
+        <Card className="flex flex-col items-center text-center gap-3 py-12">
           <div className="h-16 w-16 rounded-full bg-brand-soft text-brand flex items-center justify-center">
             <CheckCircle2 className="h-8 w-8" />
           </div>
@@ -265,9 +267,117 @@ export default function AntreanPage() {
               busy={busyId === order.id}
               onMulai={() => updateStatus(order.id, "proses")}
               onSelesai={() => updateStatus(order.id, "selesai")}
-              onBayar={() => handleBayar(order)}
+              onBayar={() => setPayOrder(order)}
             />
           ))}
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
+          {toast}
+        </div>
+      )}
+
+      {/* Modal pembayaran */}
+      {payOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm px-4" onClick={() => setPayOrder(null)}>
+          <Card className="w-full max-w-sm flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-brand" />
+              <h2 className="font-bold text-ink">Pembayaran {payOrder.queueNo}</h2>
+            </div>
+            <p className="text-sm text-muted">
+              {payOrder.customerName} • {payOrder.plate}
+            </p>
+            <div className="border-y border-line py-2">
+              <p className="text-sm text-muted">Total</p>
+              <p className="font-display text-xl font-bold text-ink tabular-nums">{rupiah(payOrder.grandTotal)}</p>
+            </div>
+            <Field label="Metode pembayaran">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPayMethod("tunai")}
+                  className={cn(
+                    "h-12 rounded-lg border flex items-center justify-center gap-2 font-semibold transition",
+                    payMethod === "tunai" ? "bg-accent text-ink border-accent" : "bg-surface text-ink border-line hover:bg-accent-soft",
+                  )}
+                >
+                  Tunai
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPayMethod("transfer")}
+                  className={cn(
+                    "h-12 rounded-lg border flex items-center justify-center gap-2 font-semibold transition",
+                    payMethod === "transfer" ? "bg-accent text-ink border-accent" : "bg-surface text-ink border-line hover:bg-accent-soft",
+                  )}
+                >
+                  Transfer
+                </button>
+              </div>
+            </Field>
+            {payMethod === "tunai" ? (
+              <Card className="flex flex-col gap-3 p-3 bg-surface">
+                <Field label="Uang diterima">
+                  <Input
+                    value={cashReceived}
+                    onChange={(e) => setCashReceived(e.target.value)}
+                    placeholder="0"
+                    inputMode="numeric"
+                    className="h-12 text-base"
+                  />
+                </Field>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted">Kembalian</span>
+                  <span className="text-lg font-extrabold text-success">
+                    {rupiah(Math.max(0, Number(cashReceived.replace(/\D/g, "")) || 0 - payOrder.grandTotal))}
+                  </span>
+                </div>
+              </Card>
+            ) : (
+              <Field label="Nomor referensi transfer">
+                <Input
+                  value={refNo}
+                  onChange={(e) => setRefNo(e.target.value)}
+                  placeholder="Nomor referensi transfer"
+                  className="h-12 text-base"
+                />
+              </Field>
+            )}
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="lg"
+                fullWidth
+                onClick={() => setPayOrder(null)}
+                disabled={payLoading}
+              >
+                Batal
+              </Button>
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth
+                onClick={handlePay}
+                disabled={payLoading}
+              >
+                {payLoading ? (
+                  <>
+                    <Spinner className="text-white h-4 w-4" />
+                    Memproses...
+                  </>
+                ) : (
+                  <>
+                    <Wallet className="h-4 w-4" />
+                    Bayar
+                  </>
+                )}
+              </Button>
+            </div>
+          </Card>
         </div>
       )}
     </div>
@@ -283,22 +393,22 @@ function SummaryCard({
   icon: typeof Clock;
   label: string;
   value: number;
-  tone: "accent" | "info" | "success" | "brand";
+  tone: "brand" | "accent" | "success" | "info";
 }) {
-  const toneClass = {
-    accent: "bg-accent-soft text-amber-700",
-    info: "bg-info-soft text-info",
-    success: "bg-success-soft text-success",
+  const toneClass: Record<string, string> = {
     brand: "bg-brand-soft text-brand",
-  }[tone];
+    accent: "bg-accent-soft text-amber-800",
+    success: "bg-success-soft text-success",
+    info: "bg-info-soft text-info",
+  };
 
   return (
     <div className="flex items-center gap-3 py-1">
-      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", toneClass)}>
+      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", toneClass[tone])}>
         <Icon className="h-5 w-5" />
       </div>
       <div className="min-w-0">
-        <p className={cn("text-sm font-medium", toneClass.split(" ")[1])}>{label}</p>
+        <p className={cn("text-sm font-medium", toneClass[tone].split(" ")[1])}>{label}</p>
         <p className="font-display text-3xl font-bold text-ink leading-none mt-1 tabular-nums">{value}</p>
       </div>
     </div>
@@ -313,17 +423,18 @@ function QueueCard({
   onSelesai,
   onBayar,
 }: {
-  order: Order;
+  order: BoardOrder;
   now: number;
   busy: boolean;
   onMulai: () => void;
   onSelesai: () => void;
   onBayar: () => void;
 }) {
-  const meta = STATUS_META[order.status as Exclude<Status, "paid">];
-  const elapsed = formatElapsed(now - order.entryTime.getTime());
-  const overEstimate =
-    now - order.entryTime.getTime() > order.estimatedMin * 60 * 1000;
+  const meta = STATUS_META[order.status];
+  const baseAt = order.startedAt ?? order.createdAt;
+  const elapsed = formatElapsed(now - new Date(baseAt).getTime());
+  const overEstimate = now - new Date(baseAt).getTime() > order.estimatedMin * 60 * 1000;
+  const running = order.status === "menunggu" || order.status === "proses";
 
   return (
     <Card className="flex flex-col gap-3">
@@ -331,9 +442,7 @@ function QueueCard({
         {/* Queue number big */}
         <div className="flex h-[72px] w-[72px] flex-col items-center justify-center rounded-xl bg-brand-soft text-brand shrink-0">
           <span className="text-xs font-semibold leading-none">Antrean</span>
-          <span className="font-display text-sm font-bold leading-none mt-1">
-            {order.queueNo}
-          </span>
+          <span className="font-display text-sm font-bold leading-none mt-1">{order.queueNo}</span>
         </div>
 
         <div className="flex-1 min-w-0">
@@ -348,25 +457,26 @@ function QueueCard({
               {order.vehicleType === "motor" ? "Motor" : "Mobil"}
             </Badge>
             <Badge tone={meta.tone}>
-              <span className={cn("h-1.5 w-1.5 rounded-full mr-1.5", meta.dot)} />
+              <span className={`h-1.5 w-1.5 rounded-full mr-1.5 ${meta.dotBg}`} />
               {meta.label}
             </Badge>
           </div>
           <p className="text-sm text-muted mt-1 truncate">
             {order.packageName} · {rupiah(order.packagePrice)}
           </p>
-          <p className="text-sm text-ink font-medium mt-0.5 truncate">
-            {order.customerName}
-          </p>
+          <p className="text-sm text-ink font-medium mt-0.5 truncate">{order.customerName}</p>
+          {order.customerPhone && (
+            <p className="text-[12px] text-muted truncate">{order.customerPhone}</p>
+          )}
         </div>
       </div>
 
       {/* Timer + estimate */}
       <div className="flex items-center justify-between gap-2 rounded-xl bg-bg px-3 py-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span className={cn("h-2.5 w-2.5 rounded-full animate-pulse", meta.dot)} />
+          <span className={`h-2.5 w-2.5 rounded-full ${running ? "animate-pulse" : ""} ${meta.dotBg}`} />
           <div className="min-w-0">
-            <p className="text-xs text-muted leading-none">Berjalan</p>
+            <p className="text-xs text-muted leading-none">{running ? "Berjalan sejak masuk" : meta.label}</p>
             <p className="font-display font-bold text-ink text-base leading-tight mt-0.5 tabular-nums">
               {elapsed}
             </p>
@@ -383,7 +493,7 @@ function QueueCard({
             {order.estimatedMin} menit
           </p>
           <p className="text-[11px] text-muted leading-none mt-0.5">
-            mulai {formatWaktu(order.entryTime)}
+            mulai {formatWaktu(baseAt)}
           </p>
         </div>
       </div>
@@ -402,7 +512,7 @@ function QueueCard({
         )}
         {order.status === "selesai" && (
           <Button variant="primary" size="md" fullWidth onClick={onBayar} disabled={busy}>
-            <Wallet className="h-4 w-4" /> {busy ? "Menyimpan..." : "Bayar"}
+            <Wallet className="h-4 w-4" /> {busy ? "Memproses..." : "Bayar"}
           </Button>
         )}
       </div>
