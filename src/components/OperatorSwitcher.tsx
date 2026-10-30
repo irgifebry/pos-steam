@@ -95,9 +95,7 @@ export function OperatorSwitcher({ onClose }: { onClose: () => void }) {
           </div>
           <Input
             type="password"
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="PIN 6 angka"
+            placeholder="PIN"
             value={pin}
             onChange={(e) => setPin(e.target.value)}
           />

@@ -99,11 +99,9 @@ export default function LoginPage() {
                 autoComplete="email"
               />
             </Field>
-            <Field label="PIN (6 angka)" hint="PIN yang diberikan admin">
+            <Field label="PIN" hint="PIN yang diberikan admin">
               <Input
                 type="password"
-                inputMode="numeric"
-                maxLength={6}
                 placeholder="••••••"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
