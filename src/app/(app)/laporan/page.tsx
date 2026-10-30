@@ -1,578 +1,759 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BarChart3, Banknote, Calendar, CreditCard, Download, Package, Printer, TrendingUp, Users, Wrench } from "lucide-react";
+
 import { Button } from "@/components/ui/Button";
-import { Card, CardTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
+import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
-import { rupiah } from "@/lib/format";
-import { cn } from "@/lib/cn";
+import { Spinner } from "@/components/ui/Spinner";
 import { apiFetch } from "@/lib/api-client";
-import {
-  Calendar,
-  Banknote,
-  CreditCard,
-  Download,
-  Printer,
-  TrendingUp,
-  Receipt,
-  Users,
-  Package,
-  Wrench,
-  Filter,
-  ChevronDown,
-} from "lucide-react";
+import { formatTanggal, formatAngka, rupiah } from "@/lib/format";
+import { cn } from "@/lib/cn";
 
 type VehicleType = "motor" | "mobil";
 type PaymentMethod = "Tunai" | "Transfer";
-type Period = "hari" | "minggu" | "bulan" | "custom";
+type Tab = "omzet" | "paket" | "addon" | "pembayaran" | "karyawan" | "kas";
 
-type Tx = {
+type ReportTx = {
   id: string;
   invoiceNo: string;
   date: string;
+  queueNo: string;
   vehicleType: VehicleType;
   paymentMethod: PaymentMethod;
   packageName: string;
   addons: { name: string; price: number; qty: number; subtotal: number }[];
   employee: string;
   total: number;
+  customerName: string;
+  plate: string;
 };
 
-type ApiTx = Omit<Tx, "id"> & { id: string };
-
-type CashShift = {
-  id: string;
-  date: string;
-  openedByName: string;
-  openingCash: number;
-  closedByName: string | null;
-  closingCash: number | null;
-  expectedCash: number | null;
-  difference: number | null;
-  closedAt: string | null;
+type PaketRow = { packageName: string; count: number; total: number };
+type AddonRow = { name: string; count: number; total: number };
+type PaymentRow = { method: string; count: number; total: number };
+type EmployeeRow = { employee: string; count: number; total: number };
+type CashReport = {
+  open?: number | null;
+  totalTunai?: number | null;
+  keluar?: number | null;
+  expectedCash?: number | null;
+  closingCash?: number | null;
+  actual?: number | null;
+  difference?: number | null;
+  history?: unknown[];
+  [key: string]: unknown;
 };
 
-function isoDate(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+type ReportData = Record<Tab, unknown>;
+
+const ENDPOINT: Record<Tab, string> = {
+  omzet: "transactions",
+  paket: "paket",
+  addon: "addon",
+  pembayaran: "payment-method",
+  karyawan: "employee",
+  kas: "cash",
+};
+
+const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
+  { key: "omzet", label: "Omzet per Periode", icon: BarChart3 },
+  { key: "paket", label: "Rekap Paket", icon: Package },
+  { key: "addon", label: "Rekap Add-on", icon: Wrench },
+  { key: "pembayaran", label: "Metode Pembayaran", icon: CreditCard },
+  { key: "karyawan", label: "Rekap Karyawan", icon: Users },
+  { key: "kas", label: "Rekap Kas Harian", icon: Banknote },
+];
+
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// formatTanggal berzona UTC bisa geser hari untuk string "YYYY-MM-DD"; bangun Date lokal dulu.
+function tgl(iso: string): string {
+  const [y, m, d] = iso.split("-").map((v) => Number(v));
+  return formatTanggal(new Date(y, m - 1, d));
+}
+
+function initialData(): ReportData {
+  return {
+    omzet: [],
+    paket: [],
+    addon: [],
+    pembayaran: [],
+    karyawan: [],
+    kas: null,
+  };
+}
+
+function initialLoading(): Record<Tab, boolean> {
+  return { omzet: true, paket: true, addon: true, pembayaran: true, karyawan: true, kas: true };
+}
+
+function initialError(): Record<Tab, string> {
+  return { omzet: "", paket: "", addon: "", pembayaran: "", karyawan: "", kas: "" };
 }
 
 export default function LaporanPage() {
-  const [mounted, setMounted] = useState(false);
-  const [transactions, setTransactions] = useState<Tx[]>([]);
-  const [txLoading, setTxLoading] = useState(true);
-  const [txError, setTxError] = useState("");
-  const [period, setPeriod] = useState<Period>("minggu");
-  const [vehicleFilter, setVehicleFilter] = useState<"semua" | VehicleType>("semua");
-  const [paymentFilter, setPaymentFilter] = useState<"semua" | PaymentMethod>("semua");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
-  const [cashShift, setCashShift] = useState<CashShift | null>(null);
+  const [mode, setMode] = useState<"single" | "range">("single");
+  const [date, setDate] = useState(todayISO());
+  const [from, setFrom] = useState(todayISO());
+  const [to, setTo] = useState(todayISO());
+  const [tab, setTab] = useState<Tab>("omzet");
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const today = new Date();
-    const from = new Date(today);
-    from.setDate(today.getDate() - 6);
-    setCustomFrom(isoDate(from));
-    setCustomTo(isoDate(today));
-    setMounted(true);
-  }, []);
+  const [data, setData] = useState<ReportData>(initialData());
+  const [loading, setLoading] = useState<Record<Tab, boolean>>(initialLoading());
+  const [error, setError] = useState<Record<Tab, string>>(initialError());
+  const [toast, setToast] = useState("");
 
-  const today = useMemo(() => startOfDay(new Date()), []);
+  const cancelled = useRef(false);
 
-  const range = useMemo(() => {
-    const end = new Date();
-    const start = new Date(end);
-    if (period === "hari") {
-      // today only
-    } else if (period === "minggu") {
-      start.setDate(end.getDate() - 6);
-    } else if (period === "bulan") {
-      start.setDate(1);
-    } else {
-      return { from: customFrom, to: customTo };
+  const fetchTab = useCallback(async (t: Tab, f: string, tto: string) => {
+    try {
+      if (t === "kas") {
+        const res = await apiFetch<{ data: CashReport }>(`/api/reports/cash?date=${encodeURIComponent(f)}`);
+        setData((prev) => ({ ...prev, kas: res?.data ?? null }));
+      } else {
+        const res = await apiFetch<{ data: unknown[] }>(
+          `/api/reports/${ENDPOINT[t]}?from=${encodeURIComponent(f)}&to=${encodeURIComponent(tto)}`,
+        );
+        setData((prev) => ({ ...prev, [t]: res?.data ?? [] }));
+      }
+      setError((prev) => ({ ...prev, [t]: "" }));
+    } catch (e) {
+      setData((prev) => ({ ...prev, [t]: t === "kas" ? null : [] }));
+      setError((prev) => ({ ...prev, [t]: e instanceof Error ? e.message : "Gagal memuat data." }));
+    } finally {
+      setLoading((prev) => ({ ...prev, [t]: false }));
     }
-    return { from: isoDate(start), to: isoDate(end) };
-  }, [period, customFrom, customTo]);
-
-  useEffect(() => {
-    if (!range.from || !range.to) return;
-    let cancelled = false;
-    setTxLoading(true);
-    apiFetch<{ data: ApiTx[] }>(
-      `/api/reports/transactions?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`,
-    )
-      .then((res) => {
-        if (cancelled) return;
-        setTransactions(res.data);
-        setTxError("");
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setTransactions([]);
-        setTxError(error instanceof Error ? error.message : "Gagal memuat laporan");
-      })
-      .finally(() => {
-        if (!cancelled) setTxLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [range]);
-
-  useEffect(() => {
-    apiFetch<{ data: { history: CashShift[] } }>("/api/cash-shifts")
-      .then((res) => setCashShift(res.data.history[0] ?? null))
-      .catch(() => setCashShift(null));
   }, []);
 
-  const filtered = useMemo(() => {
-    return transactions.filter((t) => {
-      if (vehicleFilter !== "semua" && t.vehicleType !== vehicleFilter) return false;
-      if (paymentFilter !== "semua" && t.paymentMethod !== paymentFilter) return false;
-      return true;
-    });
-  }, [transactions, vehicleFilter, paymentFilter]);
+  useEffect(() => {
+    cancelled.current = false;
+    const f = mode === "single" ? date : from;
+    const t = mode === "single" ? date : to;
 
-  const omzet = useMemo(() => filtered.reduce((s, t) => s + t.total, 0), [filtered]);
-  const count = filtered.length;
-  const avg = count > 0 ? Math.round(omzet / count) : 0;
-  const tunai = useMemo(() => filtered.filter((t) => t.paymentMethod === "Tunai").reduce((s, t) => s + t.total, 0), [filtered]);
-  const transfer = useMemo(() => filtered.filter((t) => t.paymentMethod === "Transfer").reduce((s, t) => s + t.total, 0), [filtered]);
+    (async () => {
+      setLoading(initialLoading());
+      setError(initialError());
+
+      const periodTabs: Tab[] = ["omzet", "paket", "addon", "pembayaran", "karyawan"];
+      await Promise.all(periodTabs.map((x) => fetchTab(x, f, t)));
+      if (cancelled.current) return;
+      if (mode === "single") {
+        await fetchTab("kas", f, f);
+      } else {
+        setData((prev) => ({ ...prev, kas: null }));
+      }
+    })();
+
+    return () => {
+      cancelled.current = true;
+    };
+  }, [mode, date, from, to, fetchTab]);
+
+  const rangeFrom = mode === "single" ? date : from;
+  const rangeTo = mode === "single" ? date : to;
+  const invalidRange = mode === "range" && rangeFrom > rangeTo;
+
+  const txs = useMemo(() => (data.omzet ?? []) as ReportTx[], [data.omzet]);
+  const paketRows = useMemo(() => (data.paket ?? []) as PaketRow[], [data.paket]);
+  const addonRows = useMemo(() => (data.addon ?? []) as AddonRow[], [data.addon]);
+  const paymentRows = useMemo(() => (data.pembayaran ?? []) as PaymentRow[], [data.pembayaran]);
+  const employeeRows = useMemo(() => (data.karyawan ?? []) as EmployeeRow[], [data.karyawan]);
+  const cash = (data.kas as CashReport | null) ?? null;
+
+  const omzetHari = txs.reduce((s, t) => s + t.total, 0);
+  const countTx = txs.length;
+  const avgTx = countTx ? Math.round(omzetHari / countTx) : 0;
+  const tunai = txs.filter((t) => t.paymentMethod === "Tunai").reduce((s, t) => s + t.total, 0);
+  const transfer = txs.filter((t) => t.paymentMethod === "Transfer").reduce((s, t) => s + t.total, 0);
+  const motor = txs.filter((t) => t.vehicleType === "motor").length;
+  const mobil = txs.filter((t) => t.vehicleType === "mobil").length;
 
   const trend = useMemo(() => {
+    const map = new Map<string, number>();
+    txs.forEach((t) => map.set(t.date, (map.get(t.date) ?? 0) + t.total));
     const days: { date: string; omzet: number }[] = [];
-    const length = period === "hari" ? 1 : period === "bulan" ? 30 : period === "custom" && customFrom && customTo
-      ? Math.min(90, Math.max(1, Math.round((new Date(customTo).getTime() - new Date(customFrom).getTime()) / 86400000) + 1))
-      : 7;
-    const endDate = period === "custom" && customTo ? new Date(`${customTo}T12:00:00`) : today;
-    for (let i = length - 1; i >= 0; i--) {
-      const d = new Date(endDate);
-      d.setDate(endDate.getDate() - i);
+    const d = new Date(rangeFrom);
+    const end = new Date(rangeTo);
+    while (d <= end) {
       const iso = isoDate(d);
-      const dayOmzet = transactions
-        .filter((t) => t.date === iso)
-        .filter((t) => (vehicleFilter === "semua" ? true : t.vehicleType === vehicleFilter))
-        .filter((t) => (paymentFilter === "semua" ? true : t.paymentMethod === paymentFilter))
-        .reduce((s, t) => s + t.total, 0);
-      days.push({ date: iso, omzet: dayOmzet });
+      days.push({ date: iso, omzet: map.get(iso) ?? 0 });
+      d.setDate(d.getDate() + 1);
     }
     return days;
-  }, [transactions, vehicleFilter, paymentFilter, today, period, customFrom, customTo]);
+  }, [txs, rangeFrom, rangeTo]);
+  const maxTrend = Math.max(1, ...trend.map((t) => t.omzet));
 
-  const maxTrend = useMemo(() => Math.max(1, ...trend.map((t) => t.omzet)), [trend]);
-  const trendLabel = period === "hari" ? "Trend Harian (1 hari)"
-    : period === "bulan" ? "Trend Harian (30 hari)"
-    : period === "custom" && customFrom && customTo
-      ? `Trend Harian (${trend.length} hari)`
-      : "Trend Harian (7 hari)";
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2500);
+  }
 
-  const perPaket = useMemo(() => {
-    const map = new Map<string, { jumlah: number; omzet: number }>();
-    filtered.forEach((t) => {
-      const cur = map.get(t.packageName) ?? { jumlah: 0, omzet: 0 };
-      cur.jumlah += 1;
-      cur.omzet += t.total;
-      map.set(t.packageName, cur);
-    });
-    return Array.from(map.entries())
-      .map(([paket, v]) => ({ paket, jumlah: v.jumlah, omzet: v.omzet }))
-      .sort((a, b) => b.omzet - a.omzet);
-  }, [filtered]);
-
-  const perAddon = useMemo(() => {
-    const map = new Map<string, { jumlah: number; omzet: number }>();
-    filtered.forEach((t) => {
-      t.addons.forEach((a) => {
-        const cur = map.get(a.name) ?? { jumlah: 0, omzet: 0 };
-        cur.jumlah += a.qty;
-        cur.omzet += a.subtotal;
-        map.set(a.name, cur);
-      });
-    });
-    return Array.from(map.entries())
-      .map(([addon, v]) => ({ addon, jumlah: v.jumlah, omzet: v.omzet }))
-      .sort((a, b) => b.omzet - a.omzet);
-  }, [filtered]);
-
-  const perMetode = useMemo(() => {
-    const map = new Map<PaymentMethod, { jumlah: number; omzet: number }>();
-    (["Tunai", "Transfer"] as PaymentMethod[]).forEach((m) => map.set(m, { jumlah: 0, omzet: 0 }));
-    filtered.forEach((t) => {
-      const cur = map.get(t.paymentMethod)!;
-      cur.jumlah += 1;
-      cur.omzet += t.total;
-    });
-    return Array.from(map.entries()).map(([metode, v]) => ({ metode, jumlah: v.jumlah, omzet: v.omzet }));
-  }, [filtered]);
-
-  const perKaryawan = useMemo(() => {
-    const map = new Map<string, { jumlah: number; omzet: number }>();
-    filtered.forEach((t) => {
-      const cur = map.get(t.employee) ?? { jumlah: 0, omzet: 0 };
-      cur.jumlah += 1;
-      cur.omzet += t.total;
-      map.set(t.employee, cur);
-    });
-    return Array.from(map.entries())
-      .map(([karyawan, v]) => ({ karyawan, jumlah: v.jumlah, omzet: v.omzet }))
-      .sort((a, b) => b.omzet - a.omzet);
-  }, [filtered]);
-
-  function handleExportCsv() {
-    const header = ["ID", "Tanggal", "Kendaraan", "Metode Bayar", "Paket", "Add-on", "Karyawan", "Total"];
-    const rows = filtered.map((t) => [
-      t.id,
-      t.date,
-      t.vehicleType,
-      t.paymentMethod,
-      t.packageName,
-      t.addons.map((addon) => `${addon.name} x${addon.qty}`).join("; "),
-      t.employee,
-      String(t.total),
-    ]);
-    const csv = [header, ...rows]
-      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `laporan-${isoDate(new Date())}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  async function downloadCsv(type: string) {
+    const qs = new URLSearchParams({ type, from: rangeFrom, to: rangeTo });
+    try {
+      const res = await fetch(`/api/reports/export.csv?${qs}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Server menolak unduhan CSV");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const suffix = rangeTo !== rangeFrom ? `_${rangeTo}` : "";
+      a.download = `laporan-${type}-${rangeFrom}${suffix}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Gagal unduh CSV");
+    }
   }
 
   function handlePrint() {
     window.print();
   }
 
-  if (!mounted) {
-    return (
-      <div className="flex items-center justify-center py-16 text-muted">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-      </div>
-    );
-  }
-
-  const periodOptions: { key: Period; label: string }[] = [
-    { key: "hari", label: "Hari ini" },
-    { key: "minggu", label: "Minggu ini" },
-    { key: "bulan", label: "Bulan ini" },
-    { key: "custom", label: "Pilih tanggal" },
-  ];
+  const periodLabel = mode === "single" ? `Hari ${tgl(rangeFrom)}` : `Periode ${tgl(rangeFrom)} s.d ${tgl(rangeTo)}`;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 pb-4">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
+          {toast}
+        </div>
+      )}
+
+      {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Laporan</h1>
-          <p className="text-sm text-muted">Ringkasan penjualan outlet</p>
+          <p className="text-sm text-muted">Ringkasan omzet dan transaksi outlet</p>
         </div>
-        <div className="flex gap-2 print:hidden">
-          <Button variant="secondary" size="sm" onClick={handleExportCsv}>
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
-          <Button variant="secondary" size="sm" onClick={handlePrint}>
+        <div className="flex gap-2 no-print">
+          <Button variant="secondary" size="sm" onClick={handlePrint} disabled={invalidRange}>
             <Printer className="h-4 w-4" /> Cetak
           </Button>
         </div>
       </div>
 
-      {txError && (
-        <div className="rounded-[var(--radius-sm)] border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
-          {txError}
-        </div>
-      )}
-      {txLoading && (
-        <p className="text-sm text-muted">Memuat data laporan...</p>
-      )}
-
-      <Card className="flex flex-col gap-3">
+      {/* Filter tanggal */}
+      <Card className="flex flex-col gap-3 no-print">
         <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <Calendar className="h-4 w-4 text-muted" /> <span>Pilih periode laporan</span>
+          <Calendar className="h-4 w-4 text-muted" />
+          <span>Filter tanggal</span>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {periodOptions.map((o) => (
+        <div className="flex items-center gap-3 text-sm font-semibold text-ink">
+          <button
+            type="button"
+            onClick={() => setMode("single")}
+            className={cn(
+              "h-9 px-3 rounded-md border transition",
+              mode === "single" ? "bg-accent text-ink border-accent" : "bg-surface text-ink border-line hover:bg-bg",
+            )}
+          >
+            Tunggal
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("range")}
+            className={cn(
+              "h-9 px-3 rounded-md border transition",
+              mode === "range" ? "bg-accent text-ink border-accent" : "bg-surface text-ink border-line hover:bg-bg",
+            )}
+          >
+            Rentang
+          </button>
+        </div>
+        {mode === "single" ? (
+          <Field label="Tanggal">
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </Field>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Dari">
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            </Field>
+            <Field label="Sampai">
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            </Field>
+          </div>
+        )}
+        {invalidRange && (
+          <p className="rounded-xl border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
+            Tanggal awal tidak boleh lebih besar dari tanggal akhir.
+          </p>
+        )}
+      </Card>
+
+      {/* Dashboard harian */}
+      <section className="flex flex-col gap-2 no-print">
+        <h2 className="text-sm font-semibold text-ink">Dashboard — {periodLabel}</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <Card className="p-3 flex flex-col gap-1">
+            <p className="text-xs text-muted">Omzet</p>
+            <p className="font-display text-lg font-bold tabular-nums text-ink">{rupiah(omzetHari)}</p>
+          </Card>
+          <Card className="p-3 flex flex-col gap-1">
+            <p className="text-xs text-muted">Transaksi</p>
+            <p className="font-display text-lg font-bold tabular-nums text-ink">{formatAngka(countTx)}</p>
+          </Card>
+          <Card className="p-3 flex flex-col gap-1">
+            <p className="text-xs text-muted">Rata-rata / transaksi</p>
+            <p className="font-display text-lg font-bold tabular-nums text-ink">{rupiah(avgTx)}</p>
+          </Card>
+          <Card className="p-3 flex flex-col gap-1">
+            <p className="text-xs text-muted">Tunai</p>
+            <p className="font-display text-lg font-bold tabular-nums text-ink">{rupiah(tunai)}</p>
+          </Card>
+          <Card className="p-3 flex flex-col gap-1">
+            <p className="text-xs text-muted">Transfer</p>
+            <p className="font-display text-lg font-bold tabular-nums text-ink">{rupiah(transfer)}</p>
+          </Card>
+          <Card className="p-3 flex flex-col gap-1">
+            <p className="text-xs text-muted">Motor / Mobil</p>
+            <p className="font-display text-lg font-bold tabular-nums text-ink">{formatAngka(motor)} / {formatAngka(mobil)}</p>
+          </Card>
+        </div>
+
+        {/* Tren omzet */}
+        <Card className="flex flex-col gap-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <TrendingUp className="h-4 w-4 text-brand" /> Tren omzet per hari
+          </div>
+          <div className="flex items-end gap-1 h-44">
+            {trend.map((t) => {
+              const pct = (t.omzet / maxTrend) * 100;
+              return (
+                <div key={t.date} className="flex-1 flex flex-col items-center gap-1">
+                  <div className="w-full flex-1 flex items-end">
+                    <div className="w-full rounded-t-md bg-brand/80 hover:bg-brand transition" style={{ height: `${Math.max(4, pct)}%` }} title={rupiah(t.omzet)} />
+                  </div>
+                  <span className="text-[10px] font-semibold text-muted">{tgl(t.date)}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-between text-[10px] text-muted">
+            <span>{tgl(rangeFrom)}</span>
+            <span>{rupiah(maxTrend)}</span>
+          </div>
+        </Card>
+      </section>
+
+      {/* Tabs laporan */}
+      <div className="overflow-x-auto border-b border-line pb-1 no-print">
+        <div className="flex gap-0.5">
+          {TABS.map((t) => (
             <button
-              key={o.key}
-              onClick={() => setPeriod(o.key)}
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
               className={cn(
-                "h-11 rounded-[var(--radius-sm)] border text-sm font-semibold transition active:scale-[0.98]",
-                period === o.key
-                  ? "bg-accent text-ink border-accent"
+                "h-10 px-3 rounded-md border text-sm font-semibold transition active:scale-[0.98] whitespace-nowrap",
+                tab === t.key
+                  ? "bg-accent text-ink border-accent shadow-sm"
                   : "bg-surface text-ink border-line hover:bg-bg",
               )}
             >
-              {o.label}
+              <t.icon className="h-4 w-4" /> {t.label}
             </button>
           ))}
         </div>
-        {period === "custom" && (
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Dari">
-              <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
-            </Field>
-            <Field label="Sampai">
-              <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
-            </Field>
-          </div>
-        )}
-      </Card>
-
-      <Card className="flex flex-col gap-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <Filter className="h-4 w-4 text-brand" /> Filter
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Tipe kendaraan">
-            <div className="relative">
-              <select
-                value={vehicleFilter}
-                onChange={(e) => setVehicleFilter(e.target.value as "semua" | VehicleType)}
-                className="w-full h-12 px-4 pr-10 rounded-[var(--radius-sm)] border border-line bg-surface text-base text-ink focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none appearance-none"
-              >
-                <option value="semua">Semua</option>
-                <option value="motor">Motor</option>
-                <option value="mobil">Mobil</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
-            </div>
-          </Field>
-          <Field label="Metode bayar">
-            <div className="relative">
-              <select
-                value={paymentFilter}
-                onChange={(e) => setPaymentFilter(e.target.value as "semua" | PaymentMethod)}
-                className="w-full h-12 px-4 pr-10 rounded-[var(--radius-sm)] border border-line bg-surface text-base text-ink focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none appearance-none"
-              >
-                <option value="semua">Semua</option>
-                <option value="Tunai">Tunai</option>
-                <option value="Transfer">Transfer</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
-            </div>
-          </Field>
-        </div>
-      </Card>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="col-span-2 flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-sm font-semibold text-muted">
-            <Banknote className="h-5 w-5" /> Omzet terkumpul
-          </div>
-          <p className="font-display text-3xl font-semibold tracking-tight tabular-nums">{rupiah(omzet)}</p>
-          <p className="text-sm text-muted">{count} transaksi dalam periode ini</p>
-        </Card>
-        <Card className="flex flex-col gap-1">
-          <div className="flex items-center gap-2 text-muted text-sm font-semibold">
-            <Receipt className="h-4 w-4 text-brand" /> Jumlah transaksi
-          </div>
-          <p className="font-display text-2xl font-bold text-ink">{count}</p>
-        </Card>
-        <Card className="flex flex-col gap-1">
-          <div className="flex items-center gap-2 text-muted text-sm font-semibold">
-            <TrendingUp className="h-4 w-4 text-brand" /> Rata-rata per transaksi
-          </div>
-          <p className="font-display text-xl font-bold text-ink">{rupiah(avg)}</p>
-        </Card>
-        <Card className="flex flex-col gap-1">
-          <div className="flex items-center gap-2 text-muted text-sm font-semibold">
-            <CreditCard className="h-4 w-4 text-brand" /> Tunai vs Transfer
-          </div>
-          <p className="text-sm font-bold text-ink">{rupiah(tunai)}</p>
-          <p className="text-sm font-bold text-muted">{rupiah(transfer)}</p>
-        </Card>
       </div>
 
-      <Card className="flex flex-col gap-3">
-        <CardTitle className="text-base">{trendLabel}</CardTitle>
-        <div className="flex items-end gap-2 h-40">
-          {trend.map((t) => {
-            const pct = (t.omzet / maxTrend) * 100;
-            return (
-              <div key={t.date} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full flex-1 flex items-end">
-                  <div
-                    className="w-full rounded-t-md bg-brand/80 hover:bg-brand transition"
-                    style={{ height: `${Math.max(4, pct)}%` }}
-                    title={rupiah(t.omzet)}
-                  />
-                </div>
-                <span className="text-[10px] font-semibold text-muted">
-                  {(trend.length <= 14 || trend.indexOf(t) % Math.ceil(trend.length / 7) === 0)
-                    ? new Date(`${t.date}T12:00:00`).toLocaleDateString("id-ID", { day: "numeric", month: "short" })
-                    : ""}
-                </span>
+      {/* Panel laporan aktif */}
+      <section className="flex flex-col gap-4">
+        {tab === "omzet" && (
+          <Card className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-brand" />
+                <span className="font-semibold text-ink">Omzet per Periode</span>
               </div>
-            );
-          })}
-        </div>
-        <div className="flex justify-between text-xs text-muted">
-          <span>0</span>
-          <span>{rupiah(maxTrend)}</span>
-        </div>
-      </Card>
+              <Button variant="secondary" size="sm" onClick={() => downloadCsv("transaksi")} disabled={loading.omzet || txs.length === 0}>
+                <Download className="h-4 w-4" /> Export CSV
+              </Button>
+            </div>
 
-      <TableCard title="Rekap per Paket" icon={<Package className="h-4 w-4 text-brand" />}>
-        <thead>
-          <tr className="text-left text-xs font-bold text-muted uppercase">
-            <th className="py-2 pr-2">Paket</th>
-            <th className="py-2 px-2 text-right">Jumlah</th>
-            <th className="py-2 pl-2 text-right">Omzet</th>
-          </tr>
-        </thead>
-        <tbody>
-          {perPaket.map((r) => (
-            <tr key={r.paket} className="border-t border-line">
-              <td className="py-2 pr-2 text-sm font-semibold text-ink">{r.paket}</td>
-              <td className="py-2 px-2 text-sm text-right text-ink">{r.jumlah}</td>
-              <td className="py-2 pl-2 text-sm text-right font-semibold text-ink">{rupiah(r.omzet)}</td>
-            </tr>
-          ))}
-          {perPaket.length === 0 && (
-            <tr><td colSpan={3} className="py-4 text-center text-sm text-muted">Tidak ada data</td></tr>
-          )}
-        </tbody>
-      </TableCard>
-
-      <TableCard title="Rekap per Add-on" icon={<Wrench className="h-4 w-4 text-brand" />}>
-        <thead>
-          <tr className="text-left text-xs font-bold text-muted uppercase">
-            <th className="py-2 pr-2">Add-on</th>
-            <th className="py-2 px-2 text-right">Jumlah</th>
-            <th className="py-2 pl-2 text-right">Omzet</th>
-          </tr>
-        </thead>
-        <tbody>
-          {perAddon.map((r) => (
-            <tr key={r.addon} className="border-t border-line">
-              <td className="py-2 pr-2 text-sm font-semibold text-ink">{r.addon}</td>
-              <td className="py-2 px-2 text-sm text-right text-ink">{r.jumlah}</td>
-              <td className="py-2 pl-2 text-sm text-right font-semibold text-ink">{rupiah(r.omzet)}</td>
-            </tr>
-          ))}
-          {perAddon.length === 0 && (
-            <tr><td colSpan={3} className="py-4 text-center text-sm text-muted">Tidak ada data</td></tr>
-          )}
-        </tbody>
-      </TableCard>
-
-      <TableCard title="Rekap per Metode Bayar" icon={<CreditCard className="h-4 w-4 text-brand" />}>
-        <thead>
-          <tr className="text-left text-xs font-bold text-muted uppercase">
-            <th className="py-2 pr-2">Metode</th>
-            <th className="py-2 px-2 text-right">Jumlah</th>
-            <th className="py-2 pl-2 text-right">Omzet</th>
-          </tr>
-        </thead>
-        <tbody>
-          {perMetode.map((r) => (
-            <tr key={r.metode} className="border-t border-line">
-              <td className="py-2 pr-2 text-sm font-semibold text-ink">{r.metode}</td>
-              <td className="py-2 px-2 text-sm text-right text-ink">{r.jumlah}</td>
-              <td className="py-2 pl-2 text-sm text-right font-semibold text-ink">{rupiah(r.omzet)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </TableCard>
-
-      <TableCard title="Rekap per Karyawan" icon={<Users className="h-4 w-4 text-brand" />}>
-        <thead>
-          <tr className="text-left text-xs font-bold text-muted uppercase">
-            <th className="py-2 pr-2">Karyawan</th>
-            <th className="py-2 px-2 text-right">Jumlah</th>
-            <th className="py-2 pl-2 text-right">Omzet</th>
-          </tr>
-        </thead>
-        <tbody>
-          {perKaryawan.map((r) => (
-            <tr key={r.karyawan} className="border-t border-line">
-              <td className="py-2 pr-2 text-sm font-semibold text-ink">{r.karyawan}</td>
-              <td className="py-2 px-2 text-sm text-right text-ink">{r.jumlah}</td>
-              <td className="py-2 pl-2 text-sm text-right font-semibold text-ink">{rupiah(r.omzet)}</td>
-            </tr>
-          ))}
-          {perKaryawan.length === 0 && (
-            <tr><td colSpan={3} className="py-4 text-center text-sm text-muted">Tidak ada data</td></tr>
-          )}
-        </tbody>
-      </TableCard>
-
-      <Card className="flex flex-col gap-2">
-        <CardTitle className="text-base">Rekap kas harian</CardTitle>
-        {cashShift ? (
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <span className="text-muted">Tanggal</span>
-            <span className="text-right font-semibold text-ink">{cashShift.date}</span>
-            <span className="text-muted">Dibuka oleh</span>
-            <span className="text-right font-semibold text-ink">{cashShift.openedByName}</span>
-            <span className="text-muted">Saldo awal</span>
-            <span className="text-right font-semibold text-ink">{rupiah(cashShift.openingCash)}</span>
-            <span className="text-muted">Kas seharusnya</span>
-            <span className="text-right font-semibold text-ink">
-              {cashShift.expectedCash === null ? "-" : rupiah(cashShift.expectedCash)}
-            </span>
-            <span className="text-muted">Kas akhir</span>
-            <span className="text-right font-semibold text-ink">
-              {cashShift.closingCash === null ? "Shift masih terbuka" : rupiah(cashShift.closingCash)}
-            </span>
-            <span className="text-muted">Selisih</span>
-            <span className={cn("text-right font-semibold", (cashShift.difference ?? 0) < 0 ? "text-danger" : "text-ink")}>
-              {cashShift.difference === null ? "-" : rupiah(cashShift.difference)}
-            </span>
-            <span className="text-muted">Status</span>
-            <span className="text-right font-semibold text-ink">
-              {cashShift.closedAt ? `Ditutup oleh ${cashShift.closedByName ?? "kasir"}` : "Terbuka"}
-            </span>
-          </div>
-        ) : (
-          <p className="text-sm text-muted">Belum ada shift kas. Buka shift di halaman Pengaturan → Gaji Kas.</p>
+            {loading.omzet && (
+              <div className="flex items-center justify-center py-12">
+                <Spinner className="text-brand" />
+                <span className="ml-2 text-muted">Memuat data transaksi...</span>
+              </div>
+            )}
+            {error.omzet && (
+              <div className="rounded-xl border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error.omzet}</div>
+            )}
+            {!loading.omzet && !error.omzet && txs.length === 0 && (
+              <p className="text-sm text-muted text-center py-8">Tidak ada transaksi pada periode ini.</p>
+            )}
+            {!loading.omzet && !error.omzet && txs.length > 0 && (
+              <div className="overflow-x-auto -mx-1">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-bold text-muted uppercase">
+                      <th className="py-2 pr-2">Tanggal</th>
+                      <th className="py-2 px-2">Invoice</th>
+                      <th className="py-2 px-2">Antrean</th>
+                      <th className="py-2 px-2">Kendaraan</th>
+                      <th className="py-2 px-2">Paket</th>
+                      <th className="py-2 px-2">Add-on</th>
+                      <th className="py-2 px-2">Karyawan</th>
+                      <th className="py-2 px-2">Metode</th>
+                      <th className="py-2 pl-2 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {txs.map((t) => (
+                      <tr key={t.id} className="border-t border-line">
+                        <td className="py-2 pr-2 text-sm text-ink">{tgl(t.date)}</td>
+                        <td className="py-2 px-2 text-sm font-semibold text-ink truncate">{t.invoiceNo}</td>
+                        <td className="py-2 px-2 text-sm text-ink">{t.queueNo}</td>
+                        <td className="py-2 px-2 text-sm text-ink">{t.vehicleType === "motor" ? "Motor" : "Mobil"}</td>
+                        <td className="py-2 px-2 text-sm text-ink truncate">{t.packageName}</td>
+                        <td className="py-2 px-2 text-sm text-muted truncate">
+                          {t.addons.map((a) => `${a.name} x${a.qty}`).join(", ") || "—"}
+                        </td>
+                        <td className="py-2 px-2 text-sm text-ink">{t.employee}</td>
+                        <td className="py-2 px-2 text-sm text-ink">{t.paymentMethod}</td>
+                        <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(t.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
         )}
-      </Card>
-    </div>
-  );
-}
 
-function Field({ label, children }: { label?: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      {label && <label className="text-sm font-semibold text-ink">{label}</label>}
-      {children}
-    </div>
-  );
-}
+        {tab === "paket" && (
+          <Card className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Package className="h-4 w-4 text-brand" />
+                <span className="font-semibold text-ink">Rekap Paket</span>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => downloadCsv("paket")} disabled={loading.paket || paketRows.length === 0}>
+                <Download className="h-4 w-4" /> Export CSV
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <Card className="p-3 flex flex-col gap-1">
+                <p className="text-xs text-muted">Jenis paket</p>
+                <p className="font-bold tabular-nums text-ink">{formatAngka(paketRows.length)}</p>
+              </Card>
+              <Card className="p-3 flex flex-col gap-1">
+                <p className="text-xs text-muted">Terjual</p>
+                <p className="font-bold tabular-nums text-ink">{formatAngka(paketRows.reduce((s, r) => s + r.count, 0))}</p>
+              </Card>
+              <Card className="p-3 flex flex-col gap-1">
+                <p className="text-xs text-muted">Omzet paket</p>
+                <p className="font-bold tabular-nums text-ink">{rupiah(paketRows.reduce((s, r) => s + r.total, 0))}</p>
+              </Card>
+            </div>
+            {loading.paket && (
+              <div className="flex items-center justify-center py-12"><Spinner className="text-brand" /></div>
+            )}
+            {error.paket && <div className="rounded-xl border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error.paket}</div>}
+            {!loading.paket && !error.paket && paketRows.length === 0 && (
+              <p className="text-sm text-muted text-center py-8">Tidak ada data paket pada periode ini.</p>
+            )}
+            {!loading.paket && !error.paket && paketRows.length > 0 && (
+              <div className="overflow-x-auto -mx-1">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-bold text-muted uppercase">
+                      <th className="py-2 pr-2">Paket</th>
+                      <th className="py-2 px-2 text-right">Jumlah</th>
+                      <th className="py-2 pl-2 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paketRows.map((r) => (
+                      <tr key={r.packageName} className="border-t border-line">
+                        <td className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.packageName}</td>
+                        <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
+                        <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t border-line font-bold">
+                      <td className="py-2 pr-2 text-sm text-ink">Total</td>
+                      <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(paketRows.reduce((s, r) => s + r.count, 0))}</td>
+                      <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(paketRows.reduce((s, r) => s + r.total, 0))}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        )}
 
-function TableCard({
-  title,
-  icon,
-  children,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        {icon}
-        <CardTitle className="text-base">{title}</CardTitle>
-      </div>
-      <div className="overflow-x-auto -mx-1">
-        <table className="w-full text-sm">{children}</table>
-      </div>
-    </Card>
+        {tab === "addon" && (
+          <Card className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Wrench className="h-4 w-4 text-brand" />
+                <span className="font-semibold text-ink">Rekap Add-on</span>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => downloadCsv("addon")} disabled={loading.addon || addonRows.length === 0}>
+                <Download className="h-4 w-4" /> Export CSV
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <Card className="p-3 flex flex-col gap-1">
+                <p className="text-xs text-muted">Jenis add-on</p>
+                <p className="font-bold tabular-nums text-ink">{formatAngka(addonRows.length)}</p>
+              </Card>
+              <Card className="p-3 flex flex-col gap-1">
+                <p className="text-xs text-muted">Terjual</p>
+                <p className="font-bold tabular-nums text-ink">{formatAngka(addonRows.reduce((s, r) => s + r.count, 0))}</p>
+              </Card>
+              <Card className="p-3 flex flex-col gap-1">
+                <p className="text-xs text-muted">Omzet add-on</p>
+                <p className="font-bold tabular-nums text-ink">{rupiah(addonRows.reduce((s, r) => s + r.total, 0))}</p>
+              </Card>
+            </div>
+            {loading.addon && (
+              <div className="flex items-center justify-center py-12"><Spinner className="text-brand" /></div>
+            )}
+            {error.addon && <div className="rounded-xl border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error.addon}</div>}
+            {!loading.addon && !error.addon && addonRows.length === 0 && (
+              <p className="text-sm text-muted text-center py-8">Tidak ada data add-on pada periode ini.</p>
+            )}
+            {!loading.addon && !error.addon && addonRows.length > 0 && (
+              <div className="overflow-x-auto -mx-1">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-bold text-muted uppercase">
+                      <th className="py-2 pr-2">Add-on</th>
+                      <th className="py-2 px-2 text-right">Jumlah</th>
+                      <th className="py-2 pl-2 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {addonRows.map((r) => (
+                      <tr key={r.name} className="border-t border-line">
+                        <td className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.name}</td>
+                        <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
+                        <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t border-line font-bold">
+                      <td className="py-2 pr-2 text-sm text-ink">Total</td>
+                      <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(addonRows.reduce((s, r) => s + r.count, 0))}</td>
+                      <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(addonRows.reduce((s, r) => s + r.total, 0))}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {tab === "pembayaran" && (
+          <Card className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-brand" />
+                <span className="font-semibold text-ink">Rekap Metode Pembayaran</span>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => downloadCsv("pembayaran")} disabled={loading.pembayaran || paymentRows.length === 0}>
+                <Download className="h-4 w-4" /> Export CSV
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="flex flex-col gap-1 p-3">
+                <p className="text-xs text-muted">Tunai</p>
+                <p className="font-bold tabular-nums text-ink">{rupiah(tunai)}</p>
+                <p className="text-xs text-muted">{formatAngka(txs.filter((t) => t.paymentMethod === "Tunai").length)} transaksi</p>
+              </Card>
+              <Card className="flex flex-col gap-1 p-3">
+                <p className="text-xs text-muted">Transfer</p>
+                <p className="font-bold tabular-nums text-ink">{rupiah(transfer)}</p>
+                <p className="text-xs text-muted">{formatAngka(txs.filter((t) => t.paymentMethod === "Transfer").length)} transaksi</p>
+              </Card>
+            </div>
+            {loading.pembayaran && (
+              <div className="flex items-center justify-center py-12"><Spinner className="text-brand" /></div>
+            )}
+            {error.pembayaran && <div className="rounded-xl border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error.pembayaran}</div>}
+            {!loading.pembayaran && !error.pembayaran && paymentRows.length === 0 && (
+              <p className="text-sm text-muted text-center py-8">Tidak ada data pembayaran pada periode ini.</p>
+            )}
+            {!loading.pembayaran && !error.pembayaran && paymentRows.length > 0 && (
+              <div className="overflow-x-auto -mx-1">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-bold text-muted uppercase">
+                      <th className="py-2 pr-2">Metode</th>
+                      <th className="py-2 px-2 text-right">Jumlah</th>
+                      <th className="py-2 pl-2 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paymentRows.map((r) => (
+                      <tr key={r.method} className="border-t border-line">
+                        <td className="py-2 pr-2 text-sm font-semibold text-ink">{r.method}</td>
+                        <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
+                        <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t border-line font-bold">
+                      <td className="py-2 pr-2 text-sm text-ink">Total</td>
+                      <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(paymentRows.reduce((s, r) => s + r.count, 0))}</td>
+                      <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(paymentRows.reduce((s, r) => s + r.total, 0))}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {tab === "karyawan" && (
+          <Card className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-brand" />
+                <span className="font-semibold text-ink">Rekap Karyawan</span>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => downloadCsv("karyawan")} disabled={loading.karyawan || employeeRows.length === 0}>
+                <Download className="h-4 w-4" /> Export CSV
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <Card className="p-3 flex flex-col gap-1">
+                <p className="text-xs text-muted">Karyawan aktif</p>
+                <p className="font-bold tabular-nums text-ink">{formatAngka(employeeRows.length)}</p>
+              </Card>
+              <Card className="p-3 flex flex-col gap-1">
+                <p className="text-xs text-muted">Total transaksi</p>
+                <p className="font-bold tabular-nums text-ink">{formatAngka(employeeRows.reduce((s, r) => s + r.count, 0))}</p>
+              </Card>
+              <Card className="p-3 flex flex-col gap-1">
+                <p className="text-xs text-muted">Omzet karyawan</p>
+                <p className="font-bold tabular-nums text-ink">{rupiah(employeeRows.reduce((s, r) => s + r.total, 0))}</p>
+              </Card>
+            </div>
+            {loading.karyawan && (
+              <div className="flex items-center justify-center py-12"><Spinner className="text-brand" /></div>
+            )}
+            {error.karyawan && <div className="rounded-xl border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error.karyawan}</div>}
+            {!loading.karyawan && !error.karyawan && employeeRows.length === 0 && (
+              <p className="text-sm text-muted text-center py-8">Tidak ada data karyawan pada periode ini.</p>
+            )}
+            {!loading.karyawan && !error.karyawan && employeeRows.length > 0 && (
+              <div className="overflow-x-auto -mx-1">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-bold text-muted uppercase">
+                      <th className="py-2 pr-2">Karyawan</th>
+                      <th className="py-2 px-2 text-right">Jumlah transaksi</th>
+                      <th className="py-2 pl-2 text-right">Total omzet</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {employeeRows.map((r) => (
+                      <tr key={r.employee} className="border-t border-line">
+                        <td className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.employee}</td>
+                        <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
+                        <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t border-line font-bold">
+                      <td className="py-2 pr-2 text-sm text-ink">Total</td>
+                      <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(employeeRows.reduce((s, r) => s + r.count, 0))}</td>
+                      <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(employeeRows.reduce((s, r) => s + r.total, 0))}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {tab === "kas" && (
+          <Card className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Banknote className="h-4 w-4 text-brand" />
+              <span className="font-semibold text-ink">Rekap Kas Harian</span>
+            </div>
+
+            {mode !== "single" && (
+              <p className="text-sm text-muted">Pilih mode &quot;Tanggal tunggal&quot; untuk melihat rekap kas harian.</p>
+            )}
+
+            {mode === "single" && loading.kas && (
+              <div className="flex items-center justify-center py-12"><Spinner className="text-brand" /></div>
+            )}
+
+            {mode === "single" && error.kas && (
+              <div className="rounded-xl border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error.kas}</div>
+            )}
+
+            {mode === "single" && !loading.kas && !error.kas && (
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="w-fit self-start"
+                  onClick={() => downloadCsv("kas")}
+                  disabled={!cash}
+                >
+                  <Download className="h-4 w-4" /> Export CSV
+                </Button>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <Card className="p-3 flex flex-col gap-1">
+                    <p className="text-xs text-muted">Saldo awal</p>
+                    <p className={cn("font-bold tabular-nums", cash?.open === null || cash?.open === undefined ? "text-muted" : "text-ink")}>
+                      {cash?.open === null || cash?.open === undefined ? "-" : rupiah(Number(cash.open))}
+                    </p>
+                  </Card>
+                  <Card className="p-3 flex flex-col gap-1">
+                    <p className="text-xs text-muted">Masuk (tunai)</p>
+                    <p className="font-bold tabular-nums text-ink">{rupiah(Number(cash?.totalTunai ?? 0))}</p>
+                  </Card>
+                  <Card className="p-3 flex flex-col gap-1">
+                    <p className="text-xs text-muted">Keluar</p>
+                    <p className="font-bold tabular-nums text-ink">{rupiah(Number(cash?.keluar ?? 0))}</p>
+                  </Card>
+                  <Card className="p-3 flex flex-col gap-1">
+                    <p className="text-xs text-muted">Saldo akhir teori</p>
+                    <p className={cn("font-bold tabular-nums", cash?.expectedCash === null ? "text-muted" : "text-ink")}>
+                      {cash?.expectedCash === null ? "-" : rupiah(Number(cash?.expectedCash ?? 0))}
+                    </p>
+                  </Card>
+                  <Card className="p-3 flex flex-col gap-1">
+                    <p className="text-xs text-muted">Kas aktual</p>
+                    <p className={cn("font-bold tabular-nums", (cash?.closingCash ?? cash?.actual) === null ? "text-muted" : "text-ink")}>
+                      {(cash?.closingCash ?? cash?.actual) === null ? "-" : rupiah(Number(cash?.closingCash ?? cash?.actual ?? 0))}
+                    </p>
+                  </Card>
+                  <Card className="p-3 flex flex-col gap-1">
+                    <p className="text-xs text-muted">Selisih</p>
+                    <p className={cn("font-bold tabular-nums", cash?.difference === null ? "text-muted" : (cash?.difference ?? 0) < 0 ? "text-danger" : "text-ink")}>
+                      {cash?.difference === null ? "-" : rupiah(Number(cash?.difference ?? 0))}
+                    </p>
+                  </Card>
+                </div>
+                <p className="text-xs text-muted">
+                  Saldo akhir teori = saldo awal + masuk − keluar. Selisih = kas aktual − saldo akhir teori.
+                </p>
+              </>
+            )}
+          </Card>
+        )}
+      </section>
+    </div>
   );
 }

@@ -1,45 +1,39 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  Calendar,
-  Check,
-  Clock,
-  KeyRound,
-  Plus,
-  Save,
-  UserCog,
-  X,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Calendar, Check, Printer, Save, Users } from "lucide-react";
+
 import { useAppSession } from "@/components/SessionProvider";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { rupiah } from "@/lib/format";
-import type { AppUser } from "@/lib/services/users";
+import { Spinner } from "@/components/ui/Spinner";
+import { formatAngka, formatTanggal, formatWaktu, rupiah } from "@/lib/format";
+import { cn } from "@/lib/cn";
+import type { AttendanceStatus, Role } from "@/lib/types";
 
-import type { AttendanceStatus } from "@/lib/types";
-
-type Employee = {
+type UserView = {
   id: string;
   name: string;
-  email?: string;
-  role: string;
-  phone?: string;
-  dailyRate: number;
-  active: boolean;
+  role: Role;
 };
 
-type AttendanceRecord = {
+type AttRecord = {
   status: AttendanceStatus;
-  checkIn?: string;
-  checkOut?: string;
+  checkIn?: string | null;
+  checkOut?: string | null;
 };
 
-type AttendanceMap = Record<string, AttendanceRecord>;
+type AttView = {
+  userId: string;
+  status: AttendanceStatus;
+  checkIn: string | null;
+  checkOut: string | null;
+  note?: string;
+};
 
 type PayrollItem = {
   userId: string;
@@ -60,7 +54,8 @@ type PayrollItem = {
   net: number;
 };
 
-type PayrollResponse = {
+type PayrollView = {
+  id: string;
   period: string;
   status: "draft" | "final";
   finalizedAt: string | null;
@@ -68,22 +63,25 @@ type PayrollResponse = {
   totals: { gross: number; net: number };
 };
 
-const STATUS_OPTIONS: { value: AttendanceStatus; label: string; color: string }[] = [
-  { value: "hadir", label: "Hadir", color: "bg-success-soft text-success border-success" },
-  { value: "izin", label: "Izin", color: "bg-info-soft text-info border-info" },
-  { value: "sakit", label: "Sakit", color: "bg-accent-soft text-amber-800 border-accent" },
-  { value: "alpha", label: "Alpha", color: "bg-danger-soft text-danger border-danger" },
-  { value: "cuti", label: "Cuti", color: "bg-stone-100 text-muted border-line" },
+type Adjustment = { tunjangan: number; lembur: number; potongan: number };
+
+const STATUS_OPTIONS: {
+  value: AttendanceStatus;
+  label: string;
+  active: string;
+}[] = [
+  { value: "hadir", label: "Hadir", active: "bg-success-soft text-success border-success" },
+  { value: "izin", label: "Izin", active: "bg-info-soft text-info border-info" },
+  { value: "sakit", label: "Sakit", active: "bg-accent-soft text-amber-800 border-accent" },
+  { value: "alpha", label: "Alpha", active: "bg-danger-soft text-danger border-danger" },
+  { value: "cuti", label: "Cuti", active: "bg-stone-100 text-muted border-line" },
 ];
 
-const ROLE_OPTIONS = ["admin", "kasir", "operator"];
+const INACTIVE_CHIP = "bg-surface text-muted border-line hover:bg-brand/20";
 
 function todayISO() {
   const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function currentMonthISO() {
@@ -94,865 +92,600 @@ function currentMonthISO() {
 export default function KaryawanPage() {
   const { role: currentRole } = useAppSession();
   const isAdmin = currentRole === "admin";
+  const [tab, setTab] = useState<"absensi" | "gaji">("absensi");
 
-  const [tab, setTab] = useState<"daftar" | "absensi" | "rekap">("daftar");
+  const [toast, setToast] = useState<string | null>(null);
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  }
 
-  // Daftar state
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loadingEmps, setLoadingEmps] = useState(true);
-  const [forbidden, setForbidden] = useState(false);
-  const [empError, setEmpError] = useState("");
-
-  // Add modal
-  const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState({
-    name: "",
-    email: "",
-    role: "operator",
-    phone: "",
-    dailyRate: 0,
-    password: "",
-  });
-  const [addLoading, setAddLoading] = useState(false);
-  const [addError, setAddError] = useState("");
-
-  // Edit state
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<Partial<Employee>>({});
-  const [editLoading, setEditLoading] = useState(false);
-
-  // Reset PIN modal
-  const [pinTarget, setPinTarget] = useState<Employee | null>(null);
-  const [newPin, setNewPin] = useState("");
-  const [pinLoading, setPinLoading] = useState(false);
-  const [pinError, setPinError] = useState("");
-
-  // Absensi state
+  // ---------- Absensi ----------
   const [attDate, setAttDate] = useState(todayISO());
-  const [attendance, setAttendance] = useState<AttendanceMap>({});
-  const [attSavedMsg, setAttSavedMsg] = useState("");
+  const [users, setUsers] = useState<UserView[]>([]);
+  const [attendance, setAttendance] = useState<Record<string, AttRecord>>({});
+  const [attLoading, setAttLoading] = useState(false);
+  const [attSaving, setAttSaving] = useState(false);
+  const [attError, setAttError] = useState("");
 
-  // Rekap state
-  const [rekapMonth, setRekapMonth] = useState(currentMonthISO());
-  const [adjustments, setAdjustments] = useState<Record<string, { tunjangan: number; lembur: number; potongan: number }>>({});
-  const [payroll, setPayroll] = useState<PayrollResponse | null>(null);
-  const [payrollLoading, setPayrollLoading] = useState(false);
-  const [payrollError, setPayrollError] = useState("");
-  const [payrollMsg, setPayrollMsg] = useState("");
-  const finalized = payroll?.status === "final";
-
-  async function loadEmployees() {
-    setLoadingEmps(true);
-    setForbidden(false);
-    setEmpError("");
+  const loadUsers = useCallback(async () => {
     try {
-      if (isAdmin) {
-        const res = await apiFetch<{ data: AppUser[] }>("/api/users");
-        const mapped = (res.data || []).map((u) => ({
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          role: u.role,
-          phone: u.phone,
-          dailyRate: u.dailyRate,
-          active: u.active,
-        }));
-        setEmployees(mapped);
-      } else {
-        const res = await apiFetch<{ data: { id: string; name: string; role: string }[] }>("/api/users?light=1");
-        const mapped = (res.data || []).map((u) => ({
-          id: u.id,
-          name: u.name,
-          role: u.role,
-          dailyRate: 0,
-          active: true,
-        }));
-        setEmployees(mapped);
-      }
+      const res = await apiFetch<{ data: UserView[] }>("/api/users?light=1");
+      setUsers(res.data ?? []);
     } catch (e) {
-      if (e instanceof ApiError && e.status === 403) {
-        setForbidden(true);
-      }
-      setEmployees([]);
-      if (!(e instanceof ApiError && e.status === 403)) {
-        setEmpError(e instanceof Error ? e.message : "Gagal memuat data");
-      }
-    } finally {
-      setLoadingEmps(false);
+      setUsers([]);
+      showToast(e instanceof Error ? e.message : "Gagal memuat daftar karyawan");
     }
-  }
+  }, []);
 
-  async function loadAttendance(date: string) {
-    setAttSavedMsg("");
-    try {
-      const res = await apiFetch<{ data: { userId: string; status: AttendanceStatus; checkIn: string | null; checkOut: string | null }[] }>(
-        `/api/attendance?date=${encodeURIComponent(date)}`,
-      );
-      const map: AttendanceMap = {};
-      for (const row of res.data) {
-        map[row.userId] = {
-          status: row.status,
-          checkIn: row.checkIn ?? undefined,
-          checkOut: row.checkOut ?? undefined,
-        };
+  const loadAttendance = useCallback(
+    async (date: string) => {
+      setAttLoading(true);
+      setAttError("");
+      try {
+        const res = await apiFetch<{ data: AttView[] }>(
+          `/api/attendance?date=${encodeURIComponent(date)}`,
+        );
+        const map: Record<string, AttRecord> = {};
+        for (const row of res.data) {
+          map[row.userId] = {
+            status: row.status,
+            checkIn: row.checkIn ?? undefined,
+            checkOut: row.checkOut ?? undefined,
+          };
+        }
+        setAttendance(map);
+      } catch (e) {
+        setAttendance({});
+        setAttError(e instanceof Error ? e.message : "Gagal memuat absensi");
+      } finally {
+        setAttLoading(false);
       }
-      setAttendance(map);
-    } catch (e) {
-      setAttendance({});
-      setAttSavedMsg(e instanceof Error ? e.message : "Gagal memuat absensi");
-    }
-  }
-
-  async function loadPayroll(month: string) {
-    setPayrollLoading(true);
-    setPayrollError("");
-    try {
-      const res = await apiFetch<{ data: PayrollResponse }>(
-        `/api/payroll?period=${encodeURIComponent(month)}`,
-      );
-      setPayroll(res.data);
-      setAdjustments(
-        Object.fromEntries(
-          res.data.items.map((item) => [
-            item.userId,
-            {
-              tunjangan: item.allowance,
-              lembur: item.overtimePay,
-              potongan: item.deductions,
-            },
-          ]),
-        ),
-      );
-    } catch (e) {
-      setPayroll(null);
-      setPayrollError(e instanceof Error ? e.message : "Gagal memuat payroll");
-    } finally {
-      setPayrollLoading(false);
-    }
-  }
+    },
+    [],
+  );
 
   useEffect(() => {
-    loadEmployees();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin]);
+    void loadUsers();
+  }, [loadUsers]);
 
   useEffect(() => {
     void loadAttendance(attDate);
-  }, [attDate]);
+  }, [attDate, loadAttendance]);
 
-  useEffect(() => {
-    void loadPayroll(rekapMonth);
-  }, [rekapMonth]);
-
-  const activeEmployees = useMemo(() => employees.filter((e) => e.active), [employees]);
-
-  function setAttendanceStatus(empId: string, status: AttendanceStatus) {
+  function setRecStatus(empId: string, status: AttendanceStatus) {
     setAttendance((prev) => ({
       ...prev,
-      [empId]: { ...prev[empId], status },
+      [empId]: { ...(prev[empId] ?? { status: "hadir" }), status },
     }));
   }
 
-  function setAttendanceTime(empId: string, field: "checkIn" | "checkOut", value: string) {
+  function setRecTime(empId: string, field: "checkIn" | "checkOut", value: string) {
     setAttendance((prev) => ({
       ...prev,
-      [empId]: { ...(prev[empId] || { status: "hadir" }), [field]: value },
+      [empId]: { ...(prev[empId] ?? { status: "hadir" }), [field]: value },
     }));
   }
 
   async function saveAttendance() {
-    setAttSavedMsg("");
+    setAttError("");
+    setAttSaving(true);
     try {
       await apiFetch("/api/attendance", {
         method: "POST",
         body: JSON.stringify({ date: attDate, records: attendance }),
       });
       await loadAttendance(attDate);
-      if (rekapMonth === attDate.slice(0, 7)) {
-        await loadPayroll(rekapMonth);
-      }
-      setAttSavedMsg("Absensi tersimpan.");
-      setTimeout(() => setAttSavedMsg(""), 2500);
+      showToast("Absensi tersimpan.");
     } catch (e) {
-      setAttSavedMsg(e instanceof Error ? e.message : "Gagal menyimpan absensi");
-    }
-  }
-
-  async function handleAdd() {
-    setAddError("");
-    if (!addForm.name.trim()) {
-      setAddError("Nama wajib diisi");
-      return;
-    }
-    if (!addForm.email.trim()) {
-      setAddError("Email wajib diisi");
-      return;
-    }
-    if (addForm.password.length < 6) {
-      setAddError("PIN minimal 6 karakter");
-      return;
-    }
-    setAddLoading(true);
-    try {
-      const res = await apiFetch<{ data: AppUser }>("/api/users", {
-        method: "POST",
-        body: JSON.stringify({
-          name: addForm.name.trim(),
-          email: addForm.email.trim(),
-          role: addForm.role,
-          phone: addForm.phone.trim(),
-          dailyRate: Number(addForm.dailyRate) || 0,
-          password: addForm.password,
-          active: true,
-        }),
-      });
-      const u = res.data;
-      setEmployees((prev) => [
-        ...prev,
-        {
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          role: u.role,
-          phone: u.phone,
-          dailyRate: u.dailyRate,
-          active: u.active,
-        },
-      ]);
-      setAddOpen(false);
-      setAddForm({ name: "", email: "", role: "operator", phone: "", dailyRate: 0, password: "" });
-    } catch (e) {
-      setAddError(e instanceof Error ? e.message : "Gagal menambah karyawan");
+      setAttError(e instanceof Error ? e.message : "Gagal menyimpan absensi");
     } finally {
-      setAddLoading(false);
+      setAttSaving(false);
     }
   }
 
-  function startEdit(emp: Employee) {
-    setEditingId(emp.id);
-    setEditDraft({
-      name: emp.name,
-      email: emp.email,
-      role: emp.role,
-      phone: emp.phone,
-      dailyRate: emp.dailyRate,
-    });
-  }
+  // ---------- Gaji ----------
+  const [period, setPeriod] = useState(currentMonthISO());
+  const [payroll, setPayroll] = useState<PayrollView | null>(null);
+  const [adjustments, setAdjustments] = useState<Record<string, Adjustment>>({});
+  const [payLoading, setPayLoading] = useState(false);
+  const [paySaving, setPaySaving] = useState(false);
+  const [payError, setPayError] = useState("");
+  type PayrollRow = PayrollItem & { adj: Adjustment; pokok: number };
+  const [printSlip, setPrintSlip] = useState<PayrollRow | null>(null);
+  const finalized = payroll?.status === "final";
 
-  async function saveEdit(emp: Employee) {
-    setEditLoading(true);
+  const loadPayroll = useCallback(async () => {
+    setPayLoading(true);
+    setPayError("");
     try {
-      const body: Record<string, unknown> = {};
-      if (editDraft.name !== undefined) body.name = editDraft.name;
-      if (editDraft.email !== undefined) body.email = editDraft.email;
-      if (editDraft.role !== undefined) body.role = editDraft.role;
-      if (editDraft.phone !== undefined) body.phone = editDraft.phone;
-      if (editDraft.dailyRate !== undefined) body.dailyRate = Number(editDraft.dailyRate) || 0;
-      const res = await apiFetch<{ data: AppUser }>(`/api/users/${emp.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(body),
-      });
-      const u = res.data;
-      setEmployees((prev) =>
-        prev.map((e) =>
-          e.id === emp.id
-            ? {
-                ...e,
-                name: u.name,
-                email: u.email,
-                role: u.role,
-                phone: u.phone,
-                dailyRate: u.dailyRate,
-                active: u.active,
-              }
-            : e,
+      const res = await apiFetch<{ data: PayrollView }>(
+        `/api/payroll?period=${encodeURIComponent(period)}`,
+      );
+      setPayroll(res.data);
+      setAdjustments(
+        Object.fromEntries(
+          res.data.items.map((it) => [
+            it.userId,
+            { tunjangan: it.allowance, lembur: it.overtimePay, potongan: it.deductions },
+          ]),
         ),
       );
-      setEditingId(null);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Gagal menyimpan");
+      setPayroll(null);
+      setPayError(e instanceof Error ? e.message : "Gagal memuat rekap gaji");
     } finally {
-      setEditLoading(false);
+      setPayLoading(false);
     }
-  }
+  }, [period]);
 
-  async function resetPinSubmit() {
-    if (!pinTarget) return;
-    setPinError("");
-    if (newPin.length < 6) {
-      setPinError("PIN minimal 6 karakter");
-      return;
-    }
-    setPinLoading(true);
-    try {
-      await apiFetch(`/api/users/${pinTarget.id}/pin`, {
-        method: "POST",
-        body: JSON.stringify({ password: newPin }),
-      });
-      setPinTarget(null);
-      setNewPin("");
-    } catch (e) {
-      setPinError(e instanceof Error ? e.message : "Gagal reset PIN");
-    } finally {
-      setPinLoading(false);
-    }
-  }
+  useEffect(() => {
+    void loadPayroll();
+  }, [loadPayroll]);
 
-  async function toggleActive(emp: Employee) {
-    try {
-      await apiFetch(`/api/users/${emp.id}/active`, {
-        method: "POST",
-        body: JSON.stringify({ active: !emp.active }),
-      });
-      setEmployees((prev) =>
-        prev.map((e) => (e.id === emp.id ? { ...e, active: !emp.active } : e)),
-      );
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Gagal mengubah status");
-    }
-  }
-
-  function adjust(empId: string, field: "tunjangan" | "lembur" | "potongan", value: number) {
+  function adjust(empId: string, field: keyof Adjustment, value: number) {
     setAdjustments((prev) => ({
       ...prev,
       [empId]: {
-        tunjangan: prev[empId]?.tunjangan ?? 0,
-        lembur: prev[empId]?.lembur ?? 0,
-        potongan: prev[empId]?.potongan ?? 0,
-        [field]: value,
+        ...(prev[empId] ?? { tunjangan: 0, lembur: 0, potongan: 0 }),
+        [field]: Math.max(0, value),
       },
     }));
   }
 
   async function persistPayroll(finalize: boolean) {
     if (!isAdmin) return;
-    setPayrollLoading(true);
-    setPayrollMsg("");
-    setPayrollError("");
+    setPaySaving(true);
+    setPayError("");
     try {
-      const res = await apiFetch<{ data: PayrollResponse }>("/api/payroll", {
+      const res = await apiFetch<{ data: PayrollView }>("/api/payroll", {
         method: "POST",
-        body: JSON.stringify({
-          period: rekapMonth,
-          adjustments,
-          finalize,
-        }),
+        body: JSON.stringify({ period, adjustments, finalize }),
       });
       setPayroll(res.data);
-      setPayrollMsg(finalize ? "Payroll berhasil difinalisasi." : "Draft payroll tersimpan.");
-      setTimeout(() => setPayrollMsg(""), 2500);
+      showToast(finalize ? "Payroll difinalisasi." : "Draft payroll tersimpan.");
     } catch (e) {
-      setPayrollError(e instanceof Error ? e.message : "Gagal menyimpan payroll");
+      setPayError(e instanceof Error ? e.message : "Gagal menyimpan payroll");
     } finally {
-      setPayrollLoading(false);
+      setPaySaving(false);
     }
   }
 
   function finalizePayroll() {
     if (!isAdmin || finalized) return;
-    if (!window.confirm("Finalisasi payroll bulan ini? Perubahan absensi setelah final tidak akan mengubah nominal.")) {
+    if (!window.confirm("Finalisasi payroll bulan ini? Nominal akan terkunci dan tidak dapat diubah.")) {
       return;
     }
     void persistPayroll(true);
   }
 
-  // Rekap data
-  const rekapData = useMemo(() => {
-    return (payroll?.items ?? []).map((item) => {
-      const adj = adjustments[item.userId] || {
-        tunjangan: item.allowance,
-        lembur: item.overtimePay,
-        potongan: item.deductions,
+  const rows = useMemo<PayrollRow[]>(() => {
+    return (payroll?.items ?? []).map((it) => {
+      const adj = adjustments[it.userId] ?? {
+        tunjangan: it.allowance,
+        lembur: it.overtimePay,
+        potongan: it.deductions,
       };
-      const gaji =
-        item.daysPresent * item.dailyRate + adj.tunjangan + adj.lembur - adj.potongan;
-      return {
-        emp: {
-          id: item.userId,
-          name: item.name,
-          email: "",
-          role: item.role,
-          phone: "",
-          dailyRate: item.dailyRate,
-          active: true,
-        } as Employee,
-        hadir: item.hadir,
-        izin: item.izin,
-        sakit: item.sakit,
-        alpha: item.alpha,
-        cuti: item.cuti,
-        totalJam: item.totalHours,
-        hariTercatat: item.daysPresent,
-        gaji,
-        adj,
-      };
+      const pokok = it.daysPresent * it.dailyRate;
+      return { ...it, adj, pokok, net: pokok + adj.tunjangan + adj.lembur - adj.potongan };
     });
   }, [payroll, adjustments]);
 
-  const rekapSummary = useMemo(() => rekapData.reduce(
-    (summary, row) => ({
-      hadir: summary.hadir + row.hadir,
-      izin: summary.izin + row.izin,
-      sakit: summary.sakit + row.sakit,
-      alpha: summary.alpha + row.alpha,
-      cuti: summary.cuti + row.cuti,
-      tercatat: summary.tercatat + row.hariTercatat,
-      totalJam: summary.totalJam + row.totalJam,
-      estimasiGaji: summary.estimasiGaji + row.gaji,
-    }),
-    { hadir: 0, izin: 0, sakit: 0, alpha: 0, cuti: 0, tercatat: 0, totalJam: 0, estimasiGaji: 0 },
-  ), [rekapData]);
+  const totals = useMemo(
+    () =>
+      rows.reduce(
+        (acc, r) => ({
+          hadir: acc.hadir + r.hadir,
+          pokok: acc.pokok + r.pokok,
+          tunjangan: acc.tunjangan + r.adj.tunjangan,
+          lembur: acc.lembur + r.adj.lembur,
+          potongan: acc.potongan + r.adj.potongan,
+          net: acc.net + r.net,
+        }),
+        { hadir: 0, pokok: 0, tunjangan: 0, lembur: 0, potongan: 0, net: 0 },
+      ),
+    [rows],
+  );
+
+  useEffect(() => {
+    if (printSlip) window.print();
+  }, [printSlip]);
 
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Karyawan</h1>
-        <p className="text-sm text-muted">Kelola karyawan, absensi, dan gaji.</p>
+        <p className="text-sm text-muted">Absensi harian dan rekap gaji bulanan.</p>
       </div>
 
       {/* Tabs */}
-      <div className="grid grid-cols-3 gap-2 rounded-[var(--radius-md)] bg-stone-100 p-1">
+      <div className="grid grid-cols-2 gap-2 rounded-[var(--radius-md)] bg-stone-100 p-1">
         {[
-          { key: "daftar", label: "Daftar Karyawan" },
-          { key: "absensi", label: "Absensi Harian" },
-          { key: "rekap", label: "Rekap & Gaji" },
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key as "daftar" | "absensi" | "rekap")}
-            className={`tap-target rounded-[var(--radius-sm)] px-2 py-2 text-xs sm:text-sm font-semibold transition ${
-              tab === t.key ? "bg-ink text-white" : "text-muted"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+          { key: "absensi", label: "Absensi", icon: Users },
+          { key: "gaji", label: "Gaji", icon: Calendar },
+        ].map((t) => {
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key as "absensi" | "gaji")}
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-[var(--radius-sm)] px-3 py-2 text-xs font-semibold transition",
+                tab === t.key ? "bg-ink text-white" : "text-muted hover:bg-stone-200",
+              )}
+            >
+              <Icon className="h-4 w-4" /> {t.label}
+            </button>
+          );
+        })}
       </div>
 
-      {tab === "daftar" && (
-        <div className="flex flex-col gap-3">
-          {loadingEmps && (
-            <div className="flex items-center gap-2 text-muted">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-              Memuat...
-            </div>
-          )}
-
-          {forbidden && (
-            <Card>
-              <p className="text-sm text-muted">
-                Hanya admin yang bisa melihat daftar lengkap karyawan. Hubungi admin outlet.
-              </p>
-            </Card>
-          )}
-
-          {empError && <p className="text-sm text-danger">{empError}</p>}
-
-          {isAdmin && !forbidden && (
-            <Button onClick={() => setAddOpen(true)} fullWidth size="lg">
-              <Plus className="h-5 w-5" /> Tambah Karyawan
-            </Button>
-          )}
-
-          <div className="flex flex-col gap-3">
-            {employees.map((emp) => (
-              <Card key={emp.id} className="flex flex-col gap-3">
-                {editingId === emp.id ? (
-                  <>
-                    <Field label="Nama">
-                      <Input
-                        value={editDraft.name ?? ""}
-                        onChange={(e) => setEditDraft((d) => ({ ...d, name: e.target.value }))}
-                      />
-                    </Field>
-                    <Field label="Email">
-                      <Input
-                        type="email"
-                        value={editDraft.email ?? ""}
-                        onChange={(e) => setEditDraft((d) => ({ ...d, email: e.target.value }))}
-                      />
-                    </Field>
-                    <Field label="Peran">
-                      <select
-                        className="w-full h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface text-base text-ink"
-                        value={editDraft.role ?? "operator"}
-                        onChange={(e) => setEditDraft((d) => ({ ...d, role: e.target.value }))}
-                      >
-                        {ROLE_OPTIONS.map((r) => (
-                          <option key={r} value={r}>
-                            {r}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Telepon">
-                      <Input
-                        value={editDraft.phone ?? ""}
-                        onChange={(e) => setEditDraft((d) => ({ ...d, phone: e.target.value }))}
-                      />
-                    </Field>
-                    {isAdmin && (
-                      <Field label="Gaji Harian (Rp)">
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          value={editDraft.dailyRate ?? 0}
-                          onChange={(e) => setEditDraft((d) => ({ ...d, dailyRate: Number(e.target.value) }))}
-                        />
-                      </Field>
-                    )}
-                    <div className="flex gap-2">
-                      <Button onClick={() => saveEdit(emp)} disabled={editLoading} fullWidth>
-                        {editLoading ? "Menyimpan..." : "Simpan"}
-                      </Button>
-                      <Button variant="ghost" onClick={() => setEditingId(null)} fullWidth>
-                        Batal
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-12 w-12 rounded-xl bg-brand-soft text-brand flex items-center justify-center font-bold text-lg shrink-0">
-                          {emp.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-ink truncate">{emp.name}</p>
-                          <p className="text-xs text-muted truncate">{emp.email || emp.role}</p>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <Badge tone={emp.active ? "success" : "danger"}>{emp.active ? "Aktif" : "Nonaktif"}</Badge>
-                            <Badge tone="muted">{emp.role}</Badge>
-                          </div>
-                        </div>
-                      </div>
-                      {isAdmin && (
-                        <div className="text-right shrink-0">
-                          <p className="text-xs text-muted">Gaji/hari</p>
-                          <p className="font-bold text-brand">{rupiah(emp.dailyRate)}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {isAdmin && (
-                      <div className="flex flex-wrap gap-2">
-                        <Button variant="secondary" size="sm" onClick={() => startEdit(emp)}>
-                          <UserCog className="h-4 w-4" /> Edit
-                        </Button>
-                        <Button variant="secondary" size="sm" onClick={() => { setPinTarget(emp); setNewPin(""); setPinError(""); }}>
-                          <KeyRound className="h-4 w-4" /> Reset PIN
-                        </Button>
-                        <Button
-                          variant={emp.active ? "danger" : "primary"}
-                          size="sm"
-                          onClick={() => toggleActive(emp)}
-                        >
-                          {emp.active ? "Nonaktifkan" : "Aktifkan"}
-                        </Button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </Card>
-            ))}
-            {employees.length === 0 && !loadingEmps && (
-              <p className="text-sm text-muted text-center py-6">Belum ada karyawan.</p>
-            )}
-          </div>
-        </div>
-      )}
-
+      {/* ============ Tab Absensi ============ */}
       {tab === "absensi" && (
         <div className="flex flex-col gap-3">
-          <Card>
+          <Card className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <Calendar className="h-5 w-5 text-brand shrink-0" />
               <Field label="Tanggal">
-                <Input type="date" value={attDate} onChange={(e) => setAttDate(e.target.value)} />
+                <Input
+                  type="date"
+                  value={attDate}
+                  onChange={(e) => setAttDate(e.target.value)}
+                />
               </Field>
             </div>
+            {attError && <p className="text-sm text-danger">{attError}</p>}
           </Card>
 
-          {activeEmployees.map((emp) => {
-            const rec = attendance[emp.id] || {};
-            const status = rec.status;
-            return (
-              <Card key={emp.id} className="flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-brand-soft text-brand flex items-center justify-center font-bold shrink-0">
-                    {emp.name.charAt(0).toUpperCase()}
+          {attLoading && (
+            <div className="flex items-center gap-2 text-muted">
+              <Spinner className="text-brand" /> Memuat daftar karyawan...
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2">
+            {users.map((u) => {
+              const rec = attendance[u.id] ?? { status: "hadir" as AttendanceStatus };
+              const opt = STATUS_OPTIONS.find((o) => o.value === rec.status)!;
+              return (
+                <Card key={u.id} className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-brand-soft text-brand flex items-center justify-center font-bold shrink-0">
+                      {u.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-ink">{u.name}</p>
+                      <p className="text-xs text-muted capitalize">{u.role}</p>
+                    </div>
                   </div>
-                  <p className="font-bold text-ink">{emp.name}</p>
-                </div>
-                <div className="grid grid-cols-5 gap-2">
-                  {STATUS_OPTIONS.map((s) => (
-                    <button
-                      key={s.value}
-                      onClick={() => setAttendanceStatus(emp.id, s.value)}
-                      className={`tap-target rounded-[var(--radius-sm)] border text-xs font-semibold py-2 transition ${
-                        status === s.value ? s.color + " ring-2 ring-brand/30" : "bg-surface text-muted border-line"
-                      }`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-                {status === "hadir" && (
+                  <div className="grid grid-cols-5 gap-2">
+                    {STATUS_OPTIONS.map((s) => (
+                      <button
+                        key={s.value}
+                        onClick={() => setRecStatus(u.id, s.value)}
+                        className={cn(
+                          "tap-target rounded-[var(--radius-sm)] border py-2 text-xs font-semibold transition",
+                          rec.status === s.value
+                            ? `${opt.active} ring-2 ring-brand/30`
+                            : INACTIVE_CHIP,
+                        )}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <Field label="Jam masuk">
                       <Input
                         type="time"
                         value={rec.checkIn ?? ""}
-                        onChange={(e) => setAttendanceTime(emp.id, "checkIn", e.target.value)}
+                        onChange={(e) => setRecTime(u.id, "checkIn", e.target.value)}
+                        className="h-12 text-base"
                       />
                     </Field>
                     <Field label="Jam keluar">
                       <Input
                         type="time"
                         value={rec.checkOut ?? ""}
-                        onChange={(e) => setAttendanceTime(emp.id, "checkOut", e.target.value)}
+                        onChange={(e) => setRecTime(u.id, "checkOut", e.target.value)}
+                        className="h-12 text-base"
                       />
                     </Field>
                   </div>
-                )}
-              </Card>
-            );
-          })}
-
-          {activeEmployees.length === 0 && (
-            <p className="text-sm text-muted text-center py-6">Tidak ada karyawan aktif.</p>
-          )}
+                  <p className="text-xs text-muted">
+                    {rec.checkIn ? `Masuk: ${formatWaktu(rec.checkIn)}` : ""}
+                    {rec.checkIn && rec.checkOut ? " · " : ""}
+                    {rec.checkOut ? `Keluar: ${formatWaktu(rec.checkOut)}` : ""}
+                  </p>
+                </Card>
+              );
+            })}
+            {users.length === 0 && (
+              <p className="text-sm text-muted text-center py-6">Tidak ada data karyawan.</p>
+            )}
+          </div>
 
           <div className="flex items-center gap-3">
-            <Button onClick={saveAttendance} fullWidth size="lg">
-              <Save className="h-5 w-5" /> Simpan Absensi
+            <Button
+              onClick={saveAttendance}
+              disabled={attSaving}
+              fullWidth
+              size="lg"
+            >
+              {attSaving ? (
+                <>
+                  <Spinner className="text-white" /> Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Save className="h-5 w-5" /> Simpan Absensi
+                </>
+              )}
             </Button>
           </div>
-          {attSavedMsg && (
-            <p className="text-sm text-success text-center">{attSavedMsg}</p>
-          )}
         </div>
       )}
 
-      {tab === "rekap" && (
+      {/* ============ Tab Gaji ============ */}
+      {tab === "gaji" && (
         <div className="flex flex-col gap-3">
-          <Card>
+          <Card className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <Calendar className="h-5 w-5 text-brand shrink-0" />
-              <Field label="Bulan">
-                <Input type="month" value={rekapMonth} onChange={(e) => setRekapMonth(e.target.value)} />
+              <Field label="Periode (YYYY-MM)">
+                <Input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} />
               </Field>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Badge tone={finalized ? "success" : "muted"}>{finalized ? "Payroll final" : "Draft · belum final"}</Badge>
-              {payrollLoading && <span className="text-xs text-muted">Memuat...</span>}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge tone={finalized ? "success" : "muted"}>
+                {finalized ? "Payroll final" : "Draft · belum final"}
+              </Badge>
+              {payLoading && <span className="text-xs text-muted">Memuat...</span>}
             </div>
-            {payrollError && <p className="mt-2 text-sm text-danger">{payrollError}</p>}
-            {payrollMsg && <p className="mt-2 text-sm text-success">{payrollMsg}</p>}
+            {payError && <p className="mt-2 text-sm text-danger">{payError}</p>}
+          </Card>
+
+          {payLoading && (
+            <div className="flex items-center gap-2 text-muted">
+              <Spinner className="text-brand" /> Memuat rekap gaji...
+            </div>
+          )}
+
+          <Card>
+            <h2 className="text-base font-bold text-ink">Ringkasan periode</h2>
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-[var(--radius-sm)] bg-surface p-3 border border-line">
+                <p className="text-xs text-muted">Total karyawan</p>
+                <p className="font-bold text-ink tabular-nums">{formatAngka(rows.length)}</p>
+              </div>
+              <div className="rounded-[var(--radius-sm)] bg-success-soft p-3">
+                <p className="text-xs text-muted">Hari hadir</p>
+                <p className="font-bold text-success tabular-nums">{formatAngka(totals.hadir)}</p>
+              </div>
+              <div className="rounded-[var(--radius-sm)] bg-stone-100 p-3">
+                <p className="text-xs text-muted">Total gaji pokok</p>
+                <p className="font-bold text-ink tabular-nums">{rupiah(totals.pokok)}</p>
+              </div>
+              <div className="rounded-[var(--radius-sm)] bg-brand-soft text-brand p-3">
+                <p className="text-xs text-muted">Total gaji bersih</p>
+                <p className="font-bold text-ink tabular-nums">{rupiah(totals.net)}</p>
+              </div>
+            </div>
           </Card>
 
           <Card>
-            <h2 className="text-base font-bold text-ink">Ringkasan bulanan</h2>
-            <p className="mt-1 text-sm text-muted">{rekapSummary.tercatat} hari hadir tercatat di server · {rekapSummary.hadir} hari hadir</p>
-            <div className="mt-3 grid grid-cols-3 sm:grid-cols-5 gap-2 text-center">
-              {[...[['Hadir', rekapSummary.hadir], ['Izin', rekapSummary.izin], ['Sakit', rekapSummary.sakit], ['Alpha', rekapSummary.alpha], ['Cuti', rekapSummary.cuti]]].map(([label, count]) => (
-                <div key={label} className="rounded-[var(--radius-sm)] bg-stone-100 p-2">
-                  <p className="text-xs text-muted">{label}</p>
-                  <p className="font-bold text-ink">{count}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 flex items-end justify-between gap-3">
-              <div>
-                <p className="text-sm text-muted">Total gaji</p>
-                <p className="text-2xl font-bold tabular-nums text-ink">{rupiah(rekapSummary.estimasiGaji)}</p>
-              </div>
-              <p className="max-w-48 text-right text-xs text-muted">{rekapSummary.totalJam.toFixed(1)} jam tercatat · dihitung dari absensi server, gaji harian, dan penyesuaian.</p>
-            </div>
-            <p className="mt-3 text-xs text-muted">Angka mengikuti absensi yang tersimpan. Finalisasi mengunci payroll periode ini.</p>
-          </Card>
-
-          {rekapData.map(({ emp, hadir, izin, sakit, alpha, cuti, totalJam, hariTercatat, gaji, adj }) => (
-            <Card key={emp.id} className="flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-10 w-10 rounded-xl bg-brand-soft text-brand flex items-center justify-center font-bold shrink-0">
-                    {emp.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-ink truncate">{emp.name}</p>
-                    <p className="text-xs text-muted">{rupiah(emp.dailyRate)}/hari</p>
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-xs text-muted">Gaji</p>
-                  <p className="font-extrabold text-brand">{rupiah(gaji)}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-5 gap-2 text-center">
-                <div className="rounded-[var(--radius-sm)] bg-success-soft p-2">
-                  <p className="text-xs text-muted">Hadir</p>
-                  <p className="font-bold text-success">{hadir}</p>
-                </div>
-                <div className="rounded-[var(--radius-sm)] bg-info-soft p-2">
-                  <p className="text-xs text-muted">Izin</p>
-                  <p className="font-bold text-info">{izin}</p>
-                </div>
-                <div className="rounded-[var(--radius-sm)] bg-accent-soft p-2">
-                  <p className="text-xs text-muted">Sakit</p>
-                  <p className="font-bold text-amber-800">{sakit}</p>
-                </div>
-                <div className="rounded-[var(--radius-sm)] bg-danger-soft p-2">
-                  <p className="text-xs text-muted">Alpha</p>
-                  <p className="font-bold text-danger">{alpha}</p>
-                </div>
-                <div className="rounded-[var(--radius-sm)] bg-stone-100 p-2">
-                  <p className="text-xs text-muted">Cuti</p>
-                  <p className="font-bold text-muted">{cuti}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-muted">
-                <Clock className="h-4 w-4" /> Total jam: <span className="font-semibold text-ink">{totalJam.toFixed(1)} jam</span>
-              </div>
-              <p className="text-xs text-muted">{hariTercatat} tanggal hadir tercatat.</p>
-
-              <div className="grid grid-cols-3 gap-2">
-                <Field label="Tunjangan">
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    value={adj.tunjangan}
-                    onChange={(e) => adjust(emp.id, "tunjangan", Number(e.target.value) || 0)}
-                    onBlur={() => void persistPayroll(false)}
-                    disabled={!isAdmin || finalized}
-                  />
-                </Field>
-                <Field label="Lembur">
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    value={adj.lembur}
-                    onChange={(e) => adjust(emp.id, "lembur", Number(e.target.value) || 0)}
-                    onBlur={() => void persistPayroll(false)}
-                    disabled={!isAdmin || finalized}
-                  />
-                </Field>
-                <Field label="Potongan">
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    value={adj.potongan}
-                    onChange={(e) => adjust(emp.id, "potongan", Number(e.target.value) || 0)}
-                    onBlur={() => void persistPayroll(false)}
-                    disabled={!isAdmin || finalized}
-                  />
-                </Field>
-              </div>
-              <details className="rounded-[var(--radius-sm)] border border-line p-3">
-                <summary className="cursor-pointer text-sm font-semibold text-ink">Lihat slip gaji</summary>
-                <div className="mt-3 flex flex-col gap-2 text-sm">
-                  <div className="flex justify-between gap-3"><span className="text-muted">Gaji pokok ({hadir} hari × {rupiah(emp.dailyRate)})</span><span className="font-medium text-ink">{rupiah(hadir * emp.dailyRate)}</span></div>
-                  <div className="flex justify-between gap-3"><span className="text-muted">Tunjangan</span><span className="font-medium text-ink">{rupiah(adj.tunjangan)}</span></div>
-                  <div className="flex justify-between gap-3"><span className="text-muted">Lembur</span><span className="font-medium text-ink">{rupiah(adj.lembur)}</span></div>
-                  <div className="flex justify-between gap-3"><span className="text-muted">Potongan</span><span className="font-medium text-ink">−{rupiah(adj.potongan)}</span></div>
-                  <div className="flex justify-between gap-3 border-t border-line pt-2 font-bold"><span>Total</span><span>{rupiah(gaji)}</span></div>
-                  <p className="text-xs text-muted">{finalized ? "Payroll final; nominal terkunci." : "Draft payroll. Penyesuaian tersimpan ke server saat kolom ditinggalkan atau saat finalisasi."}</p>
-                </div>
-              </details>
-            </Card>
-          ))}
-
-          {activeEmployees.length === 0 && (
-            <p className="text-sm text-muted text-center py-6">Tidak ada karyawan aktif.</p>
-          )}
-
-          {isAdmin && (
-            <Button onClick={finalizePayroll} disabled={finalized || payrollLoading} fullWidth size="lg" variant={finalized ? "secondary" : "primary"}>
-              <Check className="h-5 w-5" /> {finalized ? "Sudah Difinalisasi" : payrollLoading ? "Menyimpan..." : "Finalisasi Gaji Bulan Ini"}
-            </Button>
-          )}
-        </div>
-      )}
-
-      {/* Add modal */}
-      {addOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
-          <div className="w-full max-w-md bg-surface rounded-[var(--radius-lg)] p-5 shadow-[var(--shadow-float)] max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Tambah Karyawan</h2>
-              <button onClick={() => setAddOpen(false)} className="h-10 w-10 rounded-xl border border-line flex items-center justify-center">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="flex flex-col gap-3">
-              <Field label="Nama">
-                <Input value={addForm.name} onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))} />
-              </Field>
-              <Field label="Email">
-                <Input type="email" value={addForm.email} onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))} />
-              </Field>
-              <Field label="Peran">
-                <select
-                  className="w-full h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface text-base text-ink"
-                  value={addForm.role}
-                  onChange={(e) => setAddForm((f) => ({ ...f, role: e.target.value }))}
-                >
-                  {ROLE_OPTIONS.map((r) => (
-                    <option key={r} value={r}>{r}</option>
+            <h2 className="text-base font-bold text-ink">Rekap per Karyawan</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-line text-xs text-muted">
+                    <th className="pb-3 font-semibold text-ink">Karyawan</th>
+                    <th className="pb-3 font-semibold text-ink">Role</th>
+                    <th className="pb-3 font-semibold text-ink text-right">Hadir</th>
+                    <th className="pb-3 font-semibold text-ink text-right">Gaji Pokok</th>
+                    <th className="pb-3 font-semibold text-ink text-right">Tunjangan</th>
+                    <th className="pb-3 font-semibold text-ink text-right">Lembur</th>
+                    <th className="pb-3 font-semibold text-ink text-right">Potongan</th>
+                    <th className="pb-3 font-semibold text-ink text-right">Bersih</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.userId} className="border-b border-line/50">
+                      <td className="py-3">{r.name}</td>
+                      <td className="py-3 text-xs text-muted capitalize">{r.role}</td>
+                      <td className="py-3 text-right font-semibold tabular-nums">{r.hadir}</td>
+                      <td className="py-3 text-right tabular-nums">{rupiah(r.pokok)}</td>
+                      <td className="py-3 text-right tabular-nums">
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          value={r.adj.tunjangan}
+                          onChange={(e) => adjust(r.userId, "tunjangan", Number(e.target.value) || 0)}
+                          disabled={finalized || !isAdmin}
+                          className="w-full h-10 px-2 text-right text-xs bg-transparent border-0 focus:ring-0"
+                        />
+                      </td>
+                      <td className="py-3 text-right tabular-nums">
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          value={r.adj.lembur}
+                          onChange={(e) => adjust(r.userId, "lembur", Number(e.target.value) || 0)}
+                          disabled={finalized || !isAdmin}
+                          className="w-full h-10 px-2 text-right text-xs bg-transparent border-0 focus:ring-0"
+                        />
+                      </td>
+                      <td className="py-3 text-right tabular-nums">
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          value={r.adj.potongan}
+                          onChange={(e) => adjust(r.userId, "potongan", Number(e.target.value) || 0)}
+                          disabled={finalized || !isAdmin}
+                          className="w-full h-10 px-2 text-right text-xs bg-transparent border-0 focus:ring-0"
+                        />
+                      </td>
+                      <td className="py-3 text-right font-bold tabular-nums">{rupiah(r.net)}</td>
+                    </tr>
                   ))}
-                </select>
-              </Field>
-              <Field label="Telepon">
-                <Input value={addForm.phone} onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))} />
-              </Field>
-              <Field label="Gaji Harian (Rp)">
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  value={addForm.dailyRate}
-                  onChange={(e) => setAddForm((f) => ({ ...f, dailyRate: Number(e.target.value) }))}
-                />
-              </Field>
-              <Field label="PIN (min 6)">
-                <Input
-                  type="password"
-                  inputMode="numeric"
-                  value={addForm.password}
-                  onChange={(e) => setAddForm((f) => ({ ...f, password: e.target.value }))}
-                />
-              </Field>
-              {addError && <p className="text-sm text-danger">{addError}</p>}
-              <Button onClick={handleAdd} disabled={addLoading} fullWidth size="lg">
-                {addLoading ? "Menyimpan..." : "Simpan"}
-              </Button>
+                  {rows.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="py-6 text-center text-sm text-muted"
+                      >
+                        Belum ada data payroll untuk periode ini.
+                      </td>
+                    </tr>
+                  )}
+                  <tr className="border-t border-line font-bold">
+                    <td className="py-3">Total</td>
+                    <td className="py-3 text-right" colSpan={2}>
+                      {formatAngka(totals.hadir)} hari
+                    </td>
+                    <td className="py-3 text-right tabular-nums">{rupiah(totals.pokok)}</td>
+                    <td className="py-3 text-right tabular-nums">{rupiah(totals.tunjangan)}</td>
+                    <td className="py-3 text-right tabular-nums">{rupiah(totals.lembur)}</td>
+                    <td className="py-3 text-right tabular-nums">{rupiah(totals.potongan)}</td>
+                    <td className="py-3 text-right tabular-nums">{rupiah(totals.net)}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-          </div>
+
+            {rows.map((r) => (
+              <>
+                <details key={`slip-${r.userId}`} className="mt-3 rounded-[var(--radius-sm)] border border-line p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-ink">
+                    Slip gaji {r.name}
+                  </summary>
+                  <div className="mt-3 flex flex-col gap-2 text-sm print-slip">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted">Karyawan</span>
+                      <span className="font-medium text-ink">{r.name}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted">Periode</span>
+                      <span className="font-medium text-ink">{period}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted">Role</span>
+                      <span className="font-medium text-ink capitalize">{r.role}</span>
+                    </div>
+                    <div className="h-px bg-line my-1" />
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted">Gaji pokok ({r.hadir} hari × {rupiah(r.dailyRate)})</span>
+                      <span className="font-medium text-ink tabular-nums">{rupiah(r.pokok)}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted">Tunjangan</span>
+                      <span className="font-medium text-ink tabular-nums">{rupiah(r.adj.tunjangan)}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted">Lembur</span>
+                      <span className="font-medium text-ink tabular-nums">{rupiah(r.adj.lembur)}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted">Potongan</span>
+                      <span className="font-medium text-ink tabular-nums">−{rupiah(r.adj.potongan)}</span>
+                    </div>
+                    <div className="flex justify-between gap-3 border-t border-line pt-2 font-bold">
+                      <span>Gaji bersih</span>
+                      <span className="text-brand">{rupiah(r.net)}</span>
+                    </div>
+                    <p className="text-xs text-muted">
+                      {finalized ? "Payroll final; nominal terkunci." : "Draft · simpan perubahan sebelum finalisasi."}
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setPrintSlip(r);
+                        }}
+                        className="no-print"
+                      >
+                        <Printer className="h-4 w-4" /> Cetak Slip
+                      </Button>
+                    </div>
+                  </div>
+                </details>
+              </>
+            ))}
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {isAdmin && (
+                <Button
+                  onClick={() => persistPayroll(false)}
+                  disabled={finalized || paySaving}
+                  variant="secondary"
+                  size="lg"
+                >
+                  {paySaving ? "Menyimpan..." : <><Save className="h-4 w-4" /> Simpan Draft</>}
+                </Button>
+              )}
+              {isAdmin && (
+                <Button
+                  onClick={finalizePayroll}
+                  disabled={finalized || paySaving}
+                  fullWidth={false}
+                  size="lg"
+                >
+                  {finalized
+                    ? "Sudah Difinalisasi"
+                    : paySaving
+                    ? "Menyimpan..."
+                    : <><Check className="h-4 w-4" /> Finalisasi Gaji</>}
+                </Button>
+              )}
+            </div>
+          </Card>
         </div>
       )}
 
-      {/* Reset PIN modal */}
-      {pinTarget && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
-          <div className="w-full max-w-md bg-surface rounded-[var(--radius-lg)] p-5 shadow-[var(--shadow-float)]">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Reset PIN</h2>
-              <button onClick={() => setPinTarget(null)} className="h-10 w-10 rounded-xl border border-line flex items-center justify-center">
-                <X className="h-5 w-5" />
-              </button>
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
+          {toast}
+        </div>
+      )}
+
+      {/* Print overlay */}
+      {printSlip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4">
+          <style>{`
+            @media print {
+              body, html { margin: 0 !important; background: #fff !important; }
+              body * { visibility: hidden !important; }
+              .slip-print, .slip-print * { visibility: visible !important; }
+              .slip-print {
+                position: fixed !important; top: 0; left: 0; width: 100% !important;
+                max-width: none !important; margin: 0 !important; padding: 0 !important;
+                border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+                background: #fff !important; color: #000 !important;
+              }
+              .no-print { display: none !important; }
+            }
+          `}</style>
+          <Card className="slip-print w-full max-w-sm flex flex-col gap-3 bg-white text-ink p-5 shadow-[var(--shadow-float)]">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">Slip Gaji</h2>
+              <Badge tone="muted">{period}</Badge>
             </div>
-            <p className="text-sm text-muted mb-3">{pinTarget.name}</p>
-            <Field label="PIN baru (min 6)">
-              <Input type="password" inputMode="numeric" value={newPin} onChange={(e) => setNewPin(e.target.value)} />
-            </Field>
-            {pinError && <p className="text-sm text-danger mt-2">{pinError}</p>}
-            <div className="mt-4">
-              <Button onClick={resetPinSubmit} disabled={pinLoading} fullWidth size="lg">
-                {pinLoading ? "Menyimpan..." : "Reset PIN"}
-              </Button>
+            <p className="text-sm text-muted">{printSlip.name} · {printSlip.role.toUpperCase()}</p>
+            <div className="border-y border-line py-3">
+              <div className="flex justify-between gap-3"><span className="text-muted">Gaji pokok</span><span className="tabular-nums">{rupiah(printSlip.pokok)}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-muted">Tunjangan</span><span className="tabular-nums">{rupiah(printSlip.adj.tunjangan)}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-muted">Lembur</span><span className="tabular-nums">{rupiah(printSlip.adj.lembur)}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-muted">Potongan</span><span className="tabular-nums">−{rupiah(printSlip.adj.potongan)}</span></div>
+              <div className="flex justify-between gap-3 border-t border-line pt-2 font-bold"><span>Gaji bersih</span><span className="text-brand tabular-nums">{rupiah(printSlip.net)}</span></div>
             </div>
-          </div>
+            <p className="text-xs text-center text-muted">Dicetak {formatTanggal(new Date())} · {finalized ? "Final" : "Draft"}</p>
+            <div className="no-print flex gap-2">
+              <Button fullWidth onClick={() => window.print()}><Printer className="h-4 w-4" /> Cetak</Button>
+              <Button fullWidth variant="secondary" onClick={() => setPrintSlip(null)}>Tutup</Button>
+            </div>
+          </Card>
         </div>
       )}
     </div>
