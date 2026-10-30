@@ -7,8 +7,8 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET minimal 32 karakter"),
   BETTER_AUTH_URL: z.string().url("BETTER_AUTH_URL harus berupa URL"),
   WEB_ORIGIN: z.string().url("WEB_ORIGIN harus berupa URL"),
-  GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID belum diisi"),
-  GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET belum diisi"),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 

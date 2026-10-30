@@ -24,12 +24,15 @@ export function createAuth(
       minPasswordLength: 6,
       requireEmailVerification: false,
     },
-    socialProviders: {
-      google: {
-        clientId: env.GOOGLE_CLIENT_ID,
-        clientSecret: env.GOOGLE_CLIENT_SECRET,
-      },
-    },
+    socialProviders:
+      env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+        ? {
+            google: {
+              clientId: env.GOOGLE_CLIENT_ID,
+              clientSecret: env.GOOGLE_CLIENT_SECRET,
+            },
+          }
+        : {},
     user: {
       additionalFields: {
         role: { type: "string", required: false, defaultValue: "kasir", input: false },
