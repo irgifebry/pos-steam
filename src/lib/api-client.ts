@@ -37,5 +37,8 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     throw new ApiError(res.status, code, message);
   }
 
+  if (body === null) {
+    throw new Error("Respon kosong");
+  }
   return body as T;
 }

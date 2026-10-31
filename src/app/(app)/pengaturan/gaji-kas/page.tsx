@@ -49,6 +49,7 @@ export default function GajiKasPage() {
   const [note, setNote] = useState("");
   const [cash, setCash] = useState<CashState | null>(null);
   const [cashLoading, setCashLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const { toast, showToast } = useToast();
 
   const { role, isLoading } = useAppSession();
@@ -56,7 +57,7 @@ export default function GajiKasPage() {
   const loadSettings = useCallback(async () => {
     try {
       const res = await apiFetch<{ data: { defaultDailyRate: number } | null }>("/api/settings");
-      setDailyRate(String(res.data?.defaultDailyRate ?? ""));
+      setDailyRate(String(res?.data?.defaultDailyRate ?? ""));
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Gagal memuat pengaturan gaji");
     } finally {
@@ -67,7 +68,7 @@ export default function GajiKasPage() {
   const loadCash = useCallback(async () => {
     try {
       const res = await apiFetch<{ data: CashState | null }>("/api/cash-shifts");
-      setCash(res.data ?? null);
+      setCash(res?.data ?? null);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Gagal memuat data kas");
     } finally {
@@ -98,11 +99,13 @@ export default function GajiKasPage() {
 
   async function saveDailyRate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving) return;
     const amount = Number(dailyRate);
     if (!Number.isSafeInteger(amount) || amount < 0) {
       showToast("Masukkan gaji harian berupa angka bulat, minimal Rp0.");
       return;
     }
+    setSaving(true);
     try {
       await apiFetch("/api/settings", {
         method: "PATCH",
@@ -111,48 +114,58 @@ export default function GajiKasPage() {
       showToast("Gaji harian default tersimpan.");
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Gagal menyimpan gaji harian");
+    } finally {
+      setSaving(false);
     }
   }
 
   async function openCash(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving) return;
     const amount = Number(openingAmount);
     if (!Number.isSafeInteger(amount) || amount < 0) {
       showToast("Masukkan saldo awal berupa angka bulat, minimal Rp0.");
       return;
     }
+    setSaving(true);
     try {
       const res = await apiFetch<{ data: CashState }>("/api/cash-shifts", {
         method: "POST",
         body: JSON.stringify({ openingCash: amount, note: note.trim() }),
       });
-      setCash(res.data);
+      setCash(res?.data ?? null);
       setOpeningAmount("");
       setNote("");
       showToast("Shift kas dibuka.");
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Gagal membuka kas");
+    } finally {
+      setSaving(false);
     }
   }
 
   async function closeCash(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving) return;
     if (!cash?.open) return;
     const amount = Number(closingAmount);
     if (!Number.isSafeInteger(amount) || amount < 0) {
       showToast("Masukkan jumlah kas akhir berupa angka bulat, minimal Rp0.");
       return;
     }
+    setSaving(true);
     try {
       const res = await apiFetch<{ data: CashState }>(`/api/cash-shifts/${cash.open.id}/close`, {
         method: "POST",
         body: JSON.stringify({ closingCash: amount }),
       });
-      setCash(res.data);
+      setCash(res?.data ?? null);
       setClosingAmount("");
       showToast("Shift kas ditutup.");
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Gagal menutup kas");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -168,6 +181,13 @@ export default function GajiKasPage() {
           <Spinner className="text-brand" />
         </div>
       ) : null}
+
+      {!loadingSettings && !cashLoading && !cash && (
+        <Card className="text-center text-muted py-8">
+          <Wallet className="h-10 w-10 mx-auto mb-2 opacity-40" />
+          Belum ada data kas
+        </Card>
+      )}
 
       {!loadingSettings && !cashLoading && cash && (
         <>
@@ -219,11 +239,11 @@ export default function GajiKasPage() {
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-info-soft text-info"><Clock3 className="h-5 w-5" /></div>
               <div><CardTitle>Riwayat kas</CardTitle><p className="text-sm text-muted">Tersimpan di server outlet.</p></div>
             </div>
-            {cash.history.length === 0 ? (
+            {(cash.history ?? []).length === 0 ? (
               <p className="py-4 text-center text-sm text-muted">Belum ada sesi kas tercatat.</p>
             ) : (
               <ul className="flex flex-col divide-y divide-line">
-                {cash.history.map((item) => (
+                {(cash.history ?? []).map((item) => (
                   <li key={item.id} className="py-3 first:pt-0 last:pb-0">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-semibold text-ink">{item.closedAt ? "Kas ditutup" : "Kas masih terbuka"}</span>

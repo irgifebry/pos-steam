@@ -50,7 +50,7 @@ export default function AddonPage() {
           apiFetch<{ data: Addon[] }>("/api/addons?vehicleType=mobil"),
         ]);
         const seen = new Set<string>();
-        for (const it of [...(motorRes.data ?? []), ...(mobilRes.data ?? [])]) {
+        for (const it of [...(motorRes?.data ?? []), ...(mobilRes?.data ?? [])]) {
           if (seen.has(it.id)) continue;
           seen.add(it.id);
           fetched.push(it);
@@ -59,7 +59,7 @@ export default function AddonPage() {
         const res = await apiFetch<{ data: Addon[] }>(
           `/api/addons?vehicleType=${filter}`,
         );
-        fetched.push(...(res.data ?? []));
+        fetched.push(...(res?.data ?? []));
       }
       setItems(fetched);
     } catch (e) {
@@ -70,12 +70,14 @@ export default function AddonPage() {
     }
   }, [filter, showToast]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const { role, isLoading: sessionLoading } = useAppSession();
 
-  const { role, isLoading } = useAppSession();
-  if (isLoading) {
+  useEffect(() => {
+    if (sessionLoading || role !== "admin") return;
+    load();
+  }, [sessionLoading, role, load]);
+
+  if (sessionLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-10">
         <Spinner className="text-brand" />
@@ -120,14 +122,15 @@ export default function AddonPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setFormError("");
     const price = Number(form.price);
     if (!form.name.trim()) {
       setFormError("Nama add-on wajib diisi");
       return;
     }
-    if (!Number.isFinite(price) || price <= 0) {
-      setFormError("Harga harus lebih dari 0");
+    if (!Number.isInteger(price) || price <= 0 || price > 100_000_000) {
+      setFormError("Harga harus angka bulat 1-100.000.000");
       return;
     }
     if (form.vehicleTypes.length === 0) {
@@ -228,7 +231,7 @@ export default function AddonPage() {
                 <Badge tone={it.active ? "success" : "muted"}>
                   {it.active ? "Aktif" : "Nonaktif"}
                 </Badge>
-                {it.vehicleTypes.map((vt) => (
+                {(it.vehicleTypes ?? []).map((vt) => (
                   <Badge key={vt} tone="info">{vt === "motor" ? "Motor" : "Mobil"}</Badge>
                 ))}
               </div>

@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
-import { useToast } from "@/hooks/useToast";
-import { Toast } from "@/components/ui/Toast";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,7 +18,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { toast } = useToast();
 
   const busy = loading || googleLoading;
 
@@ -29,7 +28,13 @@ export default function LoginPage() {
       const result = await authClient.signIn.social({ provider: "google", callbackURL: "/kasir" });
       if (result?.error) {
         setError(result.error.message || "Gagal masuk dengan Google");
+        return;
       }
+      if (result?.data?.url) {
+        window.location.assign(result.data.url);
+        return;
+      }
+      await router.push("/kasir");
     } catch {
       setError("Gagal menghubungi layanan login. Coba lagi.");
     } finally {
@@ -44,8 +49,16 @@ export default function LoginPage() {
       setError("Email wajib diisi");
       return;
     }
+    if (!EMAIL_REGEX.test(email.trim())) {
+      setError("Format email tidak valid");
+      return;
+    }
     if (!/^\d{6,}$/.test(pin)) {
       setError("PIN minimal 6 angka");
+      return;
+    }
+    if (pin.length > 12) {
+      setError("PIN maksimal 12 angka");
       return;
     }
     setLoading(true);
@@ -59,7 +72,11 @@ export default function LoginPage() {
         setError(result.error.message || "Email atau PIN salah");
         return;
       }
-      router.push("/kasir");
+      try {
+        await router.push("/kasir");
+      } catch {
+        setError("Gagal mengalihkan. Coba lagi.");
+      }
     } catch {
       setError("Gagal menghubungi layanan login. Coba lagi.");
     } finally {
@@ -67,13 +84,10 @@ export default function LoginPage() {
     }
   }
 
+  const genericError = Boolean(error && email.trim() && pin.length >= 6 && pin.length <= 12);
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-bg">
-      {toast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
-          <Toast message={toast.message} variant={toast.variant} />
-        </div>
-      )}
       <div className="w-full max-w-md flex flex-col gap-8">
         <div className="flex flex-col gap-3">
           <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={1774} height={887} className="h-8 w-auto max-w-[160px] shrink-0" />
@@ -109,8 +123,10 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
-                aria-invalid={!!error && !email.trim()}
-                aria-describedby={error && !email.trim() ? "login-email-error" : undefined}
+                required
+                aria-required="true"
+                aria-invalid={!!error && !EMAIL_REGEX.test(email.trim())}
+                aria-describedby={error && !EMAIL_REGEX.test(email.trim()) ? "login-email-error" : (genericError ? "login-error" : undefined)}
                 disabled={busy}
               />
             </Field>
@@ -130,13 +146,15 @@ export default function LoginPage() {
                 value={pin}
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
                 autoComplete="current-password"
-                aria-invalid={!!error && pin.length < 6}
-                aria-describedby={error && pin.length < 6 ? "login-pin-error" : undefined}
+                required
+                aria-required="true"
+                aria-invalid={!!error && (pin.length < 6 || pin.length > 12)}
+                aria-describedby={error && (pin.length < 6 || pin.length > 12) ? "login-pin-error" : (genericError ? "login-error" : undefined)}
                 disabled={busy}
               />
             </Field>
-            {error && email.trim() && pin.length >= 6 && (
-              <p role="alert" className="text-sm text-danger">{error}</p>
+            {genericError && (
+              <p id="login-error" role="alert" className="text-sm text-danger">{error}</p>
             )}
             <Button type="submit" fullWidth size="lg" disabled={busy}>
               {loading ? "Memproses..." : "Masuk"}

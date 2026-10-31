@@ -25,7 +25,7 @@ export default function Error({
             Coba lagi
           </button>
           <Link
-            href="/"
+            href="/login"
             className="inline-flex h-11 flex-1 items-center justify-center rounded-[var(--radius-sm)] border border-line bg-surface px-4 text-sm font-semibold text-ink hover:bg-bg"
           >
             Ke beranda

@@ -37,16 +37,16 @@ export default function OutletPage() {
       setLoading(true);
       try {
         const res = await apiFetch<{ data: Outlet[] }>("/api/outlets");
-        const data = Array.isArray(res.data) ? res.data : [];
+        const data = Array.isArray(res?.data) ? res.data : [];
         const first = data[0] ?? null;
         setOutlet(first);
         if (first) {
           setForm({
-            name: first.name,
-            address: first.address,
-            phone: first.phone,
-            receiptFooter: first.receiptFooter,
-            taxPercent: String(first.taxPercent),
+            name: first.name ?? "",
+            address: first.address ?? "",
+            phone: first.phone ?? "",
+            receiptFooter: first.receiptFooter ?? "",
+            taxPercent: String(first.taxPercent ?? 0),
           });
         }
       } catch (e) {
@@ -75,6 +75,7 @@ export default function OutletPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setFormError("");
     if (!form.name.trim()) {
       setFormError("Nama outlet wajib diisi");
@@ -97,7 +98,7 @@ export default function OutletPage() {
           taxPercent: tax,
         }),
       });
-      setOutlet(res.data ?? null);
+      setOutlet(res?.data ?? null);
       showToast("Data outlet tersimpan");
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Gagal menyimpan outlet");

@@ -97,40 +97,48 @@ export default function AntreanPage() {
   const [payLoading, setPayLoading] = useState(false);
   const [banks, setBanks] = useState<{ id: string; name: string; accountNumber: string }[]>([]);
   const [selectedBankId, setSelectedBankId] = useState("");
+
+  const handleClosePay = useCallback(() => {
+    if (!payLoading) setPayOrder(null);
+  }, [payLoading]);
   const { toast, showToast, dismiss } = useToast();
   const refreshing = useRef(false);
   const hasLoadedRef = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     if (refreshing.current) return;
     refreshing.current = true;
     if (!hasLoadedRef.current) setLoading(true);
     try {
-      const res = await apiFetch<BoardResponse>("/api/board");
-      setOrders(res.data.orders);
-      setSummary(res.data.summary);
+      const res = await apiFetch<BoardResponse>("/api/board", { signal });
+      if (signal?.aborted) return;
+      setOrders(res?.data?.orders ?? []);
+      setSummary(res?.data?.summary ?? { menunggu: 0, proses: 0, selesai: 0, total: 0 });
       setError("");
       hasLoadedRef.current = true;
     } catch (err) {
+      if (signal?.aborted) return;
       setError(err instanceof Error ? err.message : "Gagal memuat papan antrean");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
       refreshing.current = false;
     }
   }, []);
 
   useEffect(() => {
-    void load();
+    const controller = new AbortController();
+    void load(controller.signal);
     (async () => {
       try {
-        const res = await apiFetch<{ data: { id: string; name: string; accountNumber: string }[] }>("/api/banks");
-        setBanks(res?.data ?? []);
+        const res = await apiFetch<{ data: { id: string; name: string; accountNumber: string }[] }>("/api/banks", { signal: controller.signal });
+        if (!controller.signal.aborted) setBanks(res?.data ?? []);
       } catch {
-        setBanks([]);
+        if (!controller.signal.aborted) setBanks([]);
       }
     })();
     const tick = window.setInterval(() => setNow(Date.now()), 1_000);
     return () => {
+      controller.abort();
       window.clearInterval(tick);
     };
   }, [load]);
@@ -141,10 +149,10 @@ export default function AntreanPage() {
     return orders
       .filter((o) => o.status !== "paid")
       .filter((o) => filter === "semua" || o.vehicleType === filter)
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      .sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
   }, [orders, filter]);
 
-  const cashAmount = Number((cashReceived || "").replace(/\\D/g, ""));
+  const cashAmount = Number((cashReceived || "").replace(/\D/g, "")) || 0;
   const change = payOrder ? cashAmount - payOrder.grandTotal : NaN;
 
   const counts = useMemo(() => {
@@ -158,6 +166,10 @@ export default function AntreanPage() {
   }, [summary, orders]);
 
   async function updateStatus(id: string, next: "proses" | "selesai") {
+    if (!navigator.onLine) {
+      showToast("Perubahan status memerlukan koneksi internet");
+      return;
+    }
     setBusyId(id);
     try {
       await apiFetch(`/api/orders/${id}/status`, {
@@ -175,6 +187,10 @@ export default function AntreanPage() {
 
   async function handlePay() {
     if (!payOrder) return;
+    if (!navigator.onLine) {
+      showToast("Pembayaran memerlukan koneksi internet");
+      return;
+    }
     if (payMethod === "transfer") {
       if (!selectedBankId) {
         showToast("Pilih bank dulu ya");
@@ -244,6 +260,14 @@ export default function AntreanPage() {
       window.clearTimeout(t);
     };
   }, [payOrder, payLoading]);
+
+  useEffect(() => {
+    if (!payOrder) return;
+    setPayMethod("tunai");
+    setCashReceived("");
+    setRefNo("");
+    setSelectedBankId(banks[0]?.id ?? "");
+  }, [payOrder, banks]);
 
   return (
     <div className="flex flex-col gap-6 pb-36">
@@ -333,7 +357,7 @@ export default function AntreanPage() {
 
       {/* Modal pembayaran */}
       {payOrder && (
-      <Modal open onClose={() => { if (!payLoading) setPayOrder(null); }} title={`Pembayaran ${payOrder.queueNo}`} size="sm">
+      <Modal open onClose={handleClosePay} title={`Pembayaran ${payOrder.queueNo}`} size="sm">
             <div className="flex flex-col gap-4">
             <p className="text-sm text-muted">
               {payOrder.customerName} • {payOrder.plate}
@@ -498,10 +522,11 @@ function QueueCard({
   onSelesai: () => void;
   onBayar: () => void;
 }) {
-  const meta = STATUS_META[order.status];
+  const meta = (STATUS_META as Record<string, (typeof STATUS_META)["menunggu"]>)[order.status] ?? STATUS_META.menunggu;
   const baseAt = order.startedAt ?? order.createdAt;
-  const elapsed = formatElapsed(now - new Date(baseAt).getTime());
-  const overEstimate = now - new Date(baseAt).getTime() > order.estimatedMin * 60 * 1000;
+  const baseTime = baseAt ? new Date(baseAt).getTime() : NaN;
+  const elapsed = Number.isFinite(baseTime) ? formatElapsed(now - baseTime) : "—";
+  const overEstimate = Number.isFinite(baseTime) && now - baseTime > (order.estimatedMin ?? 0) * 60 * 1000;
   const running = order.status === "menunggu" || order.status === "proses";
 
   return (

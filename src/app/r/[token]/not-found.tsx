@@ -9,7 +9,7 @@ export default function NotFound() {
           Tautan struk tidak valid atau sudah tidak tersedia.
         </p>
         <Link
-          href="/"
+          href="/login"
           className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-[var(--radius-sm)] bg-brand px-4 text-sm font-semibold text-white hover:bg-brand-dark"
         >
           Ke beranda

@@ -120,6 +120,7 @@ export default function KasirPage() {
   }, []);
 
   const ordersLoadedRef = useRef(false);
+  const clientIdRef = useRef<string | null>(null);
   const loadOrders = useCallback(async (signal?: AbortSignal) => {
     try {
       const res = await apiFetch<{ data: ApiOrder[] }>("/api/orders?includePaid=true", { signal });
@@ -129,7 +130,7 @@ export default function KasirPage() {
         minute: "2-digit",
       });
       setRecent(
-        res.data.map((order) => ({
+        (res.data ?? []).map((order) => ({
           id: order.id,
           invoiceNo: order.invoiceNo,
           queueNumber: order.queueNo,
@@ -141,7 +142,7 @@ export default function KasirPage() {
           status: order.status,
           paid: order.paid,
           packageName: order.packageName,
-          addons: order.addons.map((addon) => ({
+          addons: (order.addons ?? []).map((addon) => ({
             name: addon.name,
             qty: addon.qty,
             price: addon.price,
@@ -273,9 +274,9 @@ export default function KasirPage() {
   const stats = useMemo(() => {
     const paid = recent.filter((t) => t.paid);
     const count = paid.length;
-    const omzet = paid.reduce((s, t) => s + t.total, 0);
-    const cash = paid.filter((t) => t.paymentMethod === "tunai").reduce((s, t) => s + t.total, 0);
-    const transfer = paid.filter((t) => t.paymentMethod === "transfer").reduce((s, t) => s + t.total, 0);
+    const omzet = paid.reduce((s, t) => s + (t.total ?? 0), 0);
+    const cash = paid.filter((t) => t.paymentMethod === "tunai").reduce((s, t) => s + (t.total ?? 0), 0);
+    const transfer = paid.filter((t) => t.paymentMethod === "transfer").reduce((s, t) => s + (t.total ?? 0), 0);
     const avg = count ? Math.round(omzet / count) : 0;
     return { count, omzet, cash, transfer, avg };
   }, [recent]);
@@ -323,8 +324,11 @@ export default function KasirPage() {
 
     setSubmitting(true);
 
+    if (!clientIdRef.current) {
+      clientIdRef.current = crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+    }
     const body = {
-      clientId: crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
+      clientId: clientIdRef.current,
       vehicleType,
       packageId: selectedPackage.id,
       addons: addonLines.map(({ addon, qty }) => ({ addonId: addon.id, qty })),
@@ -347,6 +351,7 @@ export default function KasirPage() {
         body: JSON.stringify(body),
       });
       created = res.data;
+      if (!created?.queueNo) throw new Error("Respon server tidak valid.");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Gagal menyimpan transaksi. Coba lagi.");
       setSubmitting(false);
@@ -372,6 +377,7 @@ export default function KasirPage() {
     setSelectedBankId(banks[0]?.id ?? "");
     setPaymentMethod("tunai");
 
+    clientIdRef.current = null;
     setSubmitting(false);
   }
 
@@ -785,7 +791,7 @@ export default function KasirPage() {
             size="lg"
             fullWidth
             onClick={handleSubmit}
-            disabled={submitting || !selectedPackage}
+            disabled={submitting || !selectedPackage || !online}
           >
             {submitting ? (
               <>
