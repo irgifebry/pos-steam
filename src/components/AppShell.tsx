@@ -7,6 +7,7 @@ import { ArrowLeft, BarChart3, ListChecks, LogOut, RefreshCw, Settings, Shopping
 import { useAppSession } from "./SessionProvider";
 import { BottomNav } from "./BottomNav";
 import { OperatorSwitcher } from "./OperatorSwitcher";
+import { Spinner } from "./ui/Spinner";
 
 import Image from "next/image";
 
@@ -14,7 +15,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, role, isLoading, signOut } = useAppSession();
   const router = useRouter();
   const pathname = usePathname();
-  const segments = pathname.split("/").filter(Boolean);
+  const segments = pathname?.split("/").filter(Boolean) ?? [];
   const isSubPage = segments.length >= 2;
   const parentPath = "/" + segments.slice(0, -1).join("/");
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -23,11 +24,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!isLoading && !user) router.replace("/login");
   }, [isLoading, user, router]);
 
+  if (!pathname) return null;
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg">
         <div className="flex flex-col items-center gap-3 text-muted">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+          <Spinner className="h-8 w-8 text-brand" />
           <p className="font-medium">Memuat...</p>
         </div>
       </div>

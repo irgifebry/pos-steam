@@ -1,18 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 import { apiFetch } from "@/lib/api-client";
 import { useAppSession } from "./SessionProvider";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
+import type { Role } from "@/lib/types";
 import type { AppUser, AppUserSummary } from "@/lib/services/users";
 
-type SwitchUser = { id: string; name: string; role: string; email?: string };
+type SwitchUser = { id: string; name: string; role: Role; email?: string };
 
 export function OperatorSwitcher({ onClose }: { onClose: () => void }) {
   const { role: currentRole } = useAppSession();
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    return () => {
+      prev?.focus?.();
+    };
+  }, []);
+
   const [users, setUsers] = useState<SwitchUser[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [pin, setPin] = useState("");
@@ -77,6 +88,8 @@ export function OperatorSwitcher({ onClose }: { onClose: () => void }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="operator-switcher-title"
+      tabIndex={-1}
+      ref={dialogRef}
       onKeyDown={(e) => {
         if (e.key === "Escape") onClose();
       }}
@@ -119,7 +132,7 @@ export function OperatorSwitcher({ onClose }: { onClose: () => void }) {
             value={pin}
             onChange={(e) => setPin(e.target.value)}
           />
-          {error && <p className="text-sm text-danger">{error}</p>}
+          {error && <p role="alert" className="text-sm text-danger">{error}</p>}
           <Button type="submit" fullWidth disabled={loading || !canSwitch}>
             {loading ? "Memproses..." : "Masuk sebagai operator ini"}
           </Button>

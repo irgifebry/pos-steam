@@ -36,6 +36,13 @@ export function Modal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  const initialFocusRefRef = useRef(initialFocusRef);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    initialFocusRefRef.current = initialFocusRef;
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -44,8 +51,9 @@ export function Modal({
     document.body.style.overflow = "hidden";
 
     const raf = requestAnimationFrame(() => {
-      if (initialFocusRef?.current) {
-        initialFocusRef.current.focus();
+      const focusRef = initialFocusRefRef.current;
+      if (focusRef?.current) {
+        focusRef.current.focus();
       } else {
         const focusables = dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE);
         if (focusables && focusables.length > 0) {
@@ -59,7 +67,7 @@ export function Modal({
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab" || !dialogRef.current) return;
@@ -90,7 +98,7 @@ export function Modal({
       document.body.style.overflow = prevOverflow;
       previouslyFocused.current?.focus?.();
     };
-  }, [open, onClose, initialFocusRef]);
+  }, [open]);
 
   if (!open) return null;
 

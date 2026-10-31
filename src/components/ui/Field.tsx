@@ -1,5 +1,6 @@
 import { cn } from "@/lib/cn";
-import type { ReactNode } from "react";
+import { cloneElement, isValidElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 export function Field({
   label,
@@ -23,7 +24,12 @@ export function Field({
           {label}
         </label>
       )}
-      {children}
+      {error && isValidElement(children)
+        ? cloneElement(children as ReactElement<any>, {
+            "aria-invalid": true,
+            "aria-describedby": htmlFor ? `${htmlFor}-error` : undefined,
+          })
+        : children}
       {error && <p id={htmlFor ? `${htmlFor}-error` : undefined} role="alert" className="text-sm text-danger">{error}</p>}
       {!error && hint && <p className="text-sm text-muted">{hint}</p>}
     </div>

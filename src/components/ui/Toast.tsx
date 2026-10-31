@@ -22,8 +22,8 @@ export function Toast({
 }) {
   return (
     <div
-      role="status"
-      aria-live="polite"
+      role={variant === "error" ? "alert" : "status"}
+      aria-live={variant === "error" ? "assertive" : "polite"}
       className={cn(
         "flex items-center gap-3 rounded-[var(--radius-md)] border border-line px-4 py-3 shadow-[var(--shadow-card)]",
         variantClasses[variant],
