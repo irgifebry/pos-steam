@@ -12,8 +12,8 @@ const BANK_IDS = {
 };
 
 const ADMIN_EMAIL = "admin@pos.test";
-// PIN demo; wajib diganti lewat Pengaturan setelah login pertama.
-const ADMIN_PIN = "admin123";
+// PIN demo numerik (min. 6 digit); wajib diganti lewat Pengaturan setelah login pertama.
+const ADMIN_PIN = "123456";
 
 export async function seed(db: AppDatabase, auth: Auth): Promise<void> {
   await db
