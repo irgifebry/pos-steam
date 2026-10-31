@@ -49,7 +49,7 @@ describe("seed", () => {
 
   it("admin hasil seed bisa login dengan PIN demo", async () => {
     const result = await auth.api.signInEmail({
-      body: { email: "admin@pos.test", password: "admin123" },
+      body: { email: "admin@pos.test", password: "123456" },
     });
     expect(result.token).toBeTruthy();
   });
