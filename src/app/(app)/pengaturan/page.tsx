@@ -77,13 +77,13 @@ export default function PengaturanIndex() {
   }
 
   return (
-    <div className="flex flex-col gap-4 pb-36">
+    <div className="flex flex-col gap-6 pb-36">
       <div>
         <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Pengaturan</h1>
         <p className="text-muted mt-1">Atur data outlet dan layanan</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         {menus.map((m) => {
           const Icon = m.icon;
           return (

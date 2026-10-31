@@ -32,19 +32,12 @@ export function BottomNav({ role }: { role: Role }) {
                 href={t.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 py-2 text-xs font-medium tap-target",
-                  active ? "text-ink" : "text-muted",
+                  "flex flex-col items-center justify-center gap-1 py-2 text-xs font-bold tap-target transition",
+                  active ? "text-brand" : "text-muted",
                 )}
               >
-                <Icon className={cn("h-6 w-6", active && "text-ink")} />
-                <span
-                  className={cn(
-                    "rounded-full px-2.5 py-0.5",
-                    active ? "bg-stone-200" : "bg-transparent",
-                  )}
-                >
-                  {t.label}
-                </span>
+                <Icon className={cn("h-6 w-6", active && "text-brand")} />
+                <span>{t.label}</span>
               </Link>
             );
           })}

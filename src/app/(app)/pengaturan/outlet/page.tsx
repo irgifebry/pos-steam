@@ -124,9 +124,9 @@ export default function OutletPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-extrabold text-ink">Data Outlet</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-ink">Data Outlet</h1>
         <p className="text-muted mt-1">Informasi outlet & struk</p>
       </div>
 
@@ -165,7 +165,7 @@ export default function OutletPage() {
             />
           </Field>
           {formError && <p className="text-sm text-danger">{formError}</p>}
-          <Button type="submit" fullWidth size="lg" disabled={saving}>
+          <Button variant="primary" type="submit" fullWidth size="lg" disabled={saving}>
             <Save className="h-5 w-5" />
             {saving ? "Menyimpan..." : "Simpan"}
           </Button>

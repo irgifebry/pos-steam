@@ -5,6 +5,7 @@ import { BarChart3, Banknote, Calendar, CreditCard, Download, Package, Printer, 
 
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Spinner } from "@/components/ui/Spinner";
@@ -260,7 +261,7 @@ export default function LaporanPage() {
   const periodLabel = mode === "single" ? `Hari ${tgl(rangeFrom)}` : `Periode ${tgl(rangeFrom)} s.d ${tgl(rangeTo)}`;
 
   return (
-    <div className="flex flex-col gap-4 pb-4">
+    <div className="flex flex-col gap-6 pb-4">
       {/* Toast */}
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
@@ -271,11 +272,11 @@ export default function LaporanPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Laporan</h1>
+          <h1 className="font-display text-4xl font-bold tracking-tight text-ink">Laporan</h1>
           <p className="text-sm text-muted">Ringkasan omzet dan transaksi outlet</p>
         </div>
         <div className="flex gap-2 no-print">
-          <Button variant="secondary" size="sm" onClick={handlePrint} disabled={invalidRange}>
+          <Button variant="primary" size="sm" onClick={handlePrint} disabled={invalidRange}>
             <Printer className="h-4 w-4" /> Cetak
           </Button>
         </div>
@@ -283,9 +284,9 @@ export default function LaporanPage() {
 
       {/* Filter tanggal */}
       <Card className="flex flex-col gap-3 no-print">
-        <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+          <div className="flex items-center gap-2 text-sm font-display font-bold text-ink">
           <Calendar className="h-4 w-4 text-muted" />
-          <span>Filter tanggal</span>
+          <span className="font-display font-bold text-ink">Filter tanggal</span>
         </div>
         <div className="flex items-center gap-3 text-sm font-semibold text-ink">
           <button
@@ -334,29 +335,29 @@ export default function LaporanPage() {
 
       {/* Dashboard harian */}
       <section className="flex flex-col gap-2 no-print">
-        <h2 className="text-sm font-semibold text-ink">Dashboard — {periodLabel}</h2>
+        <h2 className="font-display text-sm font-bold text-ink">Dashboard — {periodLabel}</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <Card className="p-3 flex flex-col gap-1">
+          <Card className="p-4 flex flex-col gap-1">
             <p className="text-xs text-muted">Omzet</p>
             <p className="font-display text-lg font-bold tabular-nums text-ink">{rupiah(omzetHari)}</p>
           </Card>
-          <Card className="p-3 flex flex-col gap-1">
+          <Card className="p-4 flex flex-col gap-1">
             <p className="text-xs text-muted">Transaksi</p>
             <p className="font-display text-lg font-bold tabular-nums text-ink">{formatAngka(countTx)}</p>
           </Card>
-          <Card className="p-3 flex flex-col gap-1">
+          <Card className="p-4 flex flex-col gap-1">
             <p className="text-xs text-muted">Rata-rata / transaksi</p>
             <p className="font-display text-lg font-bold tabular-nums text-ink">{rupiah(avgTx)}</p>
           </Card>
-          <Card className="p-3 flex flex-col gap-1">
+          <Card className="p-4 flex flex-col gap-1">
             <p className="text-xs text-muted">Tunai</p>
             <p className="font-display text-lg font-bold tabular-nums text-ink">{rupiah(tunai)}</p>
           </Card>
-          <Card className="p-3 flex flex-col gap-1">
+          <Card className="p-4 flex flex-col gap-1">
             <p className="text-xs text-muted">Transfer</p>
             <p className="font-display text-lg font-bold tabular-nums text-ink">{rupiah(transfer)}</p>
           </Card>
-          <Card className="p-3 flex flex-col gap-1">
+          <Card className="p-4 flex flex-col gap-1">
             <p className="text-xs text-muted">Motor / Mobil</p>
             <p className="font-display text-lg font-bold tabular-nums text-ink">{formatAngka(motor)} / {formatAngka(mobil)}</p>
           </Card>
@@ -364,8 +365,8 @@ export default function LaporanPage() {
 
         {/* Tren omzet */}
         <Card className="flex flex-col gap-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <TrendingUp className="h-4 w-4 text-brand" /> Tren omzet per hari
+          <div className="flex items-center gap-2 text-sm font-display font-bold text-ink">
+            <TrendingUp className="h-4 w-4 text-brand" /> <span className="font-display font-bold text-ink">Tren omzet per hari</span>
           </div>
           <div className="flex items-end gap-1 h-44">
             {trend.map((t) => {
@@ -410,15 +411,15 @@ export default function LaporanPage() {
       </div>
 
       {/* Panel laporan aktif */}
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-6">
         {tab === "omzet" && (
           <Card className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-brand" />
-                <span className="font-semibold text-ink">Omzet per Periode</span>
+                <span className="font-display font-bold text-ink">Omzet per Periode</span>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => downloadCsv("transaksi")} disabled={loading.omzet || txs.length === 0}>
+              <Button variant="primary" size="sm" onClick={() => downloadCsv("transaksi")} disabled={loading.omzet || txs.length === 0}>
                 <Download className="h-4 w-4" /> Export CSV
               </Button>
             </div>
@@ -463,7 +464,7 @@ export default function LaporanPage() {
                           {(Array.isArray(t.addons) ? t.addons : []).map((a) => `${a.name} x${a.qty}`).join(", ") || "—"}
                         </td>
                         <td className="py-2 px-2 text-sm text-ink">{t.employee}</td>
-                        <td className="py-2 px-2 text-sm text-ink">{t.paymentMethod}</td>
+                        <td className="py-2 px-2 text-sm text-ink"><Badge tone={t.paymentMethod === "Tunai" ? "success" : "info"}>{t.paymentMethod}</Badge></td>
                         <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(t.total)}</td>
                       </tr>
                     ))}
@@ -479,22 +480,22 @@ export default function LaporanPage() {
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Package className="h-4 w-4 text-brand" />
-                <span className="font-semibold text-ink">Rekap Paket</span>
+                <span className="font-display font-bold text-ink">Rekap Paket</span>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => downloadCsv("paket")} disabled={loading.paket || paketRows.length === 0}>
+              <Button variant="primary" size="sm" onClick={() => downloadCsv("paket")} disabled={loading.paket || paketRows.length === 0}>
                 <Download className="h-4 w-4" /> Export CSV
               </Button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <Card className="p-3 flex flex-col gap-1">
+              <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Jenis paket</p>
                 <p className="font-bold tabular-nums text-ink">{formatAngka(paketRows.length)}</p>
               </Card>
-              <Card className="p-3 flex flex-col gap-1">
+              <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Terjual</p>
                 <p className="font-bold tabular-nums text-ink">{formatAngka(paketRows.reduce((s, r) => s + r.count, 0))}</p>
               </Card>
-              <Card className="p-3 flex flex-col gap-1">
+              <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Omzet paket</p>
                 <p className="font-bold tabular-nums text-ink">{rupiah(paketRows.reduce((s, r) => s + r.total, 0))}</p>
               </Card>
@@ -541,22 +542,22 @@ export default function LaporanPage() {
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Wrench className="h-4 w-4 text-brand" />
-                <span className="font-semibold text-ink">Rekap Add-on</span>
+                <span className="font-display font-bold text-ink">Rekap Add-on</span>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => downloadCsv("addon")} disabled={loading.addon || addonRows.length === 0}>
+              <Button variant="primary" size="sm" onClick={() => downloadCsv("addon")} disabled={loading.addon || addonRows.length === 0}>
                 <Download className="h-4 w-4" /> Export CSV
               </Button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <Card className="p-3 flex flex-col gap-1">
+              <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Jenis add-on</p>
                 <p className="font-bold tabular-nums text-ink">{formatAngka(addonRows.length)}</p>
               </Card>
-              <Card className="p-3 flex flex-col gap-1">
+              <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Terjual</p>
                 <p className="font-bold tabular-nums text-ink">{formatAngka(addonRows.reduce((s, r) => s + r.count, 0))}</p>
               </Card>
-              <Card className="p-3 flex flex-col gap-1">
+              <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Omzet add-on</p>
                 <p className="font-bold tabular-nums text-ink">{rupiah(addonRows.reduce((s, r) => s + r.total, 0))}</p>
               </Card>
@@ -603,19 +604,19 @@ export default function LaporanPage() {
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4 text-brand" />
-                <span className="font-semibold text-ink">Rekap Metode Pembayaran</span>
+                <span className="font-display font-bold text-ink">Rekap Metode Pembayaran</span>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => downloadCsv("pembayaran")} disabled={loading.pembayaran || paymentRows.length === 0}>
+              <Button variant="primary" size="sm" onClick={() => downloadCsv("pembayaran")} disabled={loading.pembayaran || paymentRows.length === 0}>
                 <Download className="h-4 w-4" /> Export CSV
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Card className="flex flex-col gap-1 p-3">
+              <Card className="flex flex-col gap-1 p-4">
                 <p className="text-xs text-muted">Tunai</p>
                 <p className="font-bold tabular-nums text-ink">{rupiah(tunai)}</p>
                 <p className="text-xs text-muted">{formatAngka(txs.filter((t) => t.paymentMethod === "Tunai").length)} transaksi</p>
               </Card>
-              <Card className="flex flex-col gap-1 p-3">
+              <Card className="flex flex-col gap-1 p-4">
                 <p className="text-xs text-muted">Transfer</p>
                 <p className="font-bold tabular-nums text-ink">{rupiah(transfer)}</p>
                 <p className="text-xs text-muted">{formatAngka(txs.filter((t) => t.paymentMethod === "Transfer").length)} transaksi</p>
@@ -641,7 +642,7 @@ export default function LaporanPage() {
                   <tbody>
                     {paymentRows.map((r) => (
                       <tr key={r.method} className="border-t border-line">
-                        <td scope="row" className="py-2 pr-2 text-sm font-semibold text-ink">{r.method}</td>
+                        <td scope="row" className="py-2 pr-2 text-sm font-semibold text-ink"><Badge tone={r.method === "Tunai" ? "success" : "info"}>{r.method}</Badge></td>
                         <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
                         <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
                       </tr>
@@ -663,22 +664,22 @@ export default function LaporanPage() {
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-brand" />
-                <span className="font-semibold text-ink">Rekap Karyawan</span>
+                <span className="font-display font-bold text-ink">Rekap Karyawan</span>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => downloadCsv("karyawan")} disabled={loading.karyawan || employeeRows.length === 0}>
+              <Button variant="primary" size="sm" onClick={() => downloadCsv("karyawan")} disabled={loading.karyawan || employeeRows.length === 0}>
                 <Download className="h-4 w-4" /> Export CSV
               </Button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <Card className="p-3 flex flex-col gap-1">
+              <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Karyawan aktif</p>
                 <p className="font-bold tabular-nums text-ink">{formatAngka(employeeRows.length)}</p>
               </Card>
-              <Card className="p-3 flex flex-col gap-1">
+              <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Total transaksi</p>
                 <p className="font-bold tabular-nums text-ink">{formatAngka(employeeRows.reduce((s, r) => s + r.count, 0))}</p>
               </Card>
-              <Card className="p-3 flex flex-col gap-1">
+              <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Omzet karyawan</p>
                 <p className="font-bold tabular-nums text-ink">{rupiah(employeeRows.reduce((s, r) => s + r.total, 0))}</p>
               </Card>
@@ -724,7 +725,7 @@ export default function LaporanPage() {
           <Card className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <Banknote className="h-4 w-4 text-brand" />
-              <span className="font-semibold text-ink">Rekap Kas Harian</span>
+              <span className="font-display font-bold text-ink">Rekap Kas Harian</span>
             </div>
 
             {mode !== "single" && (
@@ -742,7 +743,7 @@ export default function LaporanPage() {
             {mode === "single" && !loading.kas && !error.kas && (
               <>
                 <Button
-                  variant="secondary"
+                  variant="primary"
                   size="sm"
                   className="w-fit self-start"
                   onClick={() => downloadCsv("kas")}
@@ -751,33 +752,33 @@ export default function LaporanPage() {
                   <Download className="h-4 w-4" /> Export CSV
                 </Button>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                  <Card className="p-3 flex flex-col gap-1">
+                  <Card className="p-4 flex flex-col gap-1">
                     <p className="text-xs text-muted">Saldo awal</p>
                     <p className={cn("font-bold tabular-nums", cash?.open === null || cash?.open === undefined ? "text-muted" : "text-ink")}>
                       {cash?.open === null || cash?.open === undefined ? "-" : rupiah(Number(cash.open))}
                     </p>
                   </Card>
-                  <Card className="p-3 flex flex-col gap-1">
+                  <Card className="p-4 flex flex-col gap-1">
                     <p className="text-xs text-muted">Masuk (tunai)</p>
                     <p className="font-bold tabular-nums text-ink">{rupiah(Number(cash?.totalTunai ?? 0))}</p>
                   </Card>
-                  <Card className="p-3 flex flex-col gap-1">
+                  <Card className="p-4 flex flex-col gap-1">
                     <p className="text-xs text-muted">Keluar</p>
                     <p className="font-bold tabular-nums text-ink">{rupiah(Number(cash?.keluar ?? 0))}</p>
                   </Card>
-                  <Card className="p-3 flex flex-col gap-1">
+                  <Card className="p-4 flex flex-col gap-1">
                     <p className="text-xs text-muted">Saldo akhir teori</p>
                     <p className={cn("font-bold tabular-nums", cash?.expectedCash == null ? "text-muted" : "text-ink")}>
                       {cash?.expectedCash == null ? "-" : rupiah(Number(cash?.expectedCash ?? 0))}
                     </p>
                   </Card>
-                  <Card className="p-3 flex flex-col gap-1">
+                  <Card className="p-4 flex flex-col gap-1">
                     <p className="text-xs text-muted">Kas aktual</p>
                     <p className={cn("font-bold tabular-nums", (cash?.closingCash ?? cash?.actual) == null ? "text-muted" : "text-ink")}>
                       {(cash?.closingCash ?? cash?.actual) == null ? "-" : rupiah(Number(cash?.closingCash ?? cash?.actual ?? 0))}
                     </p>
                   </Card>
-                  <Card className="p-3 flex flex-col gap-1">
+                  <Card className="p-4 flex flex-col gap-1">
                     <p className="text-xs text-muted">Selisih</p>
                     <p className={cn("font-bold tabular-nums", cash?.difference == null ? "text-muted" : (cash?.difference ?? 0) < 0 ? "text-danger" : "text-ink")}>
                       {cash?.difference == null ? "-" : rupiah(Number(cash?.difference ?? 0))}
