@@ -25,7 +25,7 @@ export function Field({
         </label>
       )}
       {error && isValidElement(children)
-        ? cloneElement(children as ReactElement<any>, {
+        ? cloneElement(children as ReactElement<Record<string, unknown>>, {
             "aria-invalid": true,
             "aria-describedby": htmlFor ? `${htmlFor}-error` : undefined,
           })
