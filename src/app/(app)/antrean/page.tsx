@@ -4,12 +4,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Car, CheckCircle2, Clock, Droplets, Motorbike, Play, Receipt, Wallet } from "lucide-react";
 
 import { Badge } from "@/components/ui/Badge";
+import { Modal } from "@/components/ui/Modal";
+import { Toast } from "@/components/ui/Toast";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
 import { Spinner } from "@/components/ui/Spinner";
 import { useAppSession } from "@/components/SessionProvider";
+import { usePolling } from "@/hooks/usePolling";
+import { useToast } from "@/hooks/useToast";
 import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/cn";
 import { formatTanggal, formatWaktu, rupiah } from "@/lib/format";
@@ -93,23 +97,9 @@ export default function AntreanPage() {
   const [payLoading, setPayLoading] = useState(false);
   const [banks, setBanks] = useState<{ id: string; name: string; accountNumber: string }[]>([]);
   const [selectedBankId, setSelectedBankId] = useState("");
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, showToast, dismiss } = useToast();
   const refreshing = useRef(false);
   const hasLoadedRef = useRef(false);
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToast(null), 2500);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
-  }, []);
 
   const load = useCallback(async () => {
     if (refreshing.current) return;
@@ -139,13 +129,13 @@ export default function AntreanPage() {
         setBanks([]);
       }
     })();
-    const poll = window.setInterval(() => void load(), 5_000);
     const tick = window.setInterval(() => setNow(Date.now()), 1_000);
     return () => {
-      window.clearInterval(poll);
       window.clearInterval(tick);
     };
   }, [load]);
+
+  usePolling(() => void load(), 5_000);
 
   const visible = useMemo(() => {
     return orders
@@ -336,27 +326,15 @@ export default function AntreanPage() {
 
       {/* Toast */}
       {toast && (
-        <div role="status" aria-live="polite" className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
-          {toast}
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
+          <Toast message={toast.message} variant={toast.variant} onDismiss={dismiss} />
         </div>
       )}
 
       {/* Modal pembayaran */}
       {payOrder && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="pay-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm px-4"
-          onClick={() => {
-            if (!payLoading) setPayOrder(null);
-          }}
-        >
-          <Card className="w-full max-w-sm flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-brand" />
-              <h2 id="pay-modal-title" className="font-bold text-ink">Pembayaran {payOrder.queueNo}</h2>
-            </div>
+      <Modal open onClose={() => { if (!payLoading) setPayOrder(null); }} title={`Pembayaran ${payOrder.queueNo}`} size="sm">
+            <div className="flex flex-col gap-3">
             <p className="text-sm text-muted">
               {payOrder.customerName} • {payOrder.plate}
             </p>
@@ -467,8 +445,8 @@ export default function AntreanPage() {
                 )}
               </Button>
             </div>
-          </Card>
-        </div>
+            </div>
+      </Modal>
       )}
     </div>
   );

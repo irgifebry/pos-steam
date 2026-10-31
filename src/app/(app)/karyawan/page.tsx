@@ -13,7 +13,10 @@ import { Badge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
 import { formatAngka, formatTanggal, formatWaktu, rupiah } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { useToast } from "@/hooks/useToast";
+import { Toast } from "@/components/ui/Toast";
 import type { AttendanceStatus, Role } from "@/lib/types";
+import type { PayrollView } from "@/lib/services/payroll";
 
 type UserView = {
   id: string;
@@ -54,15 +57,6 @@ type PayrollItem = {
   net: number;
 };
 
-type PayrollView = {
-  id: string;
-  period: string;
-  status: "draft" | "final";
-  finalizedAt: string | null;
-  items: PayrollItem[];
-  totals: { gross: number; net: number };
-};
-
 type Adjustment = { tunjangan: number; lembur: number; potongan: number };
 
 const STATUS_OPTIONS: {
@@ -94,11 +88,7 @@ export default function KaryawanPage() {
   const isAdmin = currentRole === "admin";
   const [tab, setTab] = useState<"absensi" | "gaji">("absensi");
 
-  const [toast, setToast] = useState<string | null>(null);
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2500);
-  }
+  const { toast, showToast, dismiss } = useToast();
 
   // ---------- Absensi ----------
   const [attDate, setAttDate] = useState(todayISO());
@@ -116,7 +106,7 @@ export default function KaryawanPage() {
       setUsers([]);
       showToast(e instanceof Error ? e.message : "Gagal memuat daftar karyawan");
     }
-  }, []);
+  }, [showToast]);
 
   const loadAttendance = useCallback(
     async (date: string) => {
@@ -479,20 +469,20 @@ export default function KaryawanPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-line text-xs text-muted">
-                    <th className="pb-3 font-semibold text-ink">Karyawan</th>
-                    <th className="pb-3 font-semibold text-ink">Role</th>
-                    <th className="pb-3 font-semibold text-ink text-right">Hadir</th>
-                    <th className="pb-3 font-semibold text-ink text-right">Gaji Pokok</th>
-                    <th className="pb-3 font-semibold text-ink text-right">Tunjangan</th>
-                    <th className="pb-3 font-semibold text-ink text-right">Lembur</th>
-                    <th className="pb-3 font-semibold text-ink text-right">Potongan</th>
-                    <th className="pb-3 font-semibold text-ink text-right">Bersih</th>
+                    <th scope="col" className="pb-3 font-semibold text-ink">Karyawan</th>
+                    <th scope="col" className="pb-3 font-semibold text-ink">Role</th>
+                    <th scope="col" className="pb-3 font-semibold text-ink text-right">Hadir</th>
+                    <th scope="col" className="pb-3 font-semibold text-ink text-right">Gaji Pokok</th>
+                    <th scope="col" className="pb-3 font-semibold text-ink text-right">Tunjangan</th>
+                    <th scope="col" className="pb-3 font-semibold text-ink text-right">Lembur</th>
+                    <th scope="col" className="pb-3 font-semibold text-ink text-right">Potongan</th>
+                    <th scope="col" className="pb-3 font-semibold text-ink text-right">Bersih</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.userId} className="border-b border-line/50">
-                      <td className="py-3">{r.name}</td>
+                      <td scope="row" className="py-3">{r.name}</td>
                       <td className="py-3 text-xs text-muted capitalize">{r.role}</td>
                       <td className="py-3 text-right font-semibold tabular-nums">{r.hadir}</td>
                       <td className="py-3 text-right tabular-nums">{rupiah(r.pokok)}</td>
@@ -531,7 +521,7 @@ export default function KaryawanPage() {
                   ))}
                   {rows.length === 0 && (
                     <tr>
-                      <td
+                      <td scope="row"
                         colSpan={8}
                         className="py-6 text-center text-sm text-muted"
                       >
@@ -540,7 +530,7 @@ export default function KaryawanPage() {
                     </tr>
                   )}
                   <tr className="border-t border-line font-bold">
-                    <td className="py-3">Total</td>
+                    <td scope="row" className="py-3">Total</td>
                     <td className="py-3 text-right" colSpan={2}>
                       {formatAngka(totals.hadir)} hari
                     </td>
@@ -645,8 +635,8 @@ export default function KaryawanPage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
-          {toast}
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
+          <Toast message={toast.message} variant={toast.variant} onDismiss={dismiss} />
         </div>
       )}
 

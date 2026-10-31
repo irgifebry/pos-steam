@@ -1,10 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Plus,
   Pencil,
-  X,
   KeyRound,
   UserCheck,
   UserX,
@@ -13,14 +12,16 @@ import {
 import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/api-client";
 import { rupiah } from "@/lib/format";
+import type { Role } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
-
-type Role = "admin" | "kasir" | "operator";
+import { useToast } from "@/hooks/useToast";
+import { Toast } from "@/components/ui/Toast";
+import { Modal } from "@/components/ui/Modal";
 
 interface User {
   id: string;
@@ -53,23 +54,7 @@ export default function PenggunaPage() {
   const [newPin, setNewPin] = useState("");
   const [pinSaving, setPinSaving] = useState(false);
   const [pinError, setPinError] = useState("");
-  const [toast, setToast] = useState<string | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pinModalRef = useRef<HTMLDivElement>(null);
-  const showToast = useCallback((msg: string) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast(msg);
-    toastTimer.current = setTimeout(() => setToast(null), 2500);
-  }, []);
-  useEffect(() => {
-    return () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (pinModal) pinModalRef.current?.focus();
-  }, [pinModal]);
+  const { toast, showToast } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -304,133 +289,99 @@ export default function PenggunaPage() {
         ))}
       </div>
 
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-float)] max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-line">
-              <h2 className="text-xl font-bold text-ink">
-                {editing ? "Edit Pengguna" : "Tambah Pengguna"}
-              </h2>
-              <button
-                onClick={() => setModalOpen(false)}
-                className="h-10 w-10 rounded-xl flex items-center justify-center text-muted hover:bg-bg"
-                aria-label="Tutup"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSave} className="flex flex-col gap-4 p-5">
-              <Field label="Nama">
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                />
-              </Field>
-              <Field label="Email">
-                <Input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                />
-              </Field>
-              <Field label="Role">
-                <select
-                  value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
-                  className="w-full h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface text-base text-ink"
-                >
-                  <option value="admin">Admin</option>
-                  <option value="kasir">Kasir</option>
-                  <option value="operator">Operator</option>
-                </select>
-              </Field>
-              <Field label="Telepon">
-                <Input
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                />
-              </Field>
-              <Field label="Gaji Harian (Rp)">
-                <Input
-                  type="number"
-                  value={form.dailyRate}
-                  onChange={(e) => setForm({ ...form, dailyRate: e.target.value })}
-                />
-              </Field>
-              {!editing && (
-                <Field label="PIN (min 6)">
-                  <Input
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  />
-                </Field>
-              )}
-              {formError && <p className="text-sm text-danger">{formError}</p>}
-              <Button type="submit" fullWidth size="lg" disabled={saving}>
-                {saving ? "Menyimpan..." : "Simpan"}
-              </Button>
-            </form>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editing ? "Edit Pengguna" : "Tambah Pengguna"}
+        footer={
+          <Button type="submit" form="pengguna-form" fullWidth size="lg" disabled={saving}>
+            {saving ? "Menyimpan..." : "Simpan"}
+          </Button>
+        }
+      >
+        <form id="pengguna-form" onSubmit={handleSave} className="flex flex-col gap-4">
+          <Field label="Nama">
+            <Input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </Field>
+          <Field label="Email">
+            <Input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </Field>
+          <Field label="Role">
+            <select
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
+              className="w-full h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface text-base text-ink"
+            >
+              <option value="admin">Admin</option>
+              <option value="kasir">Kasir</option>
+              <option value="operator">Operator</option>
+            </select>
+          </Field>
+          <Field label="Telepon">
+            <Input
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </Field>
+          <Field label="Gaji Harian (Rp)">
+            <Input
+              type="number"
+              value={form.dailyRate}
+              onChange={(e) => setForm({ ...form, dailyRate: e.target.value })}
+            />
+          </Field>
+          {!editing && (
+            <Field label="PIN (min 6)">
+              <Input
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+            </Field>
+          )}
+          {formError && <p className="text-sm text-danger">{formError}</p>}
+        </form>
+      </Modal>
 
-      {pinModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="pin-modal-title"
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              setPinModal(null);
-              setNewPin("");
-              setPinError("");
-            }
-          }}
-        >
-          <div
-            ref={pinModalRef}
-            tabIndex={-1}
-            className="w-full max-w-sm bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-float)] outline-none"
-          >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-line">
-              <h2 id="pin-modal-title" className="text-xl font-bold text-ink">Reset PIN</h2>
-              <button
-                onClick={() => {
-                  setPinModal(null);
-                  setNewPin("");
-                  setPinError("");
-                }}
-                className="h-10 w-10 rounded-xl flex items-center justify-center text-muted hover:bg-bg"
-                aria-label="Tutup"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form onSubmit={handleResetPin} className="flex flex-col gap-4 p-5">
-              <p className="text-sm text-muted">
-                Reset PIN untuk <b>{pinModal.name}</b>
-              </p>
-              <Field label="PIN Baru">
-                <Input
-                  type="password"
-                  value={newPin}
-                  onChange={(e) => setNewPin(e.target.value)}
-                />
-              </Field>
-              {pinError && <p className="text-sm text-danger">{pinError}</p>}
-              <Button type="submit" fullWidth size="lg" disabled={pinSaving}>
-                {pinSaving ? "Menyimpan..." : "Simpan PIN"}
-              </Button>
-            </form>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={!!pinModal}
+        onClose={() => {
+          setPinModal(null);
+          setNewPin("");
+          setPinError("");
+        }}
+        title="Reset PIN"
+      >
+        {pinModal && (
+          <form id="pin-form" onSubmit={handleResetPin} className="flex flex-col gap-4">
+            <p className="text-sm text-muted">
+              Reset PIN untuk <b>{pinModal.name}</b>
+            </p>
+            <Field label="PIN Baru">
+              <Input
+                type="password"
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value)}
+              />
+            </Field>
+            {pinError && <p className="text-sm text-danger">{pinError}</p>}
+            <Button type="submit" form="pin-form" fullWidth size="lg" disabled={pinSaving}>
+              {pinSaving ? "Menyimpan..." : "Simpan PIN"}
+            </Button>
+          </form>
+        )}
+      </Modal>
 
       {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
-          {toast}
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
+          <Toast message={toast.message} variant={toast.variant} />
         </div>
       )}
     </div>

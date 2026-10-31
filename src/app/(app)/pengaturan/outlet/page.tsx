@@ -1,23 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Save, Store } from "lucide-react";
 import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/api-client";
+import type { Outlet } from "@/lib/services/outlets";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
 import { Spinner } from "@/components/ui/Spinner";
-
-interface Outlet {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  receiptFooter: string;
-  taxPercent: number;
-}
+import { useToast } from "@/hooks/useToast";
+import { Toast } from "@/components/ui/Toast";
 
 const emptyForm = {
   name: "",
@@ -33,18 +27,7 @@ export default function OutletPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const [toast, setToast] = useState<string | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showToast = useCallback((msg: string) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast(msg);
-    toastTimer.current = setTimeout(() => setToast(null), 2500);
-  }, []);
-  useEffect(() => {
-    return () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-    };
-  }, []);
+  const { toast, showToast } = useToast();
 
   const { role, isLoading: sessionLoading } = useAppSession();
 
@@ -190,12 +173,8 @@ export default function OutletPage() {
       </Card>
 
       {toast && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold"
-        >
-          {toast}
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
+          <Toast message={toast.message} variant={toast.variant} />
         </div>
       )}
     </div>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useToast } from "@/hooks/useToast";
+import { Toast } from "@/components/ui/Toast";
 import {
   Banknote,
   Car,
@@ -23,8 +25,9 @@ import { Spinner } from "@/components/ui/Spinner";
 import { apiFetch } from "@/lib/api-client";
 import { rupiah } from "@/lib/format";
 import { cn } from "@/lib/cn";
-
-type VehicleType = "motor" | "mobil";
+import type { Addon } from "@/lib/services/addons";
+import type { Bank } from "@/lib/services/banks";
+import type { VehicleType } from "@/lib/types";
 
 type Package = {
   id: string;
@@ -32,21 +35,6 @@ type Package = {
   price: number;
   vehicleType: VehicleType;
   description?: string;
-};
-
-type Addon = {
-  id: string;
-  name: string;
-  price: number;
-  unitLabel: string;
-  vehicleTypes: VehicleType[];
-};
-
-type Bank = {
-  id: string;
-  name: string;
-  accountNumber: string;
-  accountName: string;
 };
 
 type RecentTx = {
@@ -116,7 +104,7 @@ export default function KasirPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<SuccessInfo | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, showToast, dismiss } = useToast();
   const [online, setOnline] = useState(true);
   const [receipt, setReceipt] = useState<RecentTx | null>(null);
 
@@ -291,19 +279,6 @@ export default function KasirPage() {
     const avg = count ? Math.round(omzet / count) : 0;
     return { count, omzet, cash, transfer, avg };
   }, [recent]);
-
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  function showToast(msg: string) {
-    setToast(msg);
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToast(null), 2500);
-  }
-
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
-  }, []);
 
   function toggleAddon(id: string) {
     setAddonQty((prev) => {
@@ -829,8 +804,8 @@ export default function KasirPage() {
 
       {/* Toast */}
       {toast && (
-        <div role="status" aria-live="polite" className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
-          {toast}
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
+          <Toast message={toast.message} variant={toast.variant} onDismiss={dismiss} />
         </div>
       )}
 

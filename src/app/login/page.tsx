@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
+import { useToast } from "@/hooks/useToast";
+import { Toast } from "@/components/ui/Toast";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
+  const { toast } = useToast();
 
   const busy = loading || googleLoading;
 
@@ -65,6 +68,11 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-bg">
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
+          <Toast message={toast.message} variant={toast.variant} />
+        </div>
+      )}
       <div className="w-full max-w-sm flex flex-col gap-6">
         <div className="text-center">
           <div className="mx-auto h-16 w-16 rounded-2xl bg-brand text-white flex items-center justify-center shadow-[var(--shadow-float)] mb-4">
