@@ -2,7 +2,7 @@ import { cn } from "@/lib/cn";
 
 const tones = {
   brand: "bg-brand-soft text-brand",
-  accent: "bg-accent-soft text-emerald-800",
+  accent: "bg-accent-soft text-cyan-900",
   success: "bg-success-soft text-success",
   danger: "bg-danger-soft text-danger",
   muted: "bg-surface-2 text-muted",

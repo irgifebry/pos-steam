@@ -4,23 +4,23 @@
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Space Grotesk", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 
-  --color-brand: #ff4d2e;
-  --color-brand-dark: #d93a1c;
-  --color-brand-soft: #ffe4dd;
-  --color-accent: #7cffb2;
-  --color-accent-soft: #e6fff2;
-  --color-ink: #0e0e10;
-  --color-muted: #5a5a62;
-  --color-line: #e6e2da;
-  --color-bg: #fafaf7;
+  --color-brand: #0ea5e9;
+  --color-brand-dark: #0284c7;
+  --color-brand-soft: #e0f2fe;
+  --color-accent: #22d3ee;
+  --color-accent-soft: #cffafe;
+  --color-ink: #0f172a;
+  --color-muted: #475569;
+  --color-line: #bae6fd;
+  --color-bg: #f0f9ff;
   --color-surface: #ffffff;
-  --color-surface-2: #f0ede6;
-  --color-danger: #ff3b3b;
-  --color-danger-soft: #ffe2e2;
+  --color-surface-2: #e0f2fe;
+  --color-danger: #ef4444;
+  --color-danger-soft: #fee2e2;
   --color-success: #16a34a;
   --color-success-soft: #dcfce7;
-  --color-info: #2563eb;
-  --color-info-soft: #dbeafe;
+  --color-info: #0ea5e9;
+  --color-info-soft: #e0f2fe;
 
   --radius-sm: 10px;
   --radius-md: 16px;

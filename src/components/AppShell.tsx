@@ -6,8 +6,9 @@ import Link from "next/link";
 import { ArrowLeft, BarChart3, ListChecks, LogOut, RefreshCw, Settings, ShoppingCart, Users } from "lucide-react";
 import { useAppSession } from "./SessionProvider";
 import { BottomNav } from "./BottomNav";
-
 import { OperatorSwitcher } from "./OperatorSwitcher";
+
+import Image from "next/image";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, role, isLoading, signOut } = useAppSession();
@@ -41,13 +42,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-bg md:grid md:grid-cols-[260px_minmax(0,1fr)]">
       <aside className="hidden md:flex md:flex-col md:gap-6 md:bg-ink md:text-white md:px-5 md:py-6 md:rounded-r-[var(--radius-xl)]">
         <div className="flex items-center gap-3 px-1">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand text-white" aria-hidden="true">
-            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 3c-3 4-5 6.5-5 9a5 5 0 0 0 10 0c0-2.5-2-5-5-9z" />
-              <path d="M9 14c.6.8 1.4 1.2 3 1.2s2.4-.4 3-1.2" opacity="0.6" />
-            </svg>
-          </div>
-          <span className="font-display text-lg font-bold tracking-tight">Cuci Steam</span>
+          <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={1774} height={887} className="h-10 w-auto" />
         </div>
         <nav aria-label="Menu utama" className="flex flex-col gap-1">
           {[
@@ -90,12 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <ArrowLeft className="h-6 w-6" />
               </Link>
             )}
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand text-white" aria-hidden="true">
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3c-3 4-5 6.5-5 9a5 5 0 0 0 10 0c0-2.5-2-5-5-9z" />
-                <path d="M9 14c.6.8 1.4 1.2 3 1.2s2.4-.4 3-1.2" opacity="0.6" />
-              </svg>
-            </div>
+            <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={1774} height={887} className="h-9 w-auto" />
             <div className="flex-1 min-w-0">
               <p className="font-display text-lg font-bold text-ink leading-none tracking-tight">Cuci Steam</p>
               <p className="text-sm text-muted truncate mt-1">{user.name} · {user.role}</p>
