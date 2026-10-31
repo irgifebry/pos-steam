@@ -1,23 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, Pencil, Trash2, X, Landmark } from "lucide-react";
+import { Plus, Pencil, Trash2, Landmark } from "lucide-react";
 import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/api-client";
+import type { Bank } from "@/lib/services/banks";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
-
-interface Bank {
-  id: string;
-  name: string;
-  accountNumber: string;
-  accountName: string;
-  active: boolean;
-}
+import { useToast } from "@/hooks/useToast";
+import { Toast } from "@/components/ui/Toast";
+import { Modal } from "@/components/ui/Modal";
 
 const emptyForm = {
   name: "",
@@ -34,19 +30,8 @@ export default function BankPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const [toast, setToast] = useState<string | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { toast, showToast } = useToast();
   const modalRef = useRef<HTMLDivElement>(null);
-  const showToast = useCallback((msg: string) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast(msg);
-    toastTimer.current = setTimeout(() => setToast(null), 2500);
-  }, []);
-  useEffect(() => {
-    return () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-    };
-  }, []);
 
   const { role, isLoading } = useAppSession();
 
@@ -221,76 +206,54 @@ export default function BankPage() {
         ))}
       </div>
 
-      {modalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="bank-modal-title"
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setModalOpen(false);
-          }}
-        >
-          <div
-            ref={modalRef}
-            tabIndex={-1}
-            className="w-full max-w-lg bg-surface rounded-[var(--radius-lg)] shadow-[var(--shadow-float)] max-h-[90vh] overflow-y-auto outline-none"
-          >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-line">
-              <h2 id="bank-modal-title" className="text-xl font-bold text-ink">
-                {editing ? "Edit Bank" : "Tambah Bank"}
-              </h2>
-              <button
-                onClick={() => setModalOpen(false)}
-                className="h-10 w-10 rounded-xl flex items-center justify-center text-muted hover:bg-bg"
-                aria-label="Tutup"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSave} className="flex flex-col gap-4 p-5">
-              <Field label="Nama Bank">
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="BCA"
-                />
-              </Field>
-              <Field label="Nomor Rekening">
-                <Input
-                  value={form.accountNumber}
-                  onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
-                />
-              </Field>
-              <Field label="Nama Pemilik">
-                <Input
-                  value={form.accountName}
-                  onChange={(e) => setForm({ ...form, accountName: e.target.value })}
-                />
-              </Field>
-              <Field label="Status">
-                <label className="flex items-center gap-2 h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface">
-                  <input
-                    type="checkbox"
-                    checked={form.active}
-                    onChange={(e) => setForm({ ...form, active: e.target.checked })}
-                    className="h-5 w-5"
-                  />
-                  <span className="text-base">Aktif</span>
-                </label>
-              </Field>
-              {formError && <p className="text-sm text-danger">{formError}</p>}
-              <Button type="submit" fullWidth size="lg" disabled={saving}>
-                {saving ? "Menyimpan..." : "Simpan"}
-              </Button>
-            </form>
-          </div>
-        </div>
-      )}
+            <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editing ? "Edit Bank" : "Tambah Bank"}
+        footer={
+          <Button type="submit" form="bank-form" fullWidth size="lg" disabled={saving}>
+            {saving ? "Menyimpan..." : "Simpan"}
+          </Button>
+        }
+      >
+        <form id="bank-form" onSubmit={handleSave} className="flex flex-col gap-4">
+          <Field label="Nama Bank">
+            <Input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="BCA"
+            />
+          </Field>
+          <Field label="Nomor Rekening">
+            <Input
+              value={form.accountNumber}
+              onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
+            />
+          </Field>
+          <Field label="Nama Pemilik">
+            <Input
+              value={form.accountName}
+              onChange={(e) => setForm({ ...form, accountName: e.target.value })}
+            />
+          </Field>
+          <Field label="Status">
+            <label className="flex items-center gap-2 h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface">
+              <input
+                type="checkbox"
+                checked={form.active}
+                onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                className="h-5 w-5"
+              />
+              <span className="text-base">Aktif</span>
+            </label>
+          </Field>
+          {formError && <p className="text-sm text-danger">{formError}</p>}
+        </form>
+      </Modal>
 
       {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
-          {toast}
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
+          <Toast message={toast.message} variant={toast.variant} />
         </div>
       )}
     </div>

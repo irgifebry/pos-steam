@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Banknote, Clock3, Wallet } from "lucide-react";
 import { useAppSession } from "@/components/SessionProvider";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/Input";
 import { apiFetch } from "@/lib/api-client";
 import { rupiah } from "@/lib/format";
 import { Spinner } from "@/components/ui/Spinner";
+import { useToast } from "@/hooks/useToast";
+import { Toast } from "@/components/ui/Toast";
 
 type CashShift = {
   id: string;
@@ -47,18 +49,7 @@ export default function GajiKasPage() {
   const [note, setNote] = useState("");
   const [cash, setCash] = useState<CashState | null>(null);
   const [cashLoading, setCashLoading] = useState(true);
-  const [toast, setToast] = useState<string | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showToast = useCallback((msg: string) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast(msg);
-    toastTimer.current = setTimeout(() => setToast(null), 2500);
-  }, []);
-  useEffect(() => {
-    return () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-    };
-  }, []);
+  const { toast, showToast } = useToast();
 
   const { role, isLoading } = useAppSession();
 
@@ -254,12 +245,8 @@ export default function GajiKasPage() {
       )}
 
       {toast && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold"
-        >
-          {toast}
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
+          <Toast message={toast.message} variant={toast.variant} />
         </div>
       )}
     </div>

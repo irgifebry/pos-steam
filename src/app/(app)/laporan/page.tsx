@@ -11,8 +11,10 @@ import { Spinner } from "@/components/ui/Spinner";
 import { apiFetch } from "@/lib/api-client";
 import { formatTanggal, formatAngka, rupiah } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import type { VehicleType } from "@/lib/types";
+import { useToast } from "@/hooks/useToast";
+import { Toast } from "@/components/ui/Toast";
 
-type VehicleType = "motor" | "mobil";
 type PaymentMethod = "Tunai" | "Transfer";
 type Tab = "omzet" | "paket" | "addon" | "pembayaran" | "karyawan" | "kas";
 
@@ -117,7 +119,7 @@ export default function LaporanPage() {
   const [data, setData] = useState<ReportData>(initialData());
   const [loading, setLoading] = useState<Record<Tab, boolean>>(initialLoading());
   const [error, setError] = useState<Record<Tab, string>>(initialError());
-  const [toast, setToast] = useState("");
+  const { toast, showToast } = useToast();
 
   const cancelled = useRef(false);
   const controllersRef = useRef<Map<Tab, AbortController>>(new Map());
@@ -227,10 +229,9 @@ export default function LaporanPage() {
   }, [txs, rangeFrom, rangeTo]);
   const maxTrend = Math.max(1, ...trend.map((t) => t.omzet));
 
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(""), 2500);
-  }
+  const showToastMsg = (msg: string) => {
+    showToast(msg);
+  };
 
   async function downloadCsv(type: string) {
     const qs = new URLSearchParams({ type, from: rangeFrom, to: rangeTo });
@@ -248,7 +249,7 @@ export default function LaporanPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Gagal unduh CSV");
+      showToastMsg(e instanceof Error ? e.message : "Gagal unduh CSV");
     }
   }
 
@@ -262,8 +263,8 @@ export default function LaporanPage() {
     <div className="flex flex-col gap-4 pb-4">
       {/* Toast */}
       {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-ink text-white px-4 py-2 rounded-full shadow-[var(--shadow-float)] text-sm font-semibold">
-          {toast}
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
+          <Toast message={toast.message} variant={toast.variant} />
         </div>
       )}
 
@@ -439,21 +440,21 @@ export default function LaporanPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs font-bold text-muted uppercase">
-                      <th className="py-2 pr-2">Tanggal</th>
-                      <th className="py-2 px-2">Invoice</th>
-                      <th className="py-2 px-2">Antrean</th>
-                      <th className="py-2 px-2">Kendaraan</th>
-                      <th className="py-2 px-2">Paket</th>
-                      <th className="py-2 px-2">Add-on</th>
-                      <th className="py-2 px-2">Karyawan</th>
-                      <th className="py-2 px-2">Metode</th>
-                      <th className="py-2 pl-2 text-right">Total</th>
+                      <th scope="col" className="py-2 pr-2">Tanggal</th>
+                      <th scope="col" className="py-2 px-2">Invoice</th>
+                      <th scope="col" className="py-2 px-2">Antrean</th>
+                      <th scope="col" className="py-2 px-2">Kendaraan</th>
+                      <th scope="col" className="py-2 px-2">Paket</th>
+                      <th scope="col" className="py-2 px-2">Add-on</th>
+                      <th scope="col" className="py-2 px-2">Karyawan</th>
+                      <th scope="col" className="py-2 px-2">Metode</th>
+                      <th scope="col" className="py-2 pl-2 text-right">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {txs.map((t) => (
                       <tr key={t.id} className="border-t border-line">
-                        <td className="py-2 pr-2 text-sm text-ink">{tgl(t.date)}</td>
+                        <td scope="row" className="py-2 pr-2 text-sm text-ink">{tgl(t.date)}</td>
                         <td className="py-2 px-2 text-sm font-semibold text-ink truncate">{t.invoiceNo}</td>
                         <td className="py-2 px-2 text-sm text-ink">{t.queueNo}</td>
                         <td className="py-2 px-2 text-sm text-ink">{t.vehicleType === "motor" ? "Motor" : "Mobil"}</td>
@@ -510,21 +511,21 @@ export default function LaporanPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs font-bold text-muted uppercase">
-                      <th className="py-2 pr-2">Paket</th>
-                      <th className="py-2 px-2 text-right">Jumlah</th>
-                      <th className="py-2 pl-2 text-right">Total</th>
+                      <th scope="col" className="py-2 pr-2">Paket</th>
+                      <th scope="col" className="py-2 px-2 text-right">Jumlah</th>
+                      <th scope="col" className="py-2 pl-2 text-right">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paketRows.map((r) => (
                       <tr key={r.packageName} className="border-t border-line">
-                        <td className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.packageName}</td>
+                        <td scope="row" className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.packageName}</td>
                         <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
                         <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
                       </tr>
                     ))}
                     <tr className="border-t border-line font-bold">
-                      <td className="py-2 pr-2 text-sm text-ink">Total</td>
+                      <td scope="row" className="py-2 pr-2 text-sm text-ink">Total</td>
                       <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(paketRows.reduce((s, r) => s + r.count, 0))}</td>
                       <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(paketRows.reduce((s, r) => s + r.total, 0))}</td>
                     </tr>
@@ -572,21 +573,21 @@ export default function LaporanPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs font-bold text-muted uppercase">
-                      <th className="py-2 pr-2">Add-on</th>
-                      <th className="py-2 px-2 text-right">Jumlah</th>
-                      <th className="py-2 pl-2 text-right">Total</th>
+                      <th scope="col" className="py-2 pr-2">Add-on</th>
+                      <th scope="col" className="py-2 px-2 text-right">Jumlah</th>
+                      <th scope="col" className="py-2 pl-2 text-right">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {addonRows.map((r) => (
                       <tr key={r.name} className="border-t border-line">
-                        <td className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.name}</td>
+                        <td scope="row" className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.name}</td>
                         <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
                         <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
                       </tr>
                     ))}
                     <tr className="border-t border-line font-bold">
-                      <td className="py-2 pr-2 text-sm text-ink">Total</td>
+                      <td scope="row" className="py-2 pr-2 text-sm text-ink">Total</td>
                       <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(addonRows.reduce((s, r) => s + r.count, 0))}</td>
                       <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(addonRows.reduce((s, r) => s + r.total, 0))}</td>
                     </tr>
@@ -632,21 +633,21 @@ export default function LaporanPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs font-bold text-muted uppercase">
-                      <th className="py-2 pr-2">Metode</th>
-                      <th className="py-2 px-2 text-right">Jumlah</th>
-                      <th className="py-2 pl-2 text-right">Total</th>
+                      <th scope="col" className="py-2 pr-2">Metode</th>
+                      <th scope="col" className="py-2 px-2 text-right">Jumlah</th>
+                      <th scope="col" className="py-2 pl-2 text-right">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paymentRows.map((r) => (
                       <tr key={r.method} className="border-t border-line">
-                        <td className="py-2 pr-2 text-sm font-semibold text-ink">{r.method}</td>
+                        <td scope="row" className="py-2 pr-2 text-sm font-semibold text-ink">{r.method}</td>
                         <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
                         <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
                       </tr>
                     ))}
                     <tr className="border-t border-line font-bold">
-                      <td className="py-2 pr-2 text-sm text-ink">Total</td>
+                      <td scope="row" className="py-2 pr-2 text-sm text-ink">Total</td>
                       <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(paymentRows.reduce((s, r) => s + r.count, 0))}</td>
                       <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(paymentRows.reduce((s, r) => s + r.total, 0))}</td>
                     </tr>
@@ -694,21 +695,21 @@ export default function LaporanPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs font-bold text-muted uppercase">
-                      <th className="py-2 pr-2">Karyawan</th>
-                      <th className="py-2 px-2 text-right">Jumlah transaksi</th>
-                      <th className="py-2 pl-2 text-right">Total omzet</th>
+                      <th scope="col" className="py-2 pr-2">Karyawan</th>
+                      <th scope="col" className="py-2 px-2 text-right">Jumlah transaksi</th>
+                      <th scope="col" className="py-2 pl-2 text-right">Total omzet</th>
                     </tr>
                   </thead>
                   <tbody>
                     {employeeRows.map((r) => (
                       <tr key={r.employee} className="border-t border-line">
-                        <td className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.employee}</td>
+                        <td scope="row" className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.employee}</td>
                         <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
                         <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
                       </tr>
                     ))}
                     <tr className="border-t border-line font-bold">
-                      <td className="py-2 pr-2 text-sm text-ink">Total</td>
+                      <td scope="row" className="py-2 pr-2 text-sm text-ink">Total</td>
                       <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(employeeRows.reduce((s, r) => s + r.count, 0))}</td>
                       <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(employeeRows.reduce((s, r) => s + r.total, 0))}</td>
                     </tr>
