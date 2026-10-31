@@ -54,15 +54,21 @@ export async function getPayroll(
     : [];
   const savedByUser = new Map(savedItems.map((item) => [item.userId, item]));
 
+  const isFinal = run?.status === "final";
+
   const items: PayrollItemView[] = summary.map((row) => {
     const saved = savedByUser.get(row.userId);
     const dailyRate = saved?.dailyRate ?? row.dailyRate;
-    const daysPresent = saved?.daysPresent ?? row.hadir;
+    const daysPresent = isFinal ? (saved?.daysPresent ?? row.hadir) : row.hadir;
     const allowance = saved?.allowance ?? 0;
     const overtimePay = saved?.overtimePay ?? 0;
     const deductions = saved?.deductions ?? 0;
-    const gross = saved?.gross ?? daysPresent * dailyRate + allowance + overtimePay;
-    const net = saved?.net ?? gross - deductions;
+    const gross = isFinal && saved?.gross !== undefined
+      ? saved.gross
+      : daysPresent * dailyRate + allowance + overtimePay;
+    const net = isFinal && saved?.net !== undefined
+      ? saved.net
+      : gross - deductions;
 
     return {
       userId: row.userId,

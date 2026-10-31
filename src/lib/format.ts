@@ -18,7 +18,11 @@ export function formatTanggal(d: Date | string): string {
 }
 
 export function formatWaktu(d: Date | string): string {
+  if (typeof d === "string" && /^\d{2}:\d{2}(:\d{2})?$/.test(d.trim())) {
+    return d.trim().slice(0, 5);
+  }
   const date = typeof d === "string" ? new Date(d) : d;
+  if (isNaN(date.getTime())) return typeof d === "string" ? d : "—";
   return new Intl.DateTimeFormat("id-ID", {
     hour: "2-digit",
     minute: "2-digit",

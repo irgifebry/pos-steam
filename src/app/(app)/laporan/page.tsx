@@ -38,16 +38,20 @@ type PaketRow = { packageName: string; count: number; total: number };
 type AddonRow = { name: string; count: number; total: number };
 type PaymentRow = { method: string; count: number; total: number };
 type EmployeeRow = { employee: string; count: number; total: number };
+type CashShiftView = {
+  openingCash: number;
+  closingCash: number | null;
+  expectedCash: number | null;
+  difference: number | null;
+};
+
 type CashReport = {
-  open?: number | null;
-  totalTunai?: number | null;
-  keluar?: number | null;
-  expectedCash?: number | null;
-  closingCash?: number | null;
-  actual?: number | null;
-  difference?: number | null;
-  history?: unknown[];
-  [key: string]: unknown;
+  date?: string;
+  open: CashShiftView | null;
+  history?: CashShiftView[];
+  totalTunai: number;
+  expectedCash: number;
+  selisih: number;
 };
 
 type ReportData = Record<Tab, unknown>;
@@ -168,6 +172,7 @@ export default function LaporanPage() {
     cancelled.current = false;
     if (invalidRange) {
       setLoading({ omzet: false, paket: false, addon: false, pembayaran: false, karyawan: false, kas: false });
+      setData(initialData());
       return () => {
         cancelled.current = true;
         controllersRef.current.forEach((c) => c.abort());
@@ -209,11 +214,11 @@ export default function LaporanPage() {
   const employeeRows = useMemo(() => (Array.isArray(data.karyawan) ? (data.karyawan as EmployeeRow[]) : []), [data.karyawan]);
   const cash = (data.kas as CashReport | null) ?? null;
 
-  const omzetHari = txs.reduce((s, t) => s + t.total, 0);
+  const omzetHari = txs.reduce((s, t) => s + (t.total ?? 0), 0);
   const countTx = txs.length;
   const avgTx = countTx ? Math.round(omzetHari / countTx) : 0;
-  const tunai = txs.filter((t) => t.paymentMethod === "Tunai").reduce((s, t) => s + t.total, 0);
-  const transfer = txs.filter((t) => t.paymentMethod === "Transfer").reduce((s, t) => s + t.total, 0);
+  const tunai = txs.filter((t) => t.paymentMethod === "Tunai").reduce((s, t) => s + (t.total ?? 0), 0);
+  const transfer = txs.filter((t) => t.paymentMethod === "Transfer").reduce((s, t) => s + (t.total ?? 0), 0);
   const motor = txs.filter((t) => t.vehicleType === "motor").length;
   const mobil = txs.filter((t) => t.vehicleType === "mobil").length;
 
@@ -242,6 +247,10 @@ export default function LaporanPage() {
   };
 
   async function downloadCsv(type: string) {
+    if (invalidRange) {
+      showToastMsg("Rentang tanggal tidak valid");
+      return;
+    }
     const qs = new URLSearchParams({ type, from: rangeFrom, to: rangeTo });
     try {
       const res = await fetch(`/api/reports/export.csv?${qs}`, { credentials: "include" });
@@ -375,8 +384,10 @@ export default function LaporanPage() {
           <div className="flex items-center gap-2 text-sm font-display font-bold text-ink">
             <TrendingUp className="h-4 w-4 text-brand" /> <span className="font-display font-bold text-ink">Tren omzet per hari</span>
           </div>
-          <div className="flex items-stretch gap-1 h-44">
-            {trend.map((t) => {
+          <div className="flex items-stretch gap-1 h-44" role="img" aria-label="Tren omzet per hari">
+            {trend.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center text-sm text-muted">Belum ada data tren</div>
+            ) : trend.map((t) => {
               const pct = (t.omzet / maxTrend) * 100;
               return (
                 <div key={t.date} className="flex-1 flex flex-col items-center gap-1">
@@ -396,13 +407,16 @@ export default function LaporanPage() {
       </section>
 
       {/* Tabs laporan */}
-      <div className="overflow-x-auto border-b border-line pb-1 no-print">
+      <div className="overflow-x-auto border-b border-line pb-1 no-print" role="tablist" aria-label="Tab laporan">
         <div className="flex gap-0.5">
           {TABS.map((t) => (
             <button
               key={t.key}
               type="button"
-              aria-pressed={tab === t.key}
+              role="tab"
+              aria-selected={tab === t.key}
+              aria-controls={`panel-${t.key}`}
+              id={`tab-${t.key}`}
               onClick={() => setTab(t.key)}
               className={cn(
                 "h-10 px-3 rounded-md border text-sm font-semibold transition active:scale-[0.98] whitespace-nowrap inline-flex items-center gap-1.5",
@@ -418,7 +432,7 @@ export default function LaporanPage() {
       </div>
 
       {/* Panel laporan aktif */}
-      <section className="flex flex-col gap-6">
+      <section className="flex flex-col gap-6" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "omzet" && (
           <Card className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
@@ -426,7 +440,7 @@ export default function LaporanPage() {
                 <BarChart3 className="h-4 w-4 text-brand" />
                 <span className="font-display font-bold text-ink">Omzet per Periode</span>
               </div>
-              <Button variant="primary" size="sm" onClick={() => downloadCsv("transaksi")} disabled={loading.omzet || txs.length === 0}>
+              <Button variant="primary" size="sm" onClick={() => downloadCsv("transaksi")} disabled={invalidRange || loading.omzet || txs.length === 0}>
                 <Download className="h-4 w-4" /> Export CSV
               </Button>
             </div>
@@ -462,10 +476,10 @@ export default function LaporanPage() {
                   <tbody>
                     {txs.map((t) => (
                       <tr key={t.id} className="border-t border-line">
-                        <td scope="row" className="py-2 pr-2 text-sm text-ink">{tgl(t.date)}</td>
+                        <td className="py-2 pr-2 text-sm text-ink">{tgl(t.date)}</td>
                         <td className="py-2 px-2 text-sm font-semibold text-ink truncate">{t.invoiceNo}</td>
                         <td className="py-2 px-2 text-sm text-ink">{t.queueNo}</td>
-                        <td className="py-2 px-2 text-sm text-ink">{t.vehicleType === "motor" ? "Motor" : "Mobil"}</td>
+                        <td className="py-2 px-2 text-sm text-ink">{t.vehicleType === "motor" ? "Motor" : t.vehicleType === "mobil" ? "Mobil" : (t.vehicleType ?? "—")}</td>
                         <td className="py-2 px-2 text-sm text-ink truncate">{t.packageName}</td>
                         <td className="py-2 px-2 text-sm text-muted truncate">
                           {(Array.isArray(t.addons) ? t.addons : []).map((a) => `${a.name} x${a.qty}`).join(", ") || "—"}
@@ -489,7 +503,7 @@ export default function LaporanPage() {
                 <Package className="h-4 w-4 text-brand" />
                 <span className="font-display font-bold text-ink">Rekap Paket</span>
               </div>
-              <Button variant="primary" size="sm" onClick={() => downloadCsv("paket")} disabled={loading.paket || paketRows.length === 0}>
+              <Button variant="primary" size="sm" onClick={() => downloadCsv("paket")} disabled={invalidRange || loading.paket || paketRows.length === 0}>
                 <Download className="h-4 w-4" /> Export CSV
               </Button>
             </div>
@@ -500,11 +514,11 @@ export default function LaporanPage() {
               </Card>
               <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Terjual</p>
-                <p className="font-bold tabular-nums text-ink">{formatAngka(paketRows.reduce((s, r) => s + r.count, 0))}</p>
+                <p className="font-bold tabular-nums text-ink">{formatAngka(paketRows.reduce((s, r) => s + (r.count ?? 0), 0))}</p>
               </Card>
               <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Omzet paket</p>
-                <p className="font-bold tabular-nums text-ink">{rupiah(paketRows.reduce((s, r) => s + r.total, 0))}</p>
+                <p className="font-bold tabular-nums text-ink">{rupiah(paketRows.reduce((s, r) => s + (r.total ?? 0), 0))}</p>
               </Card>
             </div>
             {loading.paket && (
@@ -527,15 +541,15 @@ export default function LaporanPage() {
                   <tbody>
                     {paketRows.map((r) => (
                       <tr key={r.packageName} className="border-t border-line">
-                        <td scope="row" className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.packageName}</td>
+                        <td className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.packageName}</td>
                         <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
                         <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
                       </tr>
                     ))}
                     <tr className="border-t border-line font-bold">
-                      <td scope="row" className="py-2 pr-2 text-sm text-ink">Total</td>
-                      <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(paketRows.reduce((s, r) => s + r.count, 0))}</td>
-                      <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(paketRows.reduce((s, r) => s + r.total, 0))}</td>
+                      <td className="py-2 pr-2 text-sm text-ink">Total</td>
+                      <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(paketRows.reduce((s, r) => s + (r.count ?? 0), 0))}</td>
+                      <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(paketRows.reduce((s, r) => s + (r.total ?? 0), 0))}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -551,7 +565,7 @@ export default function LaporanPage() {
                 <Wrench className="h-4 w-4 text-brand" />
                 <span className="font-display font-bold text-ink">Rekap Add-on</span>
               </div>
-              <Button variant="primary" size="sm" onClick={() => downloadCsv("addon")} disabled={loading.addon || addonRows.length === 0}>
+              <Button variant="primary" size="sm" onClick={() => downloadCsv("addon")} disabled={invalidRange || loading.addon || addonRows.length === 0}>
                 <Download className="h-4 w-4" /> Export CSV
               </Button>
             </div>
@@ -562,11 +576,11 @@ export default function LaporanPage() {
               </Card>
               <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Terjual</p>
-                <p className="font-bold tabular-nums text-ink">{formatAngka(addonRows.reduce((s, r) => s + r.count, 0))}</p>
+                <p className="font-bold tabular-nums text-ink">{formatAngka(addonRows.reduce((s, r) => s + (r.count ?? 0), 0))}</p>
               </Card>
               <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Omzet add-on</p>
-                <p className="font-bold tabular-nums text-ink">{rupiah(addonRows.reduce((s, r) => s + r.total, 0))}</p>
+                <p className="font-bold tabular-nums text-ink">{rupiah(addonRows.reduce((s, r) => s + (r.total ?? 0), 0))}</p>
               </Card>
             </div>
             {loading.addon && (
@@ -589,15 +603,15 @@ export default function LaporanPage() {
                   <tbody>
                     {addonRows.map((r) => (
                       <tr key={r.name} className="border-t border-line">
-                        <td scope="row" className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.name}</td>
+                        <td className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.name}</td>
                         <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
                         <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
                       </tr>
                     ))}
                     <tr className="border-t border-line font-bold">
-                      <td scope="row" className="py-2 pr-2 text-sm text-ink">Total</td>
-                      <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(addonRows.reduce((s, r) => s + r.count, 0))}</td>
-                      <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(addonRows.reduce((s, r) => s + r.total, 0))}</td>
+                      <td className="py-2 pr-2 text-sm text-ink">Total</td>
+                      <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(addonRows.reduce((s, r) => s + (r.count ?? 0), 0))}</td>
+                      <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(addonRows.reduce((s, r) => s + (r.total ?? 0), 0))}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -613,7 +627,7 @@ export default function LaporanPage() {
                 <CreditCard className="h-4 w-4 text-brand" />
                 <span className="font-display font-bold text-ink">Rekap Metode Pembayaran</span>
               </div>
-              <Button variant="primary" size="sm" onClick={() => downloadCsv("pembayaran")} disabled={loading.pembayaran || paymentRows.length === 0}>
+              <Button variant="primary" size="sm" onClick={() => downloadCsv("pembayaran")} disabled={invalidRange || loading.pembayaran || paymentRows.length === 0}>
                 <Download className="h-4 w-4" /> Export CSV
               </Button>
             </div>
@@ -649,15 +663,15 @@ export default function LaporanPage() {
                   <tbody>
                     {paymentRows.map((r) => (
                       <tr key={r.method} className="border-t border-line">
-                        <td scope="row" className="py-2 pr-2 text-sm font-semibold text-ink"><Badge tone={r.method === "Tunai" ? "success" : "info"}>{r.method}</Badge></td>
+                        <td className="py-2 pr-2 text-sm font-semibold text-ink"><Badge tone={r.method === "Tunai" ? "success" : "info"}>{r.method}</Badge></td>
                         <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
                         <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
                       </tr>
                     ))}
                     <tr className="border-t border-line font-bold">
-                      <td scope="row" className="py-2 pr-2 text-sm text-ink">Total</td>
-                      <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(paymentRows.reduce((s, r) => s + r.count, 0))}</td>
-                      <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(paymentRows.reduce((s, r) => s + r.total, 0))}</td>
+                      <td className="py-2 pr-2 text-sm text-ink">Total</td>
+                      <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(paymentRows.reduce((s, r) => s + (r.count ?? 0), 0))}</td>
+                      <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(paymentRows.reduce((s, r) => s + (r.total ?? 0), 0))}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -673,7 +687,7 @@ export default function LaporanPage() {
                 <Users className="h-4 w-4 text-brand" />
                 <span className="font-display font-bold text-ink">Rekap Karyawan</span>
               </div>
-              <Button variant="primary" size="sm" onClick={() => downloadCsv("karyawan")} disabled={loading.karyawan || employeeRows.length === 0}>
+              <Button variant="primary" size="sm" onClick={() => downloadCsv("karyawan")} disabled={invalidRange || loading.karyawan || employeeRows.length === 0}>
                 <Download className="h-4 w-4" /> Export CSV
               </Button>
             </div>
@@ -684,11 +698,11 @@ export default function LaporanPage() {
               </Card>
               <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Total transaksi</p>
-                <p className="font-bold tabular-nums text-ink">{formatAngka(employeeRows.reduce((s, r) => s + r.count, 0))}</p>
+                <p className="font-bold tabular-nums text-ink">{formatAngka(employeeRows.reduce((s, r) => s + (r.count ?? 0), 0))}</p>
               </Card>
               <Card className="p-4 flex flex-col gap-1">
                 <p className="text-xs text-muted">Omzet karyawan</p>
-                <p className="font-bold tabular-nums text-ink">{rupiah(employeeRows.reduce((s, r) => s + r.total, 0))}</p>
+                <p className="font-bold tabular-nums text-ink">{rupiah(employeeRows.reduce((s, r) => s + (r.total ?? 0), 0))}</p>
               </Card>
             </div>
             {loading.karyawan && (
@@ -711,15 +725,15 @@ export default function LaporanPage() {
                   <tbody>
                     {employeeRows.map((r) => (
                       <tr key={r.employee} className="border-t border-line">
-                        <td scope="row" className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.employee}</td>
+                        <td className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.employee}</td>
                         <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
                         <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
                       </tr>
                     ))}
                     <tr className="border-t border-line font-bold">
-                      <td scope="row" className="py-2 pr-2 text-sm text-ink">Total</td>
-                      <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(employeeRows.reduce((s, r) => s + r.count, 0))}</td>
-                      <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(employeeRows.reduce((s, r) => s + r.total, 0))}</td>
+                      <td className="py-2 pr-2 text-sm text-ink">Total</td>
+                      <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(employeeRows.reduce((s, r) => s + (r.count ?? 0), 0))}</td>
+                      <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(employeeRows.reduce((s, r) => s + (r.total ?? 0), 0))}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -754,24 +768,21 @@ export default function LaporanPage() {
                   size="sm"
                   className="w-fit self-start"
                   onClick={() => downloadCsv("kas")}
-                  disabled={!cash}
+                  disabled
+                   title="Ekspor CSV untuk kas belum tersedia"
                 >
                   <Download className="h-4 w-4" /> Export CSV
                 </Button>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                   <Card className="p-4 flex flex-col gap-1">
                     <p className="text-xs text-muted">Saldo awal</p>
-                    <p className={cn("font-bold tabular-nums", cash?.open === null || cash?.open === undefined ? "text-muted" : "text-ink")}>
-                      {cash?.open === null || cash?.open === undefined ? "-" : rupiah(Number(cash.open))}
+                    <p className={cn("font-bold tabular-nums", cash?.open?.openingCash == null ? "text-muted" : "text-ink")}>
+                      {cash?.open?.openingCash == null ? "-" : rupiah(Number(cash.open.openingCash))}
                     </p>
                   </Card>
                   <Card className="p-4 flex flex-col gap-1">
                     <p className="text-xs text-muted">Masuk (tunai)</p>
                     <p className="font-bold tabular-nums text-ink">{rupiah(Number(cash?.totalTunai ?? 0))}</p>
-                  </Card>
-                  <Card className="p-4 flex flex-col gap-1">
-                    <p className="text-xs text-muted">Keluar</p>
-                    <p className="font-bold tabular-nums text-ink">{rupiah(Number(cash?.keluar ?? 0))}</p>
                   </Card>
                   <Card className="p-4 flex flex-col gap-1">
                     <p className="text-xs text-muted">Saldo akhir teori</p>
@@ -781,14 +792,14 @@ export default function LaporanPage() {
                   </Card>
                   <Card className="p-4 flex flex-col gap-1">
                     <p className="text-xs text-muted">Kas aktual</p>
-                    <p className={cn("font-bold tabular-nums", (cash?.closingCash ?? cash?.actual) == null ? "text-muted" : "text-ink")}>
-                      {(cash?.closingCash ?? cash?.actual) == null ? "-" : rupiah(Number(cash?.closingCash ?? cash?.actual ?? 0))}
+                    <p className={cn("font-bold tabular-nums", cash?.open?.closingCash == null ? "text-muted" : "text-ink")}>
+                      {cash?.open?.closingCash == null ? "-" : rupiah(Number(cash.open.closingCash))}
                     </p>
                   </Card>
                   <Card className="p-4 flex flex-col gap-1">
                     <p className="text-xs text-muted">Selisih</p>
-                    <p className={cn("font-bold tabular-nums", cash?.difference == null ? "text-muted" : (cash?.difference ?? 0) < 0 ? "text-danger" : "text-ink")}>
-                      {cash?.difference == null ? "-" : rupiah(Number(cash?.difference ?? 0))}
+                    <p className={cn("font-bold tabular-nums", cash?.selisih == null ? "text-muted" : (cash?.selisih ?? 0) < 0 ? "text-danger" : "text-ink")}>
+                      {cash?.selisih == null ? "-" : rupiah(Number(cash?.selisih ?? 0))}
                     </p>
                   </Card>
                 </div>

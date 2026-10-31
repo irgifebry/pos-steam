@@ -42,13 +42,14 @@ type ReceiptData = {
 };
 
 export default function ReceiptPage() {
-  const params = useParams<{ token: string }>();
-  const token = params?.token;
+  const params = useParams<{ token: string | string[] }>();
+  const rawToken = params?.token;
+  const token = Array.isArray(rawToken) ? rawToken[0] : rawToken;
   const [data, setData] = useState<ReceiptData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadReceipt = useCallback(async () => {
+  const loadReceipt = useCallback(async (signal?: AbortSignal) => {
     if (!token) {
       setLoading(false);
       setError("");
@@ -57,18 +58,27 @@ export default function ReceiptPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await apiFetch<{ data: ReceiptData }>(`/api/receipts/${encodeURIComponent(token)}`);
+      const res = await apiFetch<{ data: ReceiptData }>(`/api/receipts/${encodeURIComponent(token)}`, { signal });
+      if (!res?.data) {
+        throw new Error("Respon kosong");
+      }
+      if (signal?.aborted) return;
       setData(res.data);
     } catch (err) {
+      if (signal?.aborted) return;
       setData(null);
       setError(err instanceof Error ? err.message : "Struk tidak ditemukan");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   }, [token]);
 
   useEffect(() => {
-    loadReceipt();
+    const controller = new AbortController();
+    loadReceipt(controller.signal);
+    return () => controller.abort();
   }, [loadReceipt]);
 
   if (loading) {
@@ -101,7 +111,7 @@ export default function ReceiptPage() {
           <div className="mt-6 flex gap-2">
             <button
               type="button"
-              onClick={loadReceipt}
+              onClick={() => loadReceipt()}
               className="inline-flex h-11 items-center gap-2 rounded-[var(--radius-sm)] border border-line bg-surface px-4 text-sm font-semibold text-ink"
             >
               <RefreshCw className="h-4 w-4" /> Coba lagi
@@ -123,9 +133,9 @@ export default function ReceiptPage() {
   return (
     <main className="min-h-screen bg-bg px-5 py-8 text-ink">
       <style>{`@page { size: 58mm auto; margin: 3mm; } @media print { html, body { width: 52mm !important; margin: 0 !important; padding: 0 !important; background: #fff !important; } body * { visibility: hidden !important; } .receipt-print, .receipt-print * { visibility: visible !important; } .receipt-print { position: fixed !important; inset: 0 auto auto 0 !important; width: 52mm !important; max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: #fff !important; color: #000 !important; } .no-print { display: none !important; } }`}</style>
-      <section className="receipt-print mx-auto max-w-sm rounded-[var(--radius-lg)] border border-line bg-surface p-4 shadow-[var(--shadow-card)]">
+      <section aria-labelledby="receipt-title" className="receipt-print mx-auto max-w-sm rounded-[var(--radius-lg)] border border-line bg-surface p-4 shadow-[var(--shadow-card)]">
         <div className="text-center">
-          <h1 className="font-display text-xl font-bold">{outlet.name}</h1>
+          <h1 id="receipt-title" className="font-display text-xl font-bold">{outlet.name}</h1>
           {outlet.address && <p className="mt-1 text-xs text-muted">{outlet.address}</p>}
           {outlet.phone && <p className="text-xs text-muted">{outlet.phone}</p>}
         </div>
@@ -152,7 +162,13 @@ export default function ReceiptPage() {
         <div className="py-3 text-sm">
           <p className="font-semibold">{order.customerName}</p>
           {order.plate && <p className="text-muted">Plat: {order.plate}</p>}
-          <p className="text-muted">{order.vehicleType === "mobil" ? "Mobil" : "Motor"}</p>
+          <p className="text-muted">
+            {order.vehicleType === "mobil"
+              ? "Mobil"
+              : order.vehicleType === "motor"
+                ? "Motor"
+                : "Tidak diketahui"}
+          </p>
         </div>
 
         <div className="border-y border-line py-3 text-sm">
@@ -160,8 +176,8 @@ export default function ReceiptPage() {
             <span>{order.packageName}</span>
             <span>{rupiah(order.packagePrice)}</span>
           </div>
-          {(order.addons ?? []).map((addon) => (
-            <div key={addon.id} className="mt-1 flex justify-between gap-3">
+          {(order.addons ?? []).map((addon, index) => (
+            <div key={index} className="mt-1 flex justify-between gap-3">
               <span className="text-muted">{addon.name} × {addon.qty}</span>
               <span>{rupiah(addon.subtotal)}</span>
             </div>

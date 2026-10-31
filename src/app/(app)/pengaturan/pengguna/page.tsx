@@ -60,7 +60,7 @@ export default function PenggunaPage() {
     setLoading(true);
     try {
       const res = await apiFetch<{ data: User[] }>("/api/users");
-      setItems(res.data ?? []);
+      setItems(res?.data ?? []);
     } catch (e) {
       setItems([]);
       showToast(e instanceof Error ? e.message : "Gagal memuat pengguna");
@@ -69,11 +69,12 @@ export default function PenggunaPage() {
     }
   }, [showToast]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
   const { role: currentRole, isLoading: sessionLoading } = useAppSession();
+
+  useEffect(() => {
+    if (sessionLoading || currentRole !== "admin") return;
+    load();
+  }, [sessionLoading, currentRole, load]);
   if (sessionLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-10">
@@ -113,6 +114,7 @@ export default function PenggunaPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setFormError("");
     if (!form.name.trim()) {
       setFormError("Nama wajib diisi");
@@ -122,13 +124,17 @@ export default function PenggunaPage() {
       setFormError("Email wajib diisi");
       return;
     }
+    if (form.dailyRate.trim() === "") {
+      setFormError("Gaji harian wajib diisi");
+      return;
+    }
     const dailyRate = Number(form.dailyRate);
     if (
       !Number.isFinite(dailyRate) ||
       !Number.isSafeInteger(dailyRate) ||
       dailyRate < 0
     ) {
-      setFormError("Gaji harian tidak boleh negatif");
+      setFormError("Gaji harian harus angka bulat, minimal 0");
       return;
     }
     setSaving(true);

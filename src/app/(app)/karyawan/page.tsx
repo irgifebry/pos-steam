@@ -74,13 +74,11 @@ const STATUS_OPTIONS: {
 const INACTIVE_CHIP = "bg-surface text-muted border-line hover:bg-brand/20";
 
 function todayISO() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
 }
 
 function currentMonthISO() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return todayISO().slice(0, 7);
 }
 
 export default function KaryawanPage() {
@@ -117,7 +115,7 @@ export default function KaryawanPage() {
           `/api/attendance?date=${encodeURIComponent(date)}`,
         );
         const map: Record<string, AttRecord> = {};
-        for (const row of res.data) {
+        for (const row of res?.data ?? []) {
           map[row.userId] = {
             status: row.status,
             checkIn: row.checkIn ?? undefined,
@@ -161,9 +159,20 @@ export default function KaryawanPage() {
     setAttError("");
     setAttSaving(true);
     try {
+      const sanitizedRecords: Record<
+        string,
+        { status: AttendanceStatus; checkIn?: string; checkOut?: string }
+      > = {};
+      for (const [userId, rec] of Object.entries(attendance)) {
+        sanitizedRecords[userId] = {
+          status: rec.status,
+          checkIn: rec.checkIn?.trim() ? rec.checkIn.trim() : undefined,
+          checkOut: rec.checkOut?.trim() ? rec.checkOut.trim() : undefined,
+        };
+      }
       await apiFetch("/api/attendance", {
         method: "POST",
-        body: JSON.stringify({ date: attDate, records: attendance }),
+        body: JSON.stringify({ date: attDate, records: sanitizedRecords }),
       });
       await loadAttendance(attDate);
       showToast("Absensi tersimpan.");
@@ -192,10 +201,10 @@ export default function KaryawanPage() {
       const res = await apiFetch<{ data: PayrollView }>(
         `/api/payroll?period=${encodeURIComponent(period)}`,
       );
-      setPayroll(res.data);
+      setPayroll(res?.data ?? null);
       setAdjustments(
         Object.fromEntries(
-          res.data?.items.map((it) => [
+          (res?.data?.items ?? []).map((it) => [
             it.userId,
             { tunjangan: it.allowance, lembur: it.overtimePay, potongan: it.deductions },
           ]),
@@ -232,7 +241,7 @@ export default function KaryawanPage() {
         method: "POST",
         body: JSON.stringify({ period, adjustments, finalize }),
       });
-      setPayroll(res.data);
+      setPayroll(res?.data ?? null);
       showToast(finalize ? "Payroll difinalisasi." : "Draft payroll tersimpan.");
     } catch (e) {
       setPayError(e instanceof Error ? e.message : "Gagal menyimpan payroll");
@@ -336,12 +345,12 @@ export default function KaryawanPage() {
           <div className="flex flex-col gap-2">
             {users.map((u) => {
               const rec = attendance[u.id] ?? { status: "hadir" as AttendanceStatus };
-              const opt = STATUS_OPTIONS.find((o) => o.value === rec.status)!;
+              const opt = STATUS_OPTIONS.find((o) => o.value === rec.status) ?? STATUS_OPTIONS[0];
               return (
                 <Card key={u.id} className="flex flex-col gap-4">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-brand-soft text-brand flex items-center justify-center font-bold shrink-0">
-                      {u.name.charAt(0).toUpperCase()}
+                      {u.name?.charAt(0)?.toUpperCase() || "?"}
                     </div>
                     <div className="min-w-0">
                       <p className="font-bold text-ink">{u.name}</p>
@@ -546,62 +555,60 @@ export default function KaryawanPage() {
             </div>
 
             {rows.map((r) => (
-              <>
-                <details key={`slip-${r.userId}`} className="mt-3 rounded-[var(--radius-sm)] border border-line p-3">
-                  <summary className="cursor-pointer text-sm font-semibold text-ink">
-                    Slip gaji {r.name}
-                  </summary>
-                  <div className="mt-3 flex flex-col gap-2 text-sm print-slip">
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted">Karyawan</span>
-                      <span className="font-medium text-ink">{r.name}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted">Periode</span>
-                      <span className="font-medium text-ink">{period}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted">Role</span>
-                      <span className="font-medium text-ink capitalize">{r.role}</span>
-                    </div>
-                    <div className="h-px bg-line my-1" />
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted">Gaji pokok ({r.hadir} hari × {rupiah(r.dailyRate)})</span>
-                      <span className="font-medium text-ink tabular-nums">{rupiah(r.pokok)}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted">Tunjangan</span>
-                      <span className="font-medium text-ink tabular-nums">{rupiah(r.adj.tunjangan)}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted">Lembur</span>
-                      <span className="font-medium text-ink tabular-nums">{rupiah(r.adj.lembur)}</span>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted">Potongan</span>
-                      <span className="font-medium text-ink tabular-nums">−{rupiah(r.adj.potongan)}</span>
-                    </div>
-                    <div className="flex justify-between gap-3 border-t border-line pt-2 font-bold">
-                      <span>Gaji bersih</span>
-                      <span className="text-brand">{rupiah(r.net)}</span>
-                    </div>
-                    <p className="text-xs text-muted">
-                      {finalized ? "Payroll final; nominal terkunci." : "Draft · simpan perubahan sebelum finalisasi."}
-                    </p>
-                    <div className="mt-2 flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setPrintSlip(r);
-                        }}
-                        className="no-print"
-                      >
-                        <Printer className="h-4 w-4" /> Cetak Slip
-                      </Button>
-                    </div>
+              <details key={`slip-${r.userId}`} className="mt-3 rounded-[var(--radius-sm)] border border-line p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-ink">
+                  Slip gaji {r.name}
+                </summary>
+                <div className="mt-3 flex flex-col gap-2 text-sm print-slip">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted">Karyawan</span>
+                    <span className="font-medium text-ink">{r.name}</span>
                   </div>
-                </details>
-              </>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted">Periode</span>
+                    <span className="font-medium text-ink">{period}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted">Role</span>
+                    <span className="font-medium text-ink capitalize">{r.role}</span>
+                  </div>
+                  <div className="h-px bg-line my-1" />
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted">Gaji pokok ({r.hadir} hari × {rupiah(r.dailyRate)})</span>
+                    <span className="font-medium text-ink tabular-nums">{rupiah(r.pokok)}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted">Tunjangan</span>
+                    <span className="font-medium text-ink tabular-nums">{rupiah(r.adj.tunjangan)}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted">Lembur</span>
+                    <span className="font-medium text-ink tabular-nums">{rupiah(r.adj.lembur)}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted">Potongan</span>
+                    <span className="font-medium text-ink tabular-nums">−{rupiah(r.adj.potongan)}</span>
+                  </div>
+                  <div className="flex justify-between gap-3 border-t border-line pt-2 font-bold">
+                    <span>Gaji bersih</span>
+                    <span className="text-brand">{rupiah(r.net)}</span>
+                  </div>
+                  <p className="text-xs text-muted">
+                    {finalized ? "Payroll final; nominal terkunci." : "Draft · simpan perubahan sebelum finalisasi."}
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setPrintSlip(r);
+                      }}
+                      className="no-print"
+                    >
+                      <Printer className="h-4 w-4" /> Cetak Slip
+                    </Button>
+                  </div>
+                </div>
+              </details>
             ))}
 
             <div className="mt-4 flex flex-wrap items-center gap-3">

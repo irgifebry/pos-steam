@@ -47,12 +47,12 @@ export default function PaketPage() {
           apiFetch<{ data: ServicePackage[] }>("/api/packages?vehicleType=motor"),
           apiFetch<{ data: ServicePackage[] }>("/api/packages?vehicleType=mobil"),
         ]);
-        fetched.push(...(motorRes.data ?? []), ...(mobilRes.data ?? []));
+        fetched.push(...(motorRes?.data ?? []), ...(mobilRes?.data ?? []));
       } else {
         const res = await apiFetch<{ data: ServicePackage[] }>(
           `/api/packages?vehicleType=${filter}`,
         );
-        fetched.push(...(res.data ?? []));
+        fetched.push(...(res?.data ?? []));
       }
       fetched.sort((a, b) => a.sortOrder - b.sortOrder);
       setItems(fetched);
@@ -110,19 +110,25 @@ export default function PaketPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setFormError("");
     const price = Number(form.price);
     if (!form.name.trim()) {
       setFormError("Nama paket wajib diisi");
       return;
     }
-    if (!Number.isFinite(price) || price <= 0) {
-      setFormError("Harga harus lebih dari 0");
+    if (!Number.isInteger(price) || price <= 0) {
+      setFormError("Harga harus angka bulat lebih dari 0");
       return;
     }
     const dur = Number(form.durationMin);
-    if (!Number.isFinite(dur) || dur <= 0) {
-      setFormError("Durasi harus lebih dari 0");
+    if (!Number.isInteger(dur) || dur <= 0) {
+      setFormError("Durasi harus angka bulat lebih dari 0");
+      return;
+    }
+    const sortOrder = Number(form.sortOrder);
+    if (!Number.isInteger(sortOrder) || sortOrder < 0 || sortOrder > 9999) {
+      setFormError("Urutan harus angka bulat 0-9999");
       return;
     }
     const body = {
@@ -131,7 +137,7 @@ export default function PaketPage() {
       price,
       durationMin: dur,
       description: form.description.trim(),
-      sortOrder: Number(form.sortOrder) || 0,
+      sortOrder,
       active: form.active,
     };
     setSaving(true);
@@ -168,7 +174,7 @@ export default function PaketPage() {
     }
   }
 
-  const filtered = items.filter((it) =>
+  const filtered = (items ?? []).filter((it) =>
     filter === "all" ? true : it.vehicleType === filter,
   );
 
