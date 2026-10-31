@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth/client";
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
@@ -75,9 +76,7 @@ export default function LoginPage() {
       )}
       <div className="w-full max-w-md flex flex-col gap-8">
         <div className="flex flex-col gap-2">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand text-white shadow-[var(--shadow-pop)]">
-            <span className="font-display text-xl font-extrabold">PS</span>
-          </div>
+          <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={1774} height={887} className="h-12 w-auto" />
           <h1 className="font-display text-4xl font-extrabold text-ink tracking-tight leading-none">
             Masuk ke shift kamu
           </h1>

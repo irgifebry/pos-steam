@@ -17,13 +17,13 @@ const grotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "POS Cuci Steam",
-  description: "Sistem kasir outlet cuci steam motor & mobil",
+  title: "KYANE POS",
+  description: "Sistem kasir outlet cuci steam motor & mobil — KYANE Protect & Shine",
   manifest: "/manifest.webmanifest",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0F766E",
+  themeColor: "#0ea5e9",
   width: "device-width",
   initialScale: 1,
 };
