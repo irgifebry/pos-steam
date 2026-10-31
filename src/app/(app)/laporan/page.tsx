@@ -405,7 +405,7 @@ export default function LaporanPage() {
               aria-pressed={tab === t.key}
               onClick={() => setTab(t.key)}
               className={cn(
-                "h-10 px-3 rounded-md border text-sm font-semibold transition active:scale-[0.98] whitespace-nowrap",
+                "h-10 px-3 rounded-md border text-sm font-semibold transition active:scale-[0.98] whitespace-nowrap inline-flex items-center gap-1.5",
                 tab === t.key
                   ? "bg-accent text-ink border-accent shadow-sm"
                   : "bg-surface text-ink border-line hover:bg-bg",
