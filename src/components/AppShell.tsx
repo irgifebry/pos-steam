@@ -42,7 +42,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-bg md:grid md:grid-cols-[260px_minmax(0,1fr)]">
       <aside className="hidden md:flex md:flex-col md:gap-6 md:bg-ink md:text-white md:px-5 md:py-6 md:rounded-r-[var(--radius-xl)]">
         <div className="flex items-center gap-3 px-1">
-          <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={1774} height={887} className="h-10 w-auto" />
+          <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={1774} height={887} className="h-8 w-auto max-w-[140px] shrink-0" />
         </div>
         <nav aria-label="Menu utama" className="flex flex-col gap-1">
           {[
@@ -85,7 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <ArrowLeft className="h-6 w-6" />
               </Link>
             )}
-            <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={1774} height={887} className="h-9 w-auto" />
+            <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={1774} height={887} className="h-7 w-auto max-w-[120px] shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="font-display text-lg font-bold text-ink leading-none tracking-tight">Cuci Steam</p>
               <p className="text-sm text-muted truncate mt-1">{user.name} · {user.role}</p>
