@@ -75,8 +75,8 @@ export default function LoginPage() {
         </div>
       )}
       <div className="w-full max-w-md flex flex-col gap-8">
-        <div className="flex flex-col gap-2">
-          <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={1774} height={887} className="h-12 w-auto" />
+        <div className="flex flex-col gap-3">
+          <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={1774} height={887} className="h-8 w-auto max-w-[160px] shrink-0" />
           <h1 className="font-display text-4xl font-extrabold text-ink tracking-tight leading-none">
             Masuk ke shift kamu
           </h1>
