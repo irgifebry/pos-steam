@@ -13,6 +13,7 @@ const BANK_IDS = {
 
 const ADMIN_EMAIL = "admin@pos.test";
 // PIN demo numerik (min. 6 digit); wajib diganti lewat Pengaturan setelah login pertama.
+// PIN bersifat numerik; seed mereset kredensial admin pada setiap run.
 const ADMIN_PIN = "123456";
 
 export async function seed(db: AppDatabase, auth: Auth): Promise<void> {
@@ -163,6 +164,20 @@ export async function seed(db: AppDatabase, auth: Auth): Promise<void> {
       .update(userTable)
       .set({ role: "admin", outletId: OUTLET_ID, active: true })
       .where(eq(userTable.id, created.id));
+  } else {
+    const ctx = await auth.$context;
+    const hash = await ctx.password.hash(ADMIN_PIN);
+    const accounts = await ctx.internalAdapter.findAccountByUserId(existingAdmin.id);
+    const account = accounts[0];
+    if (account) {
+      await ctx.internalAdapter.updateAccount(account.id, { password: hash });
+    }
+    await ctx.internalAdapter.deleteUserSessions(existingAdmin.id);
+
+    await db
+      .update(userTable)
+      .set({ role: "admin", outletId: OUTLET_ID, active: true })
+      .where(eq(userTable.id, existingAdmin.id));
   }
 }
 
