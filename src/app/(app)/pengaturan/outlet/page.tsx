@@ -75,7 +75,7 @@ export default function OutletPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (saving) return;
+    if (saving || !outlet) return;
     setFormError("");
     if (!form.name.trim()) {
       setFormError("Nama outlet wajib diisi");

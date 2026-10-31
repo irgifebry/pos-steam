@@ -37,8 +37,8 @@ type ReceiptData = {
     address: string;
     phone: string;
     receiptFooter: string;
-  };
-  cashierName: string;
+  } | null;
+  cashierName: string | null;
 };
 
 export default function ReceiptPage() {
@@ -92,7 +92,7 @@ export default function ReceiptPage() {
     );
   }
 
-  if (!data) {
+  if (!data || !data.outlet) {
     return (
       <main className="min-h-screen bg-bg px-5 py-12 text-ink">
         <section className="mx-auto flex min-h-[70vh] max-w-lg flex-col items-center justify-center text-center">
@@ -128,7 +128,7 @@ export default function ReceiptPage() {
     );
   }
 
-  const { order, outlet } = data;
+  const { order, outlet } = data as ReceiptData & { outlet: NonNullable<ReceiptData["outlet"]> };
 
   return (
     <main className="min-h-screen bg-bg px-5 py-8 text-ink">
@@ -155,7 +155,7 @@ export default function ReceiptPage() {
           </div>
           <div className="flex justify-between gap-3">
             <span className="text-muted">Kasir</span>
-            <span>{data.cashierName}</span>
+            <span>{data.cashierName ?? "-"}</span>
           </div>
         </div>
 

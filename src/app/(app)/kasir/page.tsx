@@ -119,7 +119,6 @@ export default function KasirPage() {
     };
   }, []);
 
-  const ordersLoadedRef = useRef(false);
   const clientIdRef = useRef<string | null>(null);
   const loadOrders = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -151,7 +150,6 @@ export default function KasirPage() {
         })),
       );
       setOrdersError("");
-      ordersLoadedRef.current = true;
     } catch (error) {
       if (signal?.aborted) return;
       setOrdersError(error instanceof Error ? error.message : "Gagal memuat transaksi hari ini.");

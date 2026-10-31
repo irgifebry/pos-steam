@@ -14,10 +14,35 @@ export function usePolling(
 
   useEffect(() => {
     if (!enabled) return;
-    const id = setInterval(() => {
-      if (document.visibilityState === "hidden") return;
-      void callbackRef.current();
-    }, intervalMs);
-    return () => clearInterval(id);
+    let inFlight = false;
+    const run = async () => {
+      if (inFlight) return;
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      inFlight = true;
+      try {
+        await callbackRef.current();
+      } catch {
+        // swallow to avoid unhandled rejection
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    void run();
+    const id = setInterval(() => void run(), intervalMs);
+    const onVisibility = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        void run();
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisibility);
+    }
+    return () => {
+      clearInterval(id);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibility);
+      }
+    };
   }, [intervalMs, enabled]);
 }
