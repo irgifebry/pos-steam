@@ -87,7 +87,9 @@ function parseLocalDate(iso: string): Date {
 
 // formatTanggal berzona UTC bisa geser hari untuk string "YYYY-MM-DD"; bangun Date lokal dulu.
 function tgl(iso: string): string {
+  if (!iso || typeof iso !== "string") return "-";
   const [y, m, d] = iso.split("-").map((v) => Number(v));
+  if (!y || !m || !d) return iso;
   return formatTanggal(new Date(y, m - 1, d));
 }
 
@@ -217,10 +219,15 @@ export default function LaporanPage() {
 
   const trend = useMemo(() => {
     const map = new Map<string, number>();
-    txs.forEach((t) => map.set(t.date, (map.get(t.date) ?? 0) + t.total));
+    txs.forEach((t) => {
+      if (!t?.date) return;
+      map.set(t.date, (map.get(t.date) ?? 0) + (t.total ?? 0));
+    });
     const days: { date: string; omzet: number }[] = [];
+    if (!rangeFrom || !rangeTo) return days;
     const d = parseLocalDate(rangeFrom);
     const end = parseLocalDate(rangeTo);
+    if (isNaN(d.getTime()) || isNaN(end.getTime())) return days;
     while (d <= end) {
       const iso = isoDate(d);
       days.push({ date: iso, omzet: map.get(iso) ?? 0 });
