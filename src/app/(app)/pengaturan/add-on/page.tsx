@@ -180,13 +180,13 @@ export default function AddonPage() {
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-ink">Add-on</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink">Add-on</h1>
           <p className="text-muted mt-1">Layanan tambahan</p>
         </div>
-        <Button size="sm" onClick={openAdd}>
+        <Button variant="primary" size="sm" onClick={openAdd}>
           <Plus className="h-5 w-5" /> Tambah
         </Button>
       </div>
@@ -219,12 +219,12 @@ export default function AddonPage() {
         </Card>
       )}
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-5">
         {filtered.map((it) => (
           <Card key={it.id} className="flex items-start gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-lg font-bold text-ink">{it.name}</p>
+                <p className="font-display text-lg font-bold text-ink">{it.name}</p>
                 <Badge tone={it.active ? "success" : "muted"}>
                   {it.active ? "Aktif" : "Nonaktif"}
                 </Badge>
@@ -262,7 +262,7 @@ export default function AddonPage() {
         onClose={() => setModalOpen(false)}
         title={editing ? "Edit Add-on" : "Tambah Add-on"}
         footer={
-          <Button type="submit" form="addon-form" fullWidth size="lg" disabled={saving}>
+          <Button variant="primary" type="submit" form="addon-form" fullWidth size="lg" disabled={saving}>
             {saving ? "Menyimpan..." : "Simpan"}
           </Button>
         }

@@ -8,7 +8,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
       <input
         ref={ref}
         className={cn(
-          "w-full h-12 px-4 rounded-[var(--radius-sm)] border bg-surface text-base text-ink placeholder:text-muted",
+          "w-full h-12 px-4 rounded-[var(--radius-md)] border bg-surface text-base text-ink placeholder:text-muted",
           "focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none transition",
           error ? "border-danger" : "border-line",
           className,

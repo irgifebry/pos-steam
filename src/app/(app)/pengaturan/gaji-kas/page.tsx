@@ -157,7 +157,7 @@ export default function GajiKasPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4 pb-36">
+    <div className="flex flex-col gap-6 pb-36">
       <div>
         <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Gaji & Kas</h1>
         <p className="mt-1 text-muted">Atur acuan gaji harian dan catat pergantian kas.</p>
@@ -181,7 +181,7 @@ export default function GajiKasPage() {
                 <Input type="number" min="0" step="1" inputMode="numeric" value={dailyRate} onChange={(event) => { setDailyRate(event.target.value); }} placeholder="Masukkan nominal" disabled={loadingSettings} />
               </Field>
               <p className="text-sm text-muted">Tarif gaji tiap karyawan tetap diatur pada data karyawan.</p>
-              <Button type="submit" fullWidth disabled={loadingSettings}>Simpan gaji harian</Button>
+              <Button variant="primary" type="submit" fullWidth disabled={loadingSettings}>Simpan gaji harian</Button>
             </form>
           </Card>
 
@@ -203,13 +203,13 @@ export default function GajiKasPage() {
                 </div>
                 <Field label="Kas akhir terhitung (Rp)"><Input type="number" min="0" step="1" inputMode="numeric" value={closingAmount} onChange={(event) => setClosingAmount(event.target.value)} placeholder="Masukkan jumlah kas fisik" /></Field>
                 <p className="text-sm text-muted">Kas seharusnya dihitung server dari saldo awal ditambah pembayaran tunai sejak shift dibuka.</p>
-                <Button type="submit" fullWidth>Tutup kas</Button>
+                <Button variant="primary" type="submit" fullWidth>Tutup kas</Button>
               </form>
             ) : (
               <form className="flex flex-col gap-4" onSubmit={openCash}>
                 <Field label="Saldo awal (Rp)"><Input type="number" min="0" step="1" inputMode="numeric" value={openingAmount} onChange={(event) => setOpeningAmount(event.target.value)} placeholder="Masukkan saldo awal" /></Field>
                 <Field label="Catatan (opsional)"><Input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Contoh: pergantian shift pagi" /></Field>
-                <Button type="submit" fullWidth>Buka kas</Button>
+                <Button variant="primary" type="submit" fullWidth>Buka kas</Button>
               </form>
             )}
           </Card>

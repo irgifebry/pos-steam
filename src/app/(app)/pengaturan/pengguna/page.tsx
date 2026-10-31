@@ -214,13 +214,13 @@ export default function PenggunaPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-ink">Pengguna</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink">Pengguna</h1>
           <p className="text-muted mt-1">Akun pengguna outlet</p>
         </div>
-        <Button size="sm" onClick={openAdd}>
+        <Button variant="primary" size="sm" onClick={openAdd}>
           <Plus className="h-5 w-5" /> Tambah
         </Button>
       </div>
@@ -237,12 +237,12 @@ export default function PenggunaPage() {
         </Card>
       )}
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-5">
         {items.map((it) => (
           <Card key={it.id} className="flex items-start gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-lg font-bold text-ink">{it.name}</p>
+                <p className="font-display text-lg font-bold text-ink">{it.name}</p>
                 <Badge tone={it.active ? "success" : "muted"}>
                   {it.active ? "Aktif" : "Nonaktif"}
                 </Badge>
@@ -294,7 +294,7 @@ export default function PenggunaPage() {
         onClose={() => setModalOpen(false)}
         title={editing ? "Edit Pengguna" : "Tambah Pengguna"}
         footer={
-          <Button type="submit" form="pengguna-form" fullWidth size="lg" disabled={saving}>
+          <Button variant="primary" type="submit" form="pengguna-form" fullWidth size="lg" disabled={saving}>
             {saving ? "Menyimpan..." : "Simpan"}
           </Button>
         }
@@ -372,7 +372,7 @@ export default function PenggunaPage() {
               />
             </Field>
             {pinError && <p className="text-sm text-danger">{pinError}</p>}
-            <Button type="submit" form="pin-form" fullWidth size="lg" disabled={pinSaving}>
+            <Button variant="primary" type="submit" form="pin-form" fullWidth size="lg" disabled={pinSaving}>
               {pinSaving ? "Menyimpan..." : "Simpan PIN"}
             </Button>
           </form>

@@ -282,7 +282,7 @@ export default function KaryawanPage() {
   }, [printSlip]);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Karyawan</h1>
         <p className="text-sm text-muted">Absensi harian dan rekap gaji bulanan.</p>
@@ -312,8 +312,8 @@ export default function KaryawanPage() {
 
       {/* ============ Tab Absensi ============ */}
       {tab === "absensi" && (
-        <div className="flex flex-col gap-3">
-          <Card className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
+          <Card className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <Calendar className="h-5 w-5 text-brand shrink-0" />
               <Field label="Tanggal">
@@ -338,7 +338,7 @@ export default function KaryawanPage() {
               const rec = attendance[u.id] ?? { status: "hadir" as AttendanceStatus };
               const opt = STATUS_OPTIONS.find((o) => o.value === rec.status)!;
               return (
-                <Card key={u.id} className="flex flex-col gap-3">
+                <Card key={u.id} className="flex flex-col gap-4">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-brand-soft text-brand flex items-center justify-center font-bold shrink-0">
                       {u.name.charAt(0).toUpperCase()}
@@ -397,6 +397,7 @@ export default function KaryawanPage() {
 
           <div className="flex items-center gap-3">
             <Button
+              variant="primary"
               onClick={saveAttendance}
               disabled={attSaving}
               fullWidth
@@ -418,8 +419,8 @@ export default function KaryawanPage() {
 
       {/* ============ Tab Gaji ============ */}
       {tab === "gaji" && (
-        <div className="flex flex-col gap-3">
-          <Card className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
+          <Card className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <Calendar className="h-5 w-5 text-brand shrink-0" />
               <Field label="Periode (YYYY-MM)">
@@ -442,7 +443,7 @@ export default function KaryawanPage() {
           )}
 
           <Card>
-            <h2 className="text-base font-bold text-ink">Ringkasan periode</h2>
+            <h2 className="font-display text-base font-bold text-ink">Ringkasan periode</h2>
             <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="rounded-[var(--radius-sm)] bg-surface p-3 border border-line">
                 <p className="text-xs text-muted">Total karyawan</p>
@@ -464,7 +465,7 @@ export default function KaryawanPage() {
           </Card>
 
           <Card>
-            <h2 className="text-base font-bold text-ink">Rekap per Karyawan</h2>
+            <h2 className="font-display text-base font-bold text-ink">Rekap per Karyawan</h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -616,6 +617,7 @@ export default function KaryawanPage() {
               )}
               {isAdmin && (
                 <Button
+                  variant="primary"
                   onClick={finalizePayroll}
                   disabled={finalized || paySaving}
                   fullWidth={false}
@@ -657,9 +659,9 @@ export default function KaryawanPage() {
               .no-print { display: none !important; }
             }
           `}</style>
-          <Card className="slip-print w-full max-w-sm flex flex-col gap-3 bg-white text-ink p-5 shadow-[var(--shadow-float)]">
+          <Card className="slip-print w-full max-w-sm flex flex-col gap-4 bg-white text-ink p-5 shadow-[var(--shadow-float)]">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Slip Gaji</h2>
+              <h2 className="font-display text-xl font-bold">Slip Gaji</h2>
               <Badge tone="muted">{period}</Badge>
             </div>
             <p className="text-sm text-muted">{printSlip.name} · {printSlip.role.toUpperCase()}</p>
@@ -672,7 +674,7 @@ export default function KaryawanPage() {
             </div>
             <p className="text-xs text-center text-muted">Dicetak {formatTanggal(new Date())} · {finalized ? "Final" : "Draft"}</p>
             <div className="no-print flex gap-2">
-              <Button fullWidth onClick={() => window.print()}><Printer className="h-4 w-4" /> Cetak</Button>
+              <Button variant="primary" fullWidth onClick={() => window.print()}><Printer className="h-4 w-4" /> Cetak</Button>
               <Button fullWidth variant="secondary" onClick={() => setPrintSlip(null)}>Tutup</Button>
             </div>
           </Card>

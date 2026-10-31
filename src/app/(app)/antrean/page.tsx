@@ -246,9 +246,9 @@ export default function AntreanPage() {
   }, [payOrder, payLoading]);
 
   return (
-    <div className="flex flex-col gap-4 pb-36">
+    <div className="flex flex-col gap-6 pb-36">
       <div>
-        <h1 className="text-2xl font-extrabold text-ink">Antrean</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Antrean</h1>
         <p className="text-sm text-muted flex items-center gap-2 mt-1">
           {formatTanggal(new Date())}
           <span className="bg-surface border border-line px-2 py-0.5 rounded-md text-xs font-semibold text-ink">
@@ -302,14 +302,14 @@ export default function AntreanPage() {
             <CheckCircle2 className="h-8 w-8" />
           </div>
           <div>
-            <p className="font-bold text-ink text-lg">Belum ada antrean</p>
+            <p className="font-display text-lg font-bold text-ink">Belum ada antrean</p>
             <p className="text-sm text-muted mt-1">
               Semua kendaraan sudah selesai. Antrean baru akan muncul di sini.
             </p>
           </div>
         </Card>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           {visible.map((order) => (
             <QueueCard
               key={order.id}
@@ -334,7 +334,7 @@ export default function AntreanPage() {
       {/* Modal pembayaran */}
       {payOrder && (
       <Modal open onClose={() => { if (!payLoading) setPayOrder(null); }} title={`Pembayaran ${payOrder.queueNo}`} size="sm">
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
             <p className="text-sm text-muted">
               {payOrder.customerName} • {payOrder.plate}
             </p>
@@ -367,7 +367,7 @@ export default function AntreanPage() {
               </div>
             </Field>
             {payMethod === "tunai" ? (
-              <Card className="flex flex-col gap-3 p-3 bg-surface">
+              <Card className="flex flex-col gap-4 p-3 bg-surface">
                 <Field label="Uang diterima">
                   <Input
                     value={cashReceived}
@@ -388,7 +388,7 @@ export default function AntreanPage() {
                 </div>
               </Card>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 <Field label="Pilih bank">
                   <select
                     value={selectedBankId}
@@ -505,7 +505,7 @@ function QueueCard({
   const running = order.status === "menunggu" || order.status === "proses";
 
   return (
-    <Card className="flex flex-col gap-3">
+    <Card className="flex flex-col gap-4">
       <div className="flex items-start gap-3">
         {/* Queue number big */}
         <div className="flex h-[72px] w-[72px] flex-col items-center justify-center rounded-xl bg-brand-soft text-brand shrink-0">

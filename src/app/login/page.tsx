@@ -73,13 +73,15 @@ export default function LoginPage() {
           <Toast message={toast.message} variant={toast.variant} />
         </div>
       )}
-      <div className="w-full max-w-sm flex flex-col gap-6">
-        <div className="text-center">
-          <div className="mx-auto h-16 w-16 rounded-2xl bg-brand text-white flex items-center justify-center shadow-[var(--shadow-float)] mb-4">
-            <span className="text-2xl font-extrabold">PS</span>
+      <div className="w-full max-w-md flex flex-col gap-8">
+        <div className="flex flex-col gap-2">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand text-white shadow-[var(--shadow-pop)]">
+            <span className="font-display text-xl font-extrabold">PS</span>
           </div>
-          <h1 className="text-2xl font-extrabold text-ink">POS Cuci Steam</h1>
-          <p className="text-muted mt-1">Masuk untuk mulai shift</p>
+          <h1 className="font-display text-4xl font-extrabold text-ink tracking-tight leading-none">
+            Masuk ke shift kamu
+          </h1>
+          <p className="text-muted text-base">POS Cuci Steam — kasir, antrean, laporan, semua dalam satu.</p>
         </div>
 
         <Card className="flex flex-col gap-4">
@@ -95,7 +97,7 @@ export default function LoginPage() {
 
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-line" />
-            <span className="text-xs text-muted font-semibold">ATAU</span>
+            <span className="text-xs text-muted font-bold">ATAU</span>
             <div className="flex-1 h-px bg-line" />
           </div>
 

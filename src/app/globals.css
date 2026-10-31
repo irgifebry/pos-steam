@@ -4,30 +4,32 @@
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Space Grotesk", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 
-  --color-brand: #087f70;
-  --color-brand-dark: #075e54;
-  --color-brand-soft: #d8f1eb;
-  --color-accent: #e4a12b;
-  --color-accent-soft: #fff1d1;
-  --color-ink: #182522;
-  --color-muted: #53615d;
-  --color-line: #dce5e1;
-  --color-bg: #f2f6f4;
+  --color-brand: #ff4d2e;
+  --color-brand-dark: #d93a1c;
+  --color-brand-soft: #ffe4dd;
+  --color-accent: #7cffb2;
+  --color-accent-soft: #e6fff2;
+  --color-ink: #0e0e10;
+  --color-muted: #5a5a62;
+  --color-line: #e6e2da;
+  --color-bg: #fafaf7;
   --color-surface: #ffffff;
-  --color-danger: #dc2626;
-  --color-danger-soft: #fee2e2;
+  --color-surface-2: #f0ede6;
+  --color-danger: #ff3b3b;
+  --color-danger-soft: #ffe2e2;
   --color-success: #16a34a;
   --color-success-soft: #dcfce7;
-  --color-info: #356b9a;
-  --color-info-soft: #e1edf6;
+  --color-info: #2563eb;
+  --color-info-soft: #dbeafe;
 
-  --radius-sm: 12px;
-  --radius-md: 18px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
   --radius-lg: 24px;
   --radius-xl: 32px;
 
-  --shadow-card: 0 1px 2px rgba(28, 25, 23, 0.04), 0 4px 12px rgba(28, 25, 23, 0.06);
-  --shadow-float: 0 8px 24px rgba(28, 25, 23, 0.12);
+  --shadow-card: 0 1px 2px rgba(14, 14, 16, 0.06), 0 6px 16px rgba(14, 14, 16, 0.06);
+  --shadow-float: 0 12px 32px rgba(14, 14, 16, 0.16);
+  --shadow-pop: 4px 4px 0 0 var(--color-ink);
 }
 
 @layer base {
@@ -60,8 +62,9 @@
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { scrollbar-width: none; }
   .steam-pattern {
-    background-image: radial-gradient(circle at 1px 1px, rgba(15, 118, 110, 0.08) 1px, transparent 0);
-    background-size: 14px 14px;
+    background-image: radial-gradient(circle at 1px 1px, rgba(14, 14, 16, 0.08) 1px, transparent 0);
+    background-size: 16px 16px;
   }
   .font-display { font-family: var(--font-display); }
+  .shadow-pop { box-shadow: var(--shadow-pop); }
 }
