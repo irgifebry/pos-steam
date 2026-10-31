@@ -368,7 +368,7 @@ export default function LaporanPage() {
           <div className="flex items-center gap-2 text-sm font-display font-bold text-ink">
             <TrendingUp className="h-4 w-4 text-brand" /> <span className="font-display font-bold text-ink">Tren omzet per hari</span>
           </div>
-          <div className="flex items-end gap-1 h-44">
+          <div className="flex items-stretch gap-1 h-44">
             {trend.map((t) => {
               const pct = (t.omzet / maxTrend) * 100;
               return (
