@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const vehicleTypeSchema = z.enum(["motor", "mobil"]);
-export const roleSchema = z.enum(["admin", "kasir", "operator"]);
+export const roleSchema = z.enum(["admin"]);
 export const attendanceStatusSchema = z.enum(["hadir", "izin", "sakit", "alpha", "cuti"]);
 
 export const servicePackageInputSchema = z.object({
@@ -44,7 +44,7 @@ export const bankInputSchema = z.object({
 export const userInputSchema = z.object({
   name: z.string().trim().min(1, "Nama wajib diisi").max(80),
   email: z.string().email("Format email tidak valid").max(160),
-  role: roleSchema.default("kasir"),
+  role: roleSchema.default("admin"),
   phone: z.string().trim().max(30).default(""),
   dailyRate: z.number().int().nonnegative("Gaji harian tidak boleh negatif").default(0),
   active: z.boolean().default(true),

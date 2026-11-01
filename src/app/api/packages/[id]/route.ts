@@ -13,7 +13,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 export async function PATCH(request: Request, { params }: RouteContext) {
   try {
     await initializeServer();
-    await requireUser(["admin"]);
+    await requireUser();
     const { id } = await params;
 
     const body = await request.json().catch(() => {
@@ -31,7 +31,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 export async function DELETE(_request: Request, { params }: RouteContext) {
   try {
     await initializeServer();
-    await requireUser(["admin"]);
+    await requireUser();
     const { id } = await params;
 
     await deactivateServicePackage(getDatabase(), id);

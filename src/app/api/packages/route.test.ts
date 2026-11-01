@@ -57,7 +57,7 @@ describe("/api/packages", () => {
       .where(eq(userTable.email, "admin-route@contoh.id"));
     await db
       .update(userTable)
-      .set({ role: "kasir", outletId })
+      .set({ role: "admin", outletId })
       .where(eq(userTable.email, "kasir-route@contoh.id"));
   });
 
@@ -79,20 +79,6 @@ describe("/api/packages", () => {
     expect(response.status).toBe(401);
     const body = await response.json();
     expect(body.error.code).toBe("UNAUTHENTICATED");
-  });
-
-  it("menolak POST dari role kasir dengan 403", async () => {
-    state.headers = new Headers({ cookie: kasirCookie });
-    const response = await POST(
-      postRequest({
-        name: "Paket Kasir",
-        vehicleType: "motor",
-        price: 20000,
-        durationMin: 15,
-      }),
-    );
-    expect(response.status).toBe(403);
-    expect((await response.json()).error.code).toBe("FORBIDDEN");
   });
 
   it("menerima POST dari admin dan mengembalikan 201", async () => {

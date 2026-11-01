@@ -8,7 +8,7 @@ import { initializeServer } from "@/lib/server-init";
 export async function GET() {
   try {
     await initializeServer();
-    await requireUser(["admin", "kasir", "operator"]);
+    await requireUser();
     const data = await listOutlets(getDatabase());
     return Response.json({ data });
   } catch (error) {
@@ -19,7 +19,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   try {
     await initializeServer();
-    const user = await requireUser(["admin"]);
+    const user = await requireUser();
     if (!user.outletId) {
       throw new HttpError(400, "OUTLET_REQUIRED", "Pengguna belum terhubung ke outlet");
     }

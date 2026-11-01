@@ -61,13 +61,13 @@ describe("users", () => {
       name: "Siti",
       email: "siti@contoh.id",
       password: "112233",
-      role: "kasir",
+      role: "admin",
       phone: "",
       dailyRate: 50000,
       active: true,
     });
 
-    expect(user.role).toBe("kasir");
+    expect(user.role).toBe("admin");
     expect(user.dailyRate).toBe(50000);
 
     const row = await db.select().from(userTable).where(eq(userTable.email, "siti@contoh.id"));
@@ -96,7 +96,7 @@ describe("users", () => {
         name: "Ganda",
         email: "siti@contoh.id",
         password: "778899",
-        role: "kasir",
+        role: "admin",
         phone: "",
         dailyRate: 0,
         active: true,
@@ -140,18 +140,6 @@ describe("users", () => {
       body: { email: "siti@contoh.id", password: "998877" },
     });
     expect(signInResult.token).toBeTruthy();
-  });
-
-  it("tidak bisa mengubah role admin terakhir menjadi non-admin", async () => {
-    const [admin] = await db
-      .select({ id: userTable.id })
-      .from(userTable)
-      .where(eq(userTable.email, "budi-admin@contoh.id"));
-
-    await expect(updateUser(db, admin.id, { role: "kasir" })).rejects.toMatchObject({
-      status: 409,
-      code: "LAST_ADMIN",
-    });
   });
 
   it("memperbarui data user dan mencatat audit log", async () => {

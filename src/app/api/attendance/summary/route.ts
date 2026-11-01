@@ -7,7 +7,7 @@ import { initializeServer } from "@/lib/server-init";
 export async function GET(request: Request) {
   try {
     await initializeServer();
-    const user = await requireUser(["admin", "kasir"]);
+    const user = await requireUser();
     if (!user.outletId) {
       throw new HttpError(400, "OUTLET_REQUIRED", "Pengguna belum terhubung ke outlet");
     }

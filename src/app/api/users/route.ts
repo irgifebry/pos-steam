@@ -13,12 +13,12 @@ export async function GET(request: Request) {
     const light = url.searchParams.get("light") === "1";
 
     if (light) {
-      const user = await requireUser(["admin", "kasir"]);
+      const user = await requireUser();
       const data = await listUserSummaries(getDatabase(), user.outletId ?? undefined);
       return Response.json({ data });
     }
 
-    const user = await requireUser(["admin"]);
+    const user = await requireUser();
     const includeInactive = url.searchParams.get("includeInactive") !== "false";
     const data = await listUsers(getDatabase(), {
       includeInactive,
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await initializeServer();
-    const user = await requireUser(["admin"]);
+    const user = await requireUser();
 
     const body = await request.json().catch(() => {
       throw new HttpError(400, "INVALID_JSON", "Body permintaan tidak valid");

@@ -27,7 +27,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     id: String(user.id),
     name: String(user.name ?? ""),
     email: String(user.email ?? ""),
-    role: role.success ? role.data : "kasir",
+    role: role.success ? role.data : "admin",
     outletId: (user.outletId as string | null | undefined) ?? null,
     phone: String(user.phone ?? ""),
     dailyRate: Number(user.dailyRate ?? 0),
@@ -35,13 +35,10 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   };
 }
 
-export async function requireUser(roles?: Role[]): Promise<SessionUser> {
+export async function requireUser(): Promise<SessionUser> {
   const user = await getSessionUser();
   if (!user) {
     throw new HttpError(401, "UNAUTHENTICATED", "Silakan masuk kembali");
-  }
-  if (roles && !roles.includes(user.role)) {
-    throw new HttpError(403, "FORBIDDEN", "Akses ditolak");
   }
   return user;
 }

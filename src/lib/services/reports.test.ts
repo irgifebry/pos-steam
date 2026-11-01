@@ -19,7 +19,7 @@ const actor: SessionUser = {
   id: actorId,
   name: "Kasir Laporan",
   email: "kasir-laporan@contoh.id",
-  role: "kasir",
+  role: "admin",
   outletId,
   phone: "",
   dailyRate: 0,
@@ -47,7 +47,7 @@ describe("reports service", () => {
       id: actorId,
       name: "Kasir Laporan",
       email: "kasir-laporan@contoh.id",
-      role: "kasir",
+      role: "admin",
       outletId,
       active: true,
     });

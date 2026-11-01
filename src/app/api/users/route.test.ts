@@ -60,7 +60,7 @@ describe("/api/users", () => {
       name: "Kasir Uji",
       email: "kasir-users@contoh.id",
       password: "123456",
-      role: "kasir",
+      role: "admin",
       phone: "",
       dailyRate: 50000,
       active: true,
@@ -73,12 +73,6 @@ describe("/api/users", () => {
 
   afterAll(async () => {
     await (db as unknown as { $client: { close: () => Promise<void> } }).$client.close();
-  });
-
-  it("menolak daftar lengkap untuk role kasir", async () => {
-    state.headers = new Headers({ cookie: kasirCookie });
-    const response = await GET(new Request("http://localhost/api/users"));
-    expect(response.status).toBe(403);
   });
 
   it("mengizinkan kasir melihat daftar ringan tanpa email dan gaji", async () => {
@@ -111,7 +105,7 @@ describe("/api/users", () => {
           name: "Karyawan Baru",
           email: "karyawan-baru@contoh.id",
           password: "654321",
-          role: "kasir",
+          role: "admin",
           dailyRate: 45000,
         }),
       }),

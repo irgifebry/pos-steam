@@ -35,7 +35,7 @@ export function createAuth(
         : {},
     user: {
       additionalFields: {
-        role: { type: "string", required: false, defaultValue: "kasir", input: false },
+        role: { type: "string", required: false, defaultValue: "admin", input: false },
         phone: { type: "string", required: false, input: false },
         outletId: { type: "string", required: false, input: false },
         dailyRate: { type: "number", required: false, defaultValue: 0, input: false },

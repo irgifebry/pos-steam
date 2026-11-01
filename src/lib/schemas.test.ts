@@ -84,14 +84,14 @@ describe("userInputSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("default role adalah kasir", () => {
+  it("default role adalah admin", () => {
     const result = userInputSchema.parse({ name: "Siti", email: "siti@contoh.id" });
-    expect(result.role).toBe("kasir");
+    expect(result.role).toBe("admin");
     expect(result.dailyRate).toBe(0);
     expect(result.active).toBe(true);
   });
 
-  it("menolak role di luar admin/kasir/operator", () => {
+  it("menolak role di luar admin", () => {
     const result = userInputSchema.safeParse({
       name: "Siti",
       email: "siti@contoh.id",

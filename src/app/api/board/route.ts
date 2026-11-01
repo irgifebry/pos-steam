@@ -9,7 +9,7 @@ type BoardSummary = { menunggu: number; proses: number; selesai: number; total: 
 export async function GET() {
   try {
     await initializeServer();
-    const user = await requireUser(["admin", "kasir", "operator"]);
+    const user = await requireUser();
     if (!user.outletId) {
       throw new HttpError(400, "OUTLET_REQUIRED", "Pengguna belum terhubung ke outlet");
     }

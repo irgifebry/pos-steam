@@ -21,7 +21,7 @@ describe("payroll service", () => {
       id: userId,
       name: "Karyawan Uji",
       email: "karyawan-payroll@contoh.id",
-      role: "operator",
+      role: "admin",
       outletId,
       dailyRate: 100000,
       active: true,

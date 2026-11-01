@@ -22,7 +22,7 @@ const actor: SessionUser = {
   id: actorId,
   name: "Kasir Uji",
   email: "kasir-uji@contoh.id",
-  role: "kasir",
+  role: "admin",
   outletId,
   phone: "",
   dailyRate: 0,
@@ -94,7 +94,7 @@ describe("order service", () => {
       id: actor.id,
       name: actor.name,
       email: actor.email,
-      role: "kasir",
+      role: "admin",
       outletId,
       active: true,
     });

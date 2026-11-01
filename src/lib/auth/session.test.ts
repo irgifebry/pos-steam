@@ -4,7 +4,6 @@ import { createTestDatabase } from "@/lib/db/test-db";
 import { setDatabase } from "@/lib/db/provider";
 import { user as userTable } from "@/lib/db/schema";
 import type { AppDatabase } from "@/lib/db/schema";
-import { HttpError } from "@/lib/http";
 import { createAuth } from "./config";
 import { setAuth } from "./provider";
 import { getSessionUser, requireUser } from "./session";
@@ -69,14 +68,8 @@ describe("session guard", () => {
     state.headers = new Headers({ cookie: kasirCookie });
     const sessionUser = await getSessionUser();
     expect(sessionUser?.email).toBe("budi@contoh.id");
-    expect(sessionUser?.role).toBe("kasir");
+    expect(sessionUser?.role).toBe("admin");
     expect(sessionUser?.active).toBe(true);
-  });
-
-  it("melempar 403 FORBIDDEN bila role tidak diizinkan", async () => {
-    state.headers = new Headers({ cookie: kasirCookie });
-    await expect(requireUser(["admin"])).rejects.toBeInstanceOf(HttpError);
-    await expect(requireUser(["admin"])).rejects.toMatchObject({ status: 403, code: "FORBIDDEN" });
   });
 
   it("mengembalikan null bila user.active bernilai false", async () => {

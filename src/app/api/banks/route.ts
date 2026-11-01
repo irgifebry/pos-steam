@@ -8,10 +8,9 @@ import { initializeServer } from "@/lib/server-init";
 export async function GET(request: Request) {
   try {
     await initializeServer();
-    const user = await requireUser(["admin", "kasir", "operator"]);
+    const user = await requireUser();
     const includeInactive =
-      new URL(request.url).searchParams.get("includeInactive") === "true" &&
-      user.role === "admin";
+      new URL(request.url).searchParams.get("includeInactive") === "true";
     const data = user.outletId
       ? await listBanks(getDatabase(), user.outletId, { includeInactive })
       : [];
@@ -24,7 +23,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await initializeServer();
-    const user = await requireUser(["admin"]);
+    const user = await requireUser();
 
     const body = await request.json().catch(() => {
       throw new HttpError(400, "INVALID_JSON", "Body permintaan tidak valid");

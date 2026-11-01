@@ -19,7 +19,7 @@ function requestedRange(request: Request): { from: string; to: string } {
 export async function GET(request: Request) {
   try {
     await initializeServer();
-    const user = await requireUser(["admin", "kasir", "operator"]);
+    const user = await requireUser();
     if (!user.outletId) {
       throw new HttpError(400, "OUTLET_REQUIRED", "Pengguna belum terhubung ke outlet");
     }
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await initializeServer();
-    const user = await requireUser(["admin", "kasir"]);
+    const user = await requireUser();
     if (!user.outletId) {
       throw new HttpError(400, "OUTLET_REQUIRED", "Pengguna belum terhubung ke outlet");
     }

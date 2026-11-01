@@ -25,7 +25,7 @@ const actor: SessionUser = {
   id: actorId,
   name: "Kasir Uji",
   email: "kasir-kas@contoh.id",
-  role: "kasir",
+  role: "admin",
   outletId,
   phone: "",
   dailyRate: 0,
@@ -52,7 +52,7 @@ describe("cash shift service", () => {
       id: actorId,
       name: "Kasir Uji",
       email: "kasir-kas@contoh.id",
-      role: "kasir",
+      role: "admin",
       outletId,
       active: true,
     });

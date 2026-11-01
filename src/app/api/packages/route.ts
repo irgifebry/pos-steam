@@ -18,7 +18,7 @@ function parseVehicleType(value: string | null): VehicleType | undefined {
 export async function GET(request: Request) {
   try {
     await initializeServer();
-    const user = await requireUser(["admin", "kasir"]);
+    const user = await requireUser();
     const url = new URL(request.url);
 
     const data = await listServicePackages(getDatabase(), {
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await initializeServer();
-    const user = await requireUser(["admin"]);
+    const user = await requireUser();
 
     const body = await request.json().catch(() => {
       throw new HttpError(400, "INVALID_JSON", "Body permintaan tidak valid");

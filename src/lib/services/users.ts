@@ -1,4 +1,4 @@
-import { and, asc, count, eq, ne } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
 import { account, auditLogs, session, user as userTable } from "@/lib/db/schema";
@@ -39,7 +39,7 @@ function toDomain(row: UserRow): AppUser {
     id: row.id,
     name: row.name,
     email: row.email,
-    role: role.success ? role.data : "kasir",
+    role: role.success ? role.data : "admin",
     phone: row.phone ?? "",
     outletId: row.outletId,
     dailyRate: row.dailyRate,
@@ -71,19 +71,6 @@ async function recordAudit(
   });
 }
 
-async function countOtherActiveAdmins(db: AppDatabase, excludeId: string): Promise<number> {
-  const [row] = await db
-    .select({ total: count() })
-    .from(userTable)
-    .where(
-      and(
-        eq(userTable.role, "admin"),
-        eq(userTable.active, true),
-        ne(userTable.id, excludeId),
-      ),
-    );
-  return Number(row?.total ?? 0);
-}
 
 export async function listUsers(
   db: AppDatabase,
@@ -120,7 +107,7 @@ export async function listUserSummaries(
 
   return rows.map((row) => {
     const role = roleSchema.safeParse(row.role);
-    return { id: row.id, name: row.name, role: role.success ? role.data : "kasir" };
+    return { id: row.id, name: row.name, role: role.success ? role.data : "admin" };
   });
 }
 
@@ -196,15 +183,6 @@ export async function updateUser(
     .limit(1);
   if (!existing) {
     throw new HttpError(404, "NOT_FOUND", "Pengguna tidak ditemukan");
-  }
-
-  if (
-    existing.role === "admin" &&
-    data.role !== undefined &&
-    data.role !== "admin" &&
-    (await countOtherActiveAdmins(db, id)) === 0
-  ) {
-    throw new HttpError(409, "LAST_ADMIN", "Minimal harus ada satu admin aktif");
   }
 
   const values: Partial<typeof userTable.$inferInsert> = {};
@@ -309,10 +287,6 @@ export async function setUserActive(
     .limit(1);
   if (!existing) {
     throw new HttpError(404, "NOT_FOUND", "Pengguna tidak ditemukan");
-  }
-
-  if (!active && existing.role === "admin" && (await countOtherActiveAdmins(db, id)) === 0) {
-    throw new HttpError(409, "LAST_ADMIN", "Minimal harus ada satu admin aktif");
   }
 
   await db.update(userTable).set({ active }).where(eq(userTable.id, id));

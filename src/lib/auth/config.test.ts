@@ -22,11 +22,11 @@ describe("Better Auth", () => {
     await (db as unknown as { $client: { close: () => Promise<void> } }).$client.close();
   });
 
-  it("membuat user baru dengan role default kasir dan active true", async () => {
+  it("membuat user baru dengan role default admin dan active true", async () => {
     const result = await auth.api.signUpEmail({
       body: { email: "budi@contoh.id", password: "123456", name: "Budi" },
     });
-    expect(result.user.role).toBe("kasir");
+    expect(result.user.role).toBe("admin");
     expect(result.user.active).toBe(true);
     expect(result.user.dailyRate).toBe(0);
   });
