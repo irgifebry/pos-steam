@@ -36,7 +36,7 @@ interface User {
 const emptyForm = {
   name: "",
   email: "",
-  role: "kasir" as Role,
+  role: "admin" as Role,
   phone: "",
   dailyRate: "0",
   password: "",
@@ -326,8 +326,6 @@ export default function PenggunaPage() {
               className="w-full h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface text-base text-ink"
             >
               <option value="admin">Admin</option>
-              <option value="kasir">Kasir</option>
-              <option value="operator">Operator</option>
             </select>
           </Field>
           <Field label="Telepon">

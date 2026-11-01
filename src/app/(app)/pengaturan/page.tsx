@@ -44,7 +44,7 @@ const menus = [
   {
     href: "/pengaturan/pengguna",
     title: "Pengguna",
-    desc: "Akun admin, kasir, operator",
+    desc: "Kelola akun pengguna",
     icon: Users,
     tone: "bg-brand-soft text-brand",
   },
