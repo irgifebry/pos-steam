@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Banknote, Clock3, Wallet } from "lucide-react";
-import { useAppSession } from "@/components/SessionProvider";
 import { Button } from "@/components/ui/Button";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
@@ -52,7 +51,6 @@ export default function GajiKasPage() {
   const [saving, setSaving] = useState(false);
   const { toast, showToast } = useToast();
 
-  const { role, isLoading } = useAppSession();
 
   const loadSettings = useCallback(async () => {
     try {
@@ -77,25 +75,10 @@ export default function GajiKasPage() {
   }, [showToast]);
 
   useEffect(() => {
-    if (isLoading || role !== "admin") return;
     void loadSettings();
     void loadCash();
-  }, [isLoading, role, loadSettings, loadCash]);
+  }, [loadSettings, loadCash]);
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10">
-        <Spinner className="text-brand" />
-      </div>
-    );
-  }
-  if (role !== "admin") {
-    return (
-      <Card className="text-center text-muted py-10">
-        <p>Hanya admin yang dapat mengakses halaman ini.</p>
-      </Card>
-    );
-  }
 
   async function saveDailyRate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

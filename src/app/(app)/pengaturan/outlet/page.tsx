@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Save, Store } from "lucide-react";
-import { useAppSession } from "@/components/SessionProvider";
+
 import { apiFetch } from "@/lib/api-client";
 import type { Outlet } from "@/lib/services/outlets";
 import { Button } from "@/components/ui/Button";
@@ -29,10 +29,8 @@ export default function OutletPage() {
   const [formError, setFormError] = useState("");
   const { toast, showToast } = useToast();
 
-  const { role, isLoading: sessionLoading } = useAppSession();
 
   useEffect(() => {
-    if (sessionLoading || role !== "admin") return;
     (async () => {
       setLoading(true);
       try {
@@ -56,22 +54,8 @@ export default function OutletPage() {
         setLoading(false);
       }
     })();
-  }, [sessionLoading, role, showToast]);
+  }, [showToast]);
 
-  if (sessionLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10">
-        <Spinner className="text-brand" />
-      </div>
-    );
-  }
-  if (role !== "admin") {
-    return (
-      <Card className="text-center text-muted py-10">
-        <p>Hanya admin yang dapat mengakses halaman ini.</p>
-      </Card>
-    );
-  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -98,7 +82,7 @@ export default function OutletPage() {
           taxPercent: tax,
         }),
       });
-      setOutlet(res?.data ?? null);
+      setOutlet(res?.data ?? outlet);
       showToast("Data outlet tersimpan");
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Gagal menyimpan outlet");

@@ -4,21 +4,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, ListChecks, ShoppingCart, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type { Role } from "@/lib/types";
 
-const tabs: { href: string; label: string; icon: typeof ShoppingCart; roles: Role[] }[] = [
-  { href: "/kasir", label: "Kasir", icon: ShoppingCart, roles: ["admin", "kasir"] },
-  { href: "/antrean", label: "Antrean", icon: ListChecks, roles: ["admin", "kasir", "operator"] },
-  { href: "/laporan", label: "Laporan", icon: BarChart3, roles: ["admin", "kasir"] },
-  { href: "/karyawan", label: "Karyawan", icon: Users, roles: ["admin", "kasir"] },
-  { href: "/pengaturan", label: "Pengaturan", icon: Settings, roles: ["admin"] },
+
+const tabs: { href: string; label: string; icon: typeof ShoppingCart }[] = [
+  { href: "/kasir", label: "Kasir", icon: ShoppingCart },
+  { href: "/antrean", label: "Antrean", icon: ListChecks },
+  { href: "/laporan", label: "Laporan", icon: BarChart3 },
+  { href: "/karyawan", label: "Karyawan", icon: Users },
+  { href: "/pengaturan", label: "Pengaturan", icon: Settings },
 ];
 
-export function BottomNav({ role }: { role: Role }) {
+export function BottomNav() {
   const pathname = usePathname();
-  const visibleTabs = tabs.filter((t) => t.roles.includes(role));
+  const visibleTabs = tabs;
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-line bg-surface md:hidden">
+    <nav aria-label="Menu bawah" className="fixed bottom-0 inset-x-0 z-40 border-t border-line bg-surface md:hidden">
       <div
         className="mx-auto max-w-lg grid"
         style={{ gridTemplateColumns: `repeat(${Math.max(visibleTabs.length, 1)}, minmax(0, 1fr))` }}

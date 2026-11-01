@@ -13,7 +13,7 @@ type Ctx = {
 
 const SessionCtx = createContext<Ctx>({
   user: null,
-  role: "kasir",
+  role: "admin",
   isLoading: true,
   signOut: async () => {},
 });
@@ -21,9 +21,9 @@ const SessionCtx = createContext<Ctx>({
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const { data, isPending } = authClient.useSession();
   const u = data?.user as Record<string, unknown> | undefined;
-  const validRoles: Role[] = ["admin", "kasir", "operator"];
+  const validRoles: Role[] = ["admin"];
   const rawRole = u?.role;
-  const role: Role = validRoles.includes(rawRole as Role) ? (rawRole as Role) : "kasir";
+  const role: Role = validRoles.includes(rawRole as Role) ? (rawRole as Role) : "admin";
 
   const user = u
     ? {
@@ -38,7 +38,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     <SessionCtx.Provider
       value={{
         user,
-        role: user?.role ?? "kasir",
+        role: user?.role ?? "admin",
         isLoading: isPending,
         signOut: async () => {
           try {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, Package } from "lucide-react";
-import { useAppSession } from "@/components/SessionProvider";
+
 import { apiFetch } from "@/lib/api-client";
 import { rupiah } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
@@ -47,7 +47,12 @@ export default function PaketPage() {
           apiFetch<{ data: ServicePackage[] }>("/api/packages?vehicleType=motor"),
           apiFetch<{ data: ServicePackage[] }>("/api/packages?vehicleType=mobil"),
         ]);
-        fetched.push(...(motorRes?.data ?? []), ...(mobilRes?.data ?? []));
+        const seen = new Set<string>();
+        for (const it of [...(motorRes?.data ?? []), ...(mobilRes?.data ?? [])]) {
+          if (seen.has(it.id)) continue;
+          seen.add(it.id);
+          fetched.push(it);
+        }
       } else {
         const res = await apiFetch<{ data: ServicePackage[] }>(
           `/api/packages?vehicleType=${filter}`,
@@ -64,27 +69,9 @@ export default function PaketPage() {
     }
   }, [filter, showToast]);
 
-  const { role, isLoading: sessionLoading } = useAppSession();
-
   useEffect(() => {
-    if (sessionLoading || role !== "admin") return;
     load();
-  }, [sessionLoading, role, load]);
-
-  if (sessionLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10">
-        <Spinner className="text-brand" />
-      </div>
-    );
-  }
-  if (role !== "admin") {
-    return (
-      <Card className="text-center text-muted py-10">
-        <p>Hanya admin yang dapat mengakses halaman ini.</p>
-      </Card>
-    );
-  }
+  }, [load]);
 
   function openAdd() {
     setEditing(null);

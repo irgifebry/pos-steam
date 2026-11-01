@@ -10,9 +10,7 @@ import {
   Wallet,
   ChevronRight,
 } from "lucide-react";
-import { useAppSession } from "@/components/SessionProvider";
 import { Card } from "@/components/ui/Card";
-import { Spinner } from "@/components/ui/Spinner";
 
 const menus = [
   {
@@ -60,21 +58,6 @@ const menus = [
 ];
 
 export default function PengaturanIndex() {
-  const { role, isLoading } = useAppSession();
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10">
-        <Spinner className="text-brand" />
-      </div>
-    );
-  }
-  if (role !== "admin") {
-    return (
-      <Card className="text-center text-muted py-10">
-        <p>Hanya admin yang dapat mengakses halaman ini.</p>
-      </Card>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-6 pb-36">

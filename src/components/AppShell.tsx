@@ -12,7 +12,7 @@ import { Spinner } from "./ui/Spinner";
 import Image from "next/image";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, role, isLoading, signOut } = useAppSession();
+  const { user, isLoading, signOut } = useAppSession();
   const router = useRouter();
   const pathname = usePathname();
   const segments = pathname?.split("/").filter(Boolean) ?? [];
@@ -49,12 +49,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <nav aria-label="Menu utama" className="flex flex-col gap-1">
           {[
-            { href: "/kasir", label: "Kasir", icon: ShoppingCart, roles: ["admin", "kasir"] },
-            { href: "/antrean", label: "Antrean", icon: ListChecks, roles: ["admin", "kasir", "operator"] },
-            { href: "/laporan", label: "Laporan", icon: BarChart3, roles: ["admin", "kasir"] },
-            { href: "/karyawan", label: "Karyawan", icon: Users, roles: ["admin", "kasir"] },
-            { href: "/pengaturan", label: "Pengaturan", icon: Settings, roles: ["admin"] },
-          ].filter((item) => item.roles.includes(role)).map(({ href, label, icon: Icon }) => {
+            { href: "/kasir", label: "Kasir", icon: ShoppingCart },
+            { href: "/antrean", label: "Antrean", icon: ListChecks },
+            { href: "/laporan", label: "Laporan", icon: BarChart3 },
+            { href: "/karyawan", label: "Karyawan", icon: Users },
+            { href: "/pengaturan", label: "Pengaturan", icon: Settings },
+          ].map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link
@@ -73,7 +73,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="mt-auto px-1">
           <p className="font-display text-sm font-bold text-white">{user.name}</p>
-          <p className="text-xs text-white/60 capitalize">{user.role}</p>
+          <p className="text-xs text-white/60 capitalize">admin</p>
         </div>
       </aside>
       <div className="min-h-screen">
@@ -111,7 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="mx-auto max-w-lg px-4 py-5 pb-24 md:mx-0 md:max-w-none md:px-6 md:py-6 md:pb-6">{children}</main>
-        <BottomNav role={role} />
+        <BottomNav />
         {switcherOpen && <OperatorSwitcher onClose={() => setSwitcherOpen(false)} />}
       </div>
     </div>

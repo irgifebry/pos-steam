@@ -317,8 +317,14 @@ export default function AntreanPage() {
 
       {/* List */}
       {loading ? (
-        <Card className="py-12 text-center text-sm text-muted">
-          <Spinner className="text-brand mx-auto mb-3" /> Memuat antrean...
+        <Card className="py-8">
+          <div className="flex flex-col items-center justify-center gap-3">
+            <div
+              className="h-8 w-8 animate-spin rounded-full border-2 border-line border-t-brand"
+              aria-hidden="true"
+            />
+            <p className="text-sm text-muted">Memuat antrean...</p>
+          </div>
         </Card>
       ) : visible.length === 0 ? (
         <Card className="flex flex-col items-center text-center gap-3 py-12">

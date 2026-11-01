@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Space Grotesk", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-grotesk), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 
   --color-brand: #0ea5e9;
   --color-brand-dark: #0284c7;

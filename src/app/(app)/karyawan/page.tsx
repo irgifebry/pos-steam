@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Calendar, Check, Printer, Save, Users } from "lucide-react";
 
-import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -82,8 +81,7 @@ function currentMonthISO() {
 }
 
 export default function KaryawanPage() {
-  const { role: currentRole } = useAppSession();
-  const isAdmin = currentRole === "admin";
+  const isAdmin = true;
   const [tab, setTab] = useState<"absensi" | "gaji">("absensi");
 
   const { toast, showToast, dismiss } = useToast();
@@ -159,11 +157,13 @@ export default function KaryawanPage() {
     setAttError("");
     setAttSaving(true);
     try {
+      const activeIds = new Set(users.map((u) => u.id));
       const sanitizedRecords: Record<
         string,
         { status: AttendanceStatus; checkIn?: string; checkOut?: string }
       > = {};
       for (const [userId, rec] of Object.entries(attendance)) {
+        if (!activeIds.has(userId)) continue;
         sanitizedRecords[userId] = {
           status: rec.status,
           checkIn: rec.checkIn?.trim() ? rec.checkIn.trim() : undefined,
@@ -233,7 +233,6 @@ export default function KaryawanPage() {
   }
 
   async function persistPayroll(finalize: boolean) {
-    if (!isAdmin) return;
     setPaySaving(true);
     setPayError("");
     try {
@@ -298,7 +297,7 @@ export default function KaryawanPage() {
       </div>
 
       {/* Tabs */}
-      <div className="grid grid-cols-2 gap-2 rounded-[var(--radius-md)] bg-stone-100 p-1">
+      <div role="tablist" className="grid grid-cols-2 gap-2 rounded-[var(--radius-md)] bg-stone-100 p-1">
         {[
           { key: "absensi", label: "Absensi", icon: Users },
           { key: "gaji", label: "Gaji", icon: Calendar },
@@ -307,6 +306,8 @@ export default function KaryawanPage() {
           return (
             <button
               key={t.key}
+              role="tab"
+              aria-selected={tab === t.key}
               onClick={() => setTab(t.key as "absensi" | "gaji")}
               className={cn(
                 "flex items-center justify-center gap-2 rounded-[var(--radius-sm)] px-3 py-2 text-xs font-semibold transition",
@@ -408,7 +409,7 @@ export default function KaryawanPage() {
             <Button
               variant="primary"
               onClick={saveAttendance}
-              disabled={attSaving}
+              disabled={attSaving || !isAdmin}
               fullWidth
               size="lg"
             >

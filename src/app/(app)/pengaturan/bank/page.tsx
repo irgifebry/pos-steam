@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Pencil, Trash2, Landmark } from "lucide-react";
-import { useAppSession } from "@/components/SessionProvider";
+
 import { apiFetch } from "@/lib/api-client";
 import type { Bank } from "@/lib/services/banks";
 import { Button } from "@/components/ui/Button";
@@ -33,13 +33,11 @@ export default function BankPage() {
   const { toast, showToast } = useToast();
   const modalRef = useRef<HTMLDivElement>(null);
 
-  const { role, isLoading } = useAppSession();
-
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await apiFetch<{ data: Bank[] }>("/api/banks");
-      setItems(res.data ?? []);
+      setItems(res?.data ?? []);
     } catch (e) {
       setItems([]);
       showToast(e instanceof Error ? e.message : "Gagal memuat bank");
@@ -49,28 +47,12 @@ export default function BankPage() {
   }, [showToast]);
 
   useEffect(() => {
-    if (isLoading || role !== "admin") return;
     load();
-  }, [isLoading, role, load]);
+  }, [load]);
 
   useEffect(() => {
     if (modalOpen) modalRef.current?.focus();
   }, [modalOpen]);
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10">
-        <Spinner className="text-brand" />
-      </div>
-    );
-  }
-  if (role !== "admin") {
-    return (
-      <Card className="text-center text-muted py-10">
-        <p>Hanya admin yang dapat mengakses halaman ini.</p>
-      </Card>
-    );
-  }
 
   function openAdd() {
     setEditing(null);

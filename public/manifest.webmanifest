@@ -2,11 +2,15 @@
   "name": "POS Cuci Steam",
   "short_name": "POS Cuci",
   "start_url": "/kasir",
+  "scope": "/",
+  "id": "/",
   "display": "standalone",
   "background_color": "#f0f9ff",
   "theme_color": "#0ea5e9",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
+  "categories": ["business", "productivity"],
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
   ]
 }

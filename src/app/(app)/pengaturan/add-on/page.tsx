@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Pencil, Trash2, Puzzle } from "lucide-react";
-import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch } from "@/lib/api-client";
 import { rupiah } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
@@ -53,13 +52,16 @@ export default function AddonPage() {
         for (const it of [...(motorRes?.data ?? []), ...(mobilRes?.data ?? [])]) {
           if (seen.has(it.id)) continue;
           seen.add(it.id);
-          fetched.push(it);
+          fetched.push({ ...it, vehicleTypes: Array.isArray(it.vehicleTypes) ? it.vehicleTypes : [] });
         }
       } else {
         const res = await apiFetch<{ data: Addon[] }>(
           `/api/addons?vehicleType=${filter}`,
         );
-        fetched.push(...(res?.data ?? []));
+        fetched.push(...(res?.data ?? []).map((it) => ({
+          ...it,
+          vehicleTypes: Array.isArray(it.vehicleTypes) ? it.vehicleTypes : [],
+        })));
       }
       setItems(fetched);
     } catch (e) {
@@ -70,27 +72,11 @@ export default function AddonPage() {
     }
   }, [filter, showToast]);
 
-  const { role, isLoading: sessionLoading } = useAppSession();
 
   useEffect(() => {
-    if (sessionLoading || role !== "admin") return;
     load();
-  }, [sessionLoading, role, load]);
+  }, [load]);
 
-  if (sessionLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10">
-        <Spinner className="text-brand" />
-      </div>
-    );
-  }
-  if (role !== "admin") {
-    return (
-      <Card className="text-center text-muted py-10">
-        <p>Hanya admin yang dapat mengakses halaman ini.</p>
-      </Card>
-    );
-  }
 
   function openAdd() {
     setEditing(null);
@@ -105,7 +91,7 @@ export default function AddonPage() {
       name: item.name,
       price: String(item.price),
       unitLabel: item.unitLabel,
-      vehicleTypes: item.vehicleTypes,
+      vehicleTypes: Array.isArray(item.vehicleTypes) ? item.vehicleTypes : [],
       active: item.active,
     });
     setFormError("");
@@ -179,7 +165,7 @@ export default function AddonPage() {
   }
 
   const filtered = (items ?? []).filter((it) =>
-    filter === "all" ? true : it.vehicleTypes.includes(filter),
+    filter === "all" ? true : Array.isArray(it.vehicleTypes) && (Array.isArray(it.vehicleTypes) ? it.vehicleTypes : []).includes(filter),
   );
 
   return (
@@ -199,6 +185,7 @@ export default function AddonPage() {
           <button
             key={v}
             onClick={() => setFilter(v)}
+            aria-pressed={filter === v}
             className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${
               filter === v
                 ? "bg-brand text-white border-brand"

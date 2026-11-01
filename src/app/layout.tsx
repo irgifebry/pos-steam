@@ -20,6 +20,8 @@ export const metadata: Metadata = {
   title: "KYANE POS",
   description: "Sistem kasir outlet cuci steam motor & mobil — KYANE Protect & Shine",
   manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "KYANE POS", statusBarStyle: "default" },
+  icons: { apple: "/icon.svg" },
 };
 
 export const viewport: Viewport = {

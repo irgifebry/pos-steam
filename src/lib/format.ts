@@ -1,9 +1,10 @@
-export function rupiah(value: number): string {
+export function rupiah(value: number | null | undefined): string {
+  const v = value == null || Number.isNaN(value) ? 0 : value;
   const formatted = new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(v);
   // Locale id-ID menghasilkan "Rp65.000" — rapikan jadi "Rp 65.000".
   return formatted.replace("Rp", "Rp ").replace(/\s+/g, " ").trim();
 }
