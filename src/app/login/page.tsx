@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth/client";
@@ -8,40 +7,14 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Field } from "@/components/ui/Field";
 import { Card } from "@/components/ui/Card";
-
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [googleLoading, setGoogleLoading] = useState(false);
-
-  const busy = loading || googleLoading;
-
-  async function handleGoogle() {
-    setError("");
-    setGoogleLoading(true);
-    try {
-      const result = await authClient.signIn.social({ provider: "google", callbackURL: "/kasir" });
-      if (result?.error) {
-        setError(result.error.message || "Gagal masuk dengan Google");
-        return;
-      }
-      if (result?.data?.url) {
-        window.location.assign(result.data.url);
-        return;
-      }
-      await router.push("/kasir");
-    } catch {
-      setError("Gagal menghubungi layanan login. Coba lagi.");
-    } finally {
-      setGoogleLoading(false);
-    }
-  }
-
+  const busy = loading;
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -83,9 +56,7 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
-
   const genericError = Boolean(error && email.trim() && pin.length >= 6 && pin.length <= 12);
-
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-bg">
       <div className="w-full max-w-md flex flex-col gap-8">
@@ -96,24 +67,7 @@ export default function LoginPage() {
           </h1>
           <p className="text-muted text-base">POS Cuci Steam — kasir, antrean, laporan, semua dalam satu.</p>
         </div>
-
         <Card className="flex flex-col gap-4">
-          <Button
-            variant="secondary"
-            fullWidth
-            size="lg"
-            onClick={handleGoogle}
-            disabled={busy}
-          >
-            {googleLoading ? "Mengalihkan..." : "Masuk dengan Google"}
-          </Button>
-
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-line" />
-            <span className="text-xs text-muted font-bold">ATAU</span>
-            <div className="flex-1 h-px bg-line" />
-          </div>
-
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Field label="Email" htmlFor="login-email" error={error && !email.trim() ? error : undefined}>
               <Input
@@ -161,7 +115,6 @@ export default function LoginPage() {
             </Button>
           </form>
         </Card>
-
         <p className="text-center text-xs text-muted">
           Lupa PIN? Hubungi admin outlet untuk reset.
         </p>
