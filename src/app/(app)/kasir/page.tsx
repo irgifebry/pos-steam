@@ -105,7 +105,9 @@ export default function KasirPage() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<SuccessInfo | null>(null);
   const { toast, showToast, dismiss } = useToast();
-  const [online, setOnline] = useState(true);
+  const [online, setOnline] = useState<boolean>(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true,
+  );
   const [receipt, setReceipt] = useState<RecentTx | null>(null);
 
   useEffect(() => {
@@ -120,7 +122,10 @@ export default function KasirPage() {
   }, []);
 
   const clientIdRef = useRef<string | null>(null);
+  const loadingOrdersRef = useRef(false);
   const loadOrders = useCallback(async (signal?: AbortSignal) => {
+    if (loadingOrdersRef.current) return;
+    loadingOrdersRef.current = true;
     try {
       const res = await apiFetch<{ data: ApiOrder[] }>("/api/orders?includePaid=true", { signal });
       const timeFormatter = new Intl.DateTimeFormat("id-ID", {
@@ -155,6 +160,7 @@ export default function KasirPage() {
       setOrdersError(error instanceof Error ? error.message : "Gagal memuat transaksi hari ini.");
     } finally {
       setOrdersLoading(false);
+      loadingOrdersRef.current = false;
     }
   }, []);
 
@@ -289,7 +295,7 @@ export default function KasirPage() {
   function setQty(id: string, delta: number) {
     setAddonQty((prev) => {
       const cur = prev[id] ?? 0;
-      const next = Math.max(0, cur + delta);
+      const next = Math.min(99, Math.max(0, cur + delta));
       return { ...prev, [id]: next };
     });
   }
@@ -566,7 +572,8 @@ export default function KasirPage() {
                   <button
                     type="button"
                     onClick={() => setQty(a.id, 1)}
-                    className="h-9 w-9 rounded-lg border border-line bg-surface flex items-center justify-center text-ink active:scale-95"
+                    className="h-9 w-9 rounded-lg border border-line bg-surface flex items-center justify-center text-ink active:scale-95 disabled:opacity-40"
+                    disabled={qty >= 99}
                     aria-label="Tambah"
                   >
                     <Plus className="h-4 w-4" />

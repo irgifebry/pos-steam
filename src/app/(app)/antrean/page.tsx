@@ -399,7 +399,7 @@ export default function AntreanPage() {
                     placeholder="0"
                     inputMode="numeric"
                     className="h-12 text-base"
-                    aria-invalid={cashReceived !== "" && !Number.isFinite(cashAmount)}
+                    aria-invalid={cashReceived !== "" && cashAmount < payOrder.grandTotal}
                   />
                 </Field>
                 <div className="flex items-center justify-between">
