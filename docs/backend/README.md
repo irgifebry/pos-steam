@@ -17,7 +17,7 @@ Dokumen ini khusus untuk **backend**: apa yang sudah dibangun, kontrak API, cara
 Backend F1 menyediakan fondasi aplikasi full-stack Next.js 16:
 
 - Database PostgreSQL via Drizzle ORM: **18 tabel**, 2 migrasi.
-- Autentikasi **Better Auth**: Google OAuth + email/PIN.
+- Autentikasi **Better Auth**: email/PIN.
 - Otorisasi berbasis peran di Route Handler: `authenticated`, `kasir`, `operator`.
 - API master data: paket, add-on, outlet, bank, settings.
 - API manajemen pengguna: tambah, ubah, reset PIN, aktif/nonaktif.
@@ -166,7 +166,6 @@ Tabel `banks` ditambahkan lewat migrasi `0001_secret_grim_reaper.sql`. Rencana F
 
 | Metode | Keterangan |
 |---|---|
-| Google OAuth | Untuk authenticated/owner |
 | Email + PIN | PIN diperlakukan sebagai password, minimal 6 karakter |
 
 Konfigurasi ada di `src/lib/auth/config.ts`:
@@ -245,7 +244,7 @@ Error:
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
 | GET | `/api/health` | Publik | Health check |
-| GET/POST | `/api/auth/[...all]` | Publik | Handler Better Auth (login, logout, callback Google, session) |
+| GET/POST | `/api/auth/[...all]` | Publik | Handler Better Auth (login, logout, session) |
 
 Login email/PIN:
 
@@ -655,7 +654,7 @@ Cakupan saat ini:
 ```bash
 npm install
 cp .env.example .env.local
-# isi DATABASE_URL, DIRECT_URL, BETTER_AUTH_SECRET, Google OAuth, dll.
+# isi DATABASE_URL, DIRECT_URL, BETTER_AUTH_SECRET, dll.
 
 npm run db:migrate
 npm run db:seed
@@ -674,15 +673,7 @@ Buka `http://localhost:3000`. Root saat ini redirect ke `/kasir`, yang **belum a
 | `BETTER_AUTH_SECRET` | Ya | Minimal 32 karakter |
 | `BETTER_AUTH_URL` | Ya | Base URL aplikasi, mis. `http://localhost:3000` |
 | `WEB_ORIGIN` | Ya | Origin yang diizinkan untuk CORS/trusted origin |
-| `GOOGLE_CLIENT_ID` | Ya | Kredensial Google OAuth |
-| `GOOGLE_CLIENT_SECRET` | Ya | Kredensial Google OAuth |
 | `NODE_ENV` | Tidak | `development` / `test` / `production` |
-
-Google OAuth redirect URI:
-
-```text
-{BETTER_AUTH_URL}/api/auth/callback/google
-```
 
 ### 12.4 Script npm
 
@@ -729,7 +720,7 @@ Hal-hal berikut **belum** dikerjakan dan perlu diketahui tim:
    - Memastikan migrasi aman, reversible bila memungkinkan, dan tidak merusak data produksi.
 
 2. **Auth & otorisasi**
-   - Menjaga konfigurasi Better Auth (Google, email/PIN, session).
+   - Menjaga konfigurasi Better Auth (email/PIN, session).
    - Menegakkan role di Route Handler, bukan di halaman.
    - Menjaga agar user nonaktif tidak bisa memakai sesi lama.
    - Menangani reset PIN dan pencabutan sesi.

@@ -50,7 +50,7 @@ Mobile-first, bisa di-install ke layar utama HP (PWA), dan **tetap berfungsi saa
 | Struktur | `src/app` (rute & API route handlers), `src/lib` (server & client), `src/components` |
 | UI | React 19 + TypeScript 5.9 + Tailwind CSS 4 |
 | API | **Next.js Route Handlers** di `src/app/api/**` |
-| Auth | **Better Auth** + Google OAuth + email/password + PIN untuk ganti operator |
+| Auth | **Better Auth** (email/password & PIN) |
 | ORM | Drizzle ORM + drizzle-kit |
 | Database | **Supabase PostgreSQL** via Transaction Pooler |
 | Validasi | Zod 4 (`src/lib/schemas.ts`, dipakai server & client) |
@@ -84,7 +84,7 @@ Mobile-first, bisa di-install ke layar utama HP (PWA), dan **tetap berfungsi saa
 
 | Fase | Isi | Estimasi |
 |---|---|---|
-| **F1 — Fondasi** | Next.js App Router, Drizzle + Supabase, Better Auth + Google, master data, app shell + bottom nav, PWA | 1–2 minggu |
+| **F1 — Fondasi** | Next.js App Router, Drizzle + Supabase, Better Auth, master data, app shell + bottom nav, PWA | 1–2 minggu |
 | **F2 — Kasir Inti** | Input transaksi, antrean, pembayaran, struk cetak + digital, buka/tutup kas | 1–2 minggu |
 | **F3 — Papan Status** | Board antrean, timer, filter, layar pelanggan (opsional) | 3–5 hari |
 | **F4 — Laporan** | Dashboard omzet, 6 laporan, export CSV, cetak | 3–5 hari |
@@ -129,7 +129,6 @@ Mobile-first, bisa di-install ke layar utama HP (PWA), dan **tetap berfungsi saa
 
 - Node.js 20+ dan npm/pnpm
 - Supabase project (region terdekat dengan operasional) + connection string Transaction Pooler
-- Google Cloud OAuth Client ID (opsional, untuk login Google)
 - Vercel account (untuk deploy)
 
 ### Environment Variables
@@ -141,8 +140,6 @@ SUPABASE_SERVICE_ROLE_KEY=...
 BETTER_AUTH_SECRET=...
 BETTER_AUTH_URL=https://domain-anda.com
 WEB_ORIGIN=https://domain-anda.com
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
 NODE_ENV=production
 ```
 
