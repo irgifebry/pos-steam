@@ -28,9 +28,9 @@ Mobile-first, bisa di-install ke layar utama HP (PWA), dan **tetap berfungsi saa
 
 | Peran | Kemampuan |
 |---|---|
-| **Admin / Owner** | Semua fitur, termasuk Pengaturan, Harga, Kelola Karyawan, Gaji, Laporan lengkap |
-| **Kasir** | Input pesanan, pembayaran, cetak struk, update status kendaraan, catat absensi, lihat laporan harian |
-| **Operator** | Melihat papan status hari ini, menandai status kendaraan yang ditugaskan |
+| **Admin / Owner** | Satu peran untuk semua operasional: Kasir, Antrean, Laporan, Karyawan, Pengaturan, Gaji, Harga |
+
+> Aplikasi hanya memiliki satu peran (`admin`). Setiap pengguna terautentikasi memiliki akses penuh; tidak ada pemisahan Kasir/Operator.
 
 ## Tim Proyek
 

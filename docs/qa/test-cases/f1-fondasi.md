@@ -29,7 +29,7 @@
 | F1-035 | P0 | A | Endpoint terproteksi tanpa sesi | 401 `UNAUTHENTICATED` |
 | F1-042 | P0 | A | Matriks RBAC utama | Kasir tidak bisa menulis master data/user |
 | F1-050 | P0 | M/A | Buat paket lalu lihat daftar | 201; tampil dengan harga `Rp 35.000` |
-| F1-070 | P0 | A | BottomNav per role | Admin 5 tab; kasir/operator tanpa Pengaturan |
+| F1-070 | P0 | A | BottomNav per role | Semua pengguna (admin) 5 tab termasuk Pengaturan |
 | F1-091 | P0 | M | Login admin seed | `admin@pos.test` / `admin123` berhasil |
 | F1-094 | P0 | M | Cek secret di repo/bundle | Tidak ada service key/DB URL/OAuth secret |
 
@@ -58,10 +58,10 @@
 | F1-013 | P0 | A | Parse/create paket dengan `durationMin`: `0`, `-5`, `601`, `600`. | `0`/`-5`/`601` ditolak; `600` diterima. | ⬜ |
 | F1-014 | P1 | A | Parse nama `"  Komplit  "`, nama 61 karakter, deskripsi 201 karakter. | Nama di-trim; >60 ditolak; deskripsi >200 ditolak. | ⬜ |
 | F1-015 | P0 | A | Parse add-on dengan `vehicleTypes: []`, `["motor","mobil"]`, `["pesawat"]`. | `[]` ditolak ("Pilih minimal satu tipe kendaraan"); kombinasi valid diterima; tipe tidak valid ditolak. | ⬜ |
-| F1-016 | P0 | A | Parse user: email invalid, tanpa role, `dailyRate: -1`, `dailyRate: 0`. | Email invalid ditolak; role default `kasir`; `-1` ditolak; `0` diterima. | ⬜ |
+| F1-016 | P0 | A | Parse user: email invalid, tanpa role, `dailyRate: -1`, `dailyRate: 0`. | Email invalid ditolak; role default `admin`; `-1` ditolak; `0` diterima. | ⬜ |
 | F1-017 | P1 | A | Parse outlet: `taxPercent` `-1`, `0`, `100`, `101`, dan tanpa field. | `-1`/`101` ditolak; `0`/`100` diterima; default `0`. | ⬜ |
 | F1-018 | P1 | A | Parse bank tanpa `name`, `accountNumber`, atau `accountName`. | Semua field wajib ditolak dengan pesan Bahasa Indonesia. | ⬜ |
-| F1-019 | P1 | A | Parse objek minimal untuk paket, add-on, outlet, bank, user. | Default: `description=""`, `sortOrder=0`, `active=true`; add-on `unitLabel="pcs"`, `vehicleTypes=["motor","mobil"]`; outlet `taxPercent=0`; user `role="kasir"`, `dailyRate=0`, `active=true`. | ⬜ |
+| F1-019 | P1 | A | Parse objek minimal untuk paket, add-on, outlet, bank, user. | Default: `description=""`, `sortOrder=0`, `active=true`; add-on `unitLabel="pcs"`, `vehicleTypes=["motor","mobil"]`; outlet `taxPercent=0`; user `role="admin"`, `dailyRate=0`, `active=true`. | ⬜ |
 | F1-020 | P2 | A | Hapus outlet yang punya paket/add-on; hapus order yang punya item/payment. | FK cascade menghapus child; tidak ada orphan; perilaku sesuai schema. | ⬜ |
 
 ---
@@ -70,7 +70,7 @@
 
 | ID | P | Tipe | Skenario & langkah | Hasil yang diharapkan | Status |
 |---|---|---|---|---|---|
-| F1-030 | P0 | A | `signUpEmail` user baru. | `role="kasir"`, `active=true`, `dailyRate=0`; password tidak tersimpan plaintext di tabel `user`. | ⬜ |
+| F1-030 | P0 | A | `signUpEmail` user baru. | `role="admin"`, `active=true`, `dailyRate=0`; password tidak tersimpan plaintext di tabel `user`. | ⬜ |
 | F1-031 | P0 | A | Kirim payload signup dengan `role="admin"`, `active=false`, `dailyRate=999999`. | Field tersebut diabaikan (`input: false`); user tetap kasir/active/0. | ⬜ |
 | F1-032 | P0 | A | Daftar/login dengan password/PIN 5 karakter dan 6 karakter. | 5 ditolak; 6 diterima. Catat konflik PRD 4 digit vs Rencana 01 6 karakter. | ⬜ |
 | F1-033 | P0 | M | Login email + PIN valid; lalu PIN salah. | Valid → masuk `/kasir`; salah → pesan Bahasa Indonesia, tetap di `/login`, tidak ada sesi. | ⬜ |

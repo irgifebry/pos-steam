@@ -35,11 +35,9 @@ Target utama: **kasir cepat, laporan omzet akurat, status kendaraan jelas, gaji 
 
 | Peran | Siapa | Kemampuan |
 |---|---|---|
-| **Admin / Owner** | Pemilik outlet | Semua fitur, termasuk Pengaturan, Harga, Kelola Karyawan, Gaji, Laporan lengkap |
-| **Kasir** | Operator konter | Input pesanan, pembayaran, cetak struk, update status kendaraan, catat absensi, lihat laporan harian |
-| **Operator** | Orang di area cuci | Melihat papan status hari ini, menandai status kendaraan yang ditugaskan |
+| **Admin / Owner** | Pemilik outlet (satu akun untuk semua operasional) | Semua fitur: Kasir, Antrean, Laporan, Karyawan, Pengaturan, Gaji, Harga |
 
-> Keputusan: perubahan status kendaraan **dilakukan operator konter** (satu HP di meja kasir), bukan dari area cuci. Area cuci tidak butuh akses update status.
+> Keputusan: aplikasi memakai **satu peran (Admin)** yang mencakup seluruh kemampuan. Tidak ada pemisahan Kasir/Operator; semua pengguna terautentikasi memiliki akses penuh. Role-based access control pada endpoint dihapus; yang tersisa hanya verifikasi sesi (authenticated).
 
 ---
 
@@ -387,7 +385,7 @@ GET    /api/audit-logs
 | Offline | 100% fungsi kasir inti tetap jalan tanpa internet |
 | Perangkat | Android 8+ (Web Bluetooth untuk printer), iOS Safari 16+ (PWA, cetak via iOS share print) |
 | PWA | Bisa di-install; ikon, splash screen, theme color; prompt update |
-| Keamanan | Session httpOnly cookie; password hash bcrypt/argon2; PIN hash terpisah; role-based access control di setiap endpoint; service-role key hanya di server |
+| Keamanan | Session httpOnly cookie; password hash bcrypt/argon2; PIN hash terpisah; verifikasi sesi (authenticated) di setiap endpoint; service-role key hanya di server |
 | Audit | Semua aksi void/ubah harga/ubah absensi/finalize gaji tercatat (siapa, kapan, before-after) |
 | Data | Backup otomatis Supabase; export CSV bulanan per outlet |
 | Skala | 1 outlet, 1 shift, 5–15 karyawan — belum perlu horizontal scaling |

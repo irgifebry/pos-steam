@@ -18,14 +18,14 @@ Backend F1 menyediakan fondasi aplikasi full-stack Next.js 16:
 
 - Database PostgreSQL via Drizzle ORM: **18 tabel**, 2 migrasi.
 - Autentikasi **Better Auth**: Google OAuth + email/PIN.
-- Otorisasi berbasis peran di Route Handler: `admin`, `kasir`, `operator`.
+- Otorisasi berbasis peran di Route Handler: `authenticated`, `kasir`, `operator`.
 - API master data: paket, add-on, outlet, bank, settings.
 - API manajemen pengguna: tambah, ubah, reset PIN, aktif/nonaktif.
 - API transaksi & operasional: order, antrean, pembayaran, pembatalan, struk publik, absensi, payroll, shift kas, laporan.
 - Validasi Zod sebagai sumber tunggal (`src/lib/schemas.ts`).
 - Format error konsisten `{ error: { code, message } }`.
 - Audit log untuk perubahan pengguna.
-- Seed data idempotent untuk outlet, paket, add-on, bank, dan admin.
+- Seed data idempotent untuk outlet, paket, add-on, bank, dan authenticated.
 - Test backend dengan **PGlite** tanpa database eksternal.
 
 **Hasil verifikasi terakhir:**
@@ -166,7 +166,7 @@ Tabel `banks` ditambahkan lewat migrasi `0001_secret_grim_reaper.sql`. Rencana F
 
 | Metode | Keterangan |
 |---|---|
-| Google OAuth | Untuk admin/owner |
+| Google OAuth | Untuk authenticated/owner |
 | Email + PIN | PIN diperlakukan sebagai password, minimal 6 karakter |
 
 Konfigurasi ada di `src/lib/auth/config.ts`:
@@ -184,13 +184,13 @@ Konfigurasi ada di `src/lib/auth/config.ts`:
 |---|---|
 | `getSessionUser()` | Mengembalikan user atau `null`. User dengan `active = false` dianggap tidak login. |
 | `requireUser()` | Melempar `401 UNAUTHENTICATED` bila tidak ada sesi. |
-| `requireUser(["admin"])` | Melempar `403 FORBIDDEN` bila role tidak diizinkan. |
+| `requireUser(["authenticated"])` | Melempar `403 FORBIDDEN` bila role tidak diizinkan. |
 
-Role yang dikenal: `admin`, `kasir`, `operator`.
+Role yang dikenal: `authenticated` (satu peran untuk semua pengguna).
 
 ### 5.3 Reset PIN
 
-Reset PIN oleh admin:
+Reset PIN oleh authenticated:
 
 1. Validasi PIN minimal 6 karakter.
 2. Hash PIN dengan `hashPassword()` dari `better-auth/crypto`.
@@ -235,7 +235,7 @@ Error:
 | 403 | `FORBIDDEN` | Role tidak diizinkan |
 | 404 | `NOT_FOUND` | Data tidak ditemukan |
 | 409 | `DUPLICATE` | Nama/email sudah dipakai |
-| 409 | `LAST_ADMIN` | Aksi akan menghilangkan admin aktif terakhir |
+| 409 | `LAST_ADMIN` | Aksi akan menghilangkan authenticated aktif terakhir |
 | 500 | `INTERNAL_ERROR` | Kesalahan server |
 
 ### 6.2 Daftar endpoint
@@ -252,7 +252,7 @@ Login email/PIN:
 ```bash
 curl -i -X POST http://localhost:3000/api/auth/sign-in/email \
   -H "Content-Type: application/json" \
-  -d "{\"email\":\"admin@pos.test\",\"password\":\"admin123\"}"
+  -d "{\"email\":\"authenticated@pos.test\",\"password\":\"authenticated123\"}"
 ```
 
 Cookie sesi dikirim lewat header `set-cookie`. Frontend harus memakai `credentials: "include"`.
@@ -261,10 +261,10 @@ Cookie sesi dikirim lewat header `set-cookie`. Frontend harus memakai `credentia
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/packages?vehicleType=motor\|mobil&includeInactive=true` | admin, kasir | Daftar paket, urut `sortOrder` lalu nama |
-| POST | `/api/packages` | admin | Buat paket |
-| PATCH | `/api/packages/:id` | admin | Ubah sebagian field |
-| DELETE | `/api/packages/:id` | admin | Soft-delete (`active = false`) |
+| GET | `/api/packages?vehicleType=motor\|mobil&includeInactive=true` | authenticated | Daftar paket, urut `sortOrder` lalu nama |
+| POST | `/api/packages` | authenticated | Buat paket |
+| PATCH | `/api/packages/:id` | authenticated | Ubah sebagian field |
+| DELETE | `/api/packages/:id` | authenticated | Soft-delete (`active = false`) |
 
 Body POST:
 
@@ -291,10 +291,10 @@ Aturan:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/addons?vehicleType=motor\|mobil&includeInactive=true` | admin, kasir | Filter tipe kendaraan |
-| POST | `/api/addons` | admin | Buat add-on |
-| PATCH | `/api/addons/:id` | admin | Ubah sebagian field |
-| DELETE | `/api/addons/:id` | admin | Soft-delete |
+| GET | `/api/addons?vehicleType=motor\|mobil&includeInactive=true` | authenticated | Filter tipe kendaraan |
+| POST | `/api/addons` | authenticated | Buat add-on |
+| PATCH | `/api/addons/:id` | authenticated | Ubah sebagian field |
+| DELETE | `/api/addons/:id` | authenticated | Soft-delete |
 
 Body POST:
 
@@ -312,8 +312,8 @@ Body POST:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/outlets` | admin, kasir, operator | Daftar outlet |
-| PATCH | `/api/outlets` | admin | Ubah outlet milik user yang login |
+| GET | `/api/outlets` | authenticated | Daftar outlet |
+| PATCH | `/api/outlets` | authenticated | Ubah outlet milik user yang login |
 
 Body PATCH (semua field opsional):
 
@@ -331,8 +331,8 @@ Body PATCH (semua field opsional):
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/banks` | admin, kasir, operator | Bank aktif milik outlet user |
-| POST | `/api/banks` | admin | Tambah bank |
+| GET | `/api/banks` | authenticated | Bank aktif milik outlet user |
+| POST | `/api/banks` | authenticated | Tambah bank |
 
 Body POST:
 
@@ -351,12 +351,12 @@ Body POST:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/orders?date=...&from=...&to=...&includePaid=true\|false` | admin, kasir, operator | Daftar order outlet dalam rentang tanggal; default hari ini |
-| GET | `/api/orders/:id` | admin, kasir, operator | Detail order termasuk item dan pembayaran |
-| POST | `/api/orders` | admin, kasir | Buat order (server menghitung total, antrean, invoice, snapshot) |
-| PATCH | `/api/orders/:id/status` | admin, kasir | Ubah status `menunggu` → `proses` → `selesai` |
-| POST | `/api/orders/:id/payments` | admin, kasir | Catat pembayaran pada order selesai → otomatis `paid` |
-| POST | `/api/orders/:id/cancel` | admin, kasir | Batalkan order |
+| GET | `/api/orders?date=...&from=...&to=...&includePaid=true\|false` | authenticated | Daftar order outlet dalam rentang tanggal; default hari ini |
+| GET | `/api/orders/:id` | authenticated | Detail order termasuk item dan pembayaran |
+| POST | `/api/orders` | authenticated | Buat order (server menghitung total, antrean, invoice, snapshot) |
+| PATCH | `/api/orders/:id/status` | authenticated | Ubah status `menunggu` → `proses` → `selesai` |
+| POST | `/api/orders/:id/payments` | authenticated | Catat pembayaran pada order selesai → otomatis `paid` |
+| POST | `/api/orders/:id/cancel` | authenticated | Batalkan order |
 | GET | `/api/receipts/:token` | Publik | Struk publik berbasis UUID order (tidak perlu login) |
 
 Body POST `/api/orders`:
@@ -389,16 +389,16 @@ Aturan order:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/attendance?date=YYYY-MM-DD` | admin, kasir, operator | Daftar absensi outlet pada tanggal |
-| POST | `/api/attendance` | admin, kasir | Upsert absensi karyawan (tanggal + user unik) |
-| GET | `/api/attendance/summary?period=YYYY-MM` | admin, kasir | Ringkasan bulanan per karyawan |
+| GET | `/api/attendance?date=YYYY-MM-DD` | authenticated | Daftar absensi outlet pada tanggal |
+| POST | `/api/attendance` | authenticated | Upsert absensi karyawan (tanggal + user unik) |
+| GET | `/api/attendance/summary?period=YYYY-MM` | authenticated | Ringkasan bulanan per karyawan |
 
 #### Payroll
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/payroll?period=YYYY-MM` | admin, kasir | Ambil payroll (draft atau final) dengan item per karyawan |
-| POST | `/api/payroll` | admin | Simpan draft atau finalisasi payroll periode |
+| GET | `/api/payroll?period=YYYY-MM` | authenticated | Ambil payroll (draft atau final) dengan item per karyawan |
+| POST | `/api/payroll` | authenticated | Simpan draft atau finalisasi payroll periode |
 
 Body POST `/api/payroll`:
 
@@ -419,32 +419,32 @@ Body POST `/api/payroll`:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/cash-shifts` | admin, kasir, operator | Shift terbuka + riwayat 30 shift terakhir |
-| POST | `/api/cash-shifts` | admin, kasir | Buka shift kas (saldo awal) |
-| POST | `/api/cash-shifts/:id/close` | admin, kasir | Tutup shift; hitung kas seharusnya dari pembayaran tunai sejak dibuka |
+| GET | `/api/cash-shifts` | authenticated | Shift terbuka + riwayat 30 shift terakhir |
+| POST | `/api/cash-shifts` | authenticated | Buka shift kas (saldo awal) |
+| POST | `/api/cash-shifts/:id/close` | authenticated | Tutup shift; hitung kas seharusnya dari pembayaran tunai sejak dibuka |
 
 #### Laporan
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/reports/transactions?from=...&to=...` | admin, kasir | Transaksi yang **sudah dibayar** dalam rentang, detail add-on |
+| GET | `/api/reports/transactions?from=...&to=...` | authenticated | Transaksi yang **sudah dibayar** dalam rentang, detail add-on |
 
 #### Pengguna (query baru)
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/users?includeInactive=false\|true` | admin | Toggle sertakan pengguna nonaktif |
+| GET | `/api/users?includeInactive=false\|true` | authenticated | Toggle sertakan pengguna nonaktif |
 
 #### Settings (update baru)
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| PATCH | `/api/settings` | admin | Ubah `defaultDailyRate` |
+| PATCH | `/api/settings` | authenticated | Ubah `defaultDailyRate` |
 
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/settings` | admin, kasir, operator | Gabungan outlet + bank aktif + `defaultDailyRate` |
+| GET | `/api/settings` | authenticated | Gabungan outlet + bank aktif + `defaultDailyRate` |
 
 Contoh response:
 
@@ -464,12 +464,12 @@ Contoh response:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/users` | admin | Daftar lengkap termasuk nonaktif, termasuk `dailyRate` dan `email` |
-| GET | `/api/users?light=1` | admin, kasir | Ringkasan `{ id, name, role }` untuk operator switcher |
-| POST | `/api/users` | admin | Buat pengguna + PIN |
-| PATCH | `/api/users/:id` | admin | Ubah nama/email/role/telepon/gaji/aktif |
-| POST | `/api/users/:id/pin` | admin | Reset PIN |
-| POST | `/api/users/:id/active` | admin | Aktif/nonaktifkan pengguna |
+| GET | `/api/users` | authenticated | Daftar lengkap termasuk nonaktif, termasuk `dailyRate` dan `email` |
+| GET | `/api/users?light=1` | authenticated | Ringkasan `{ id, name, role }` untuk operator switcher |
+| POST | `/api/users` | authenticated | Buat pengguna + PIN |
+| PATCH | `/api/users/:id` | authenticated | Ubah nama/email/role/telepon/gaji/aktif |
+| POST | `/api/users/:id/pin` | authenticated | Reset PIN |
+| POST | `/api/users/:id/active` | authenticated | Aktif/nonaktifkan pengguna |
 
 Body POST:
 
@@ -499,9 +499,9 @@ Body aktif/nonaktif:
 
 Aturan:
 
-- `GET /api/users` hanya admin. Kasir **tidak boleh** melihat email/gaji.
+- `GET /api/users` hanya authenticated. Kasir **tidak boleh** melihat email/gaji.
 - `?light=1` hanya mengembalikan `id`, `name`, `role` dan hanya untuk outlet yang sama.
-- Menurunkan role admin terakhir atau menonaktifkannya -> `409 LAST_ADMIN`.
+- Menurunkan role authenticated terakhir atau menonaktifkannya -> `409 LAST_ADMIN`.
 - Menonaktifkan user menghapus semua sesinya.
 - Tidak ada `DELETE /api/users/:id`; gunakan endpoint aktif/nonaktif.
 
@@ -516,7 +516,7 @@ Aturan:
 | `services/outlets.ts` | `listOutlets`, `getOutlet`, `updateOutlet` | Data outlet, konversi pajak numerik ke number |
 | `services/banks.ts` | `listBanks`, `createBank`, `updateBank` | Bank aktif per outlet |
 | `services/settings.ts` | `getSettings`, `updateSettings` | Gabungan outlet + bank + tarif harian default |
-| `services/users.ts` | `listUsers`, `listUserSummaries`, `createUser`, `updateUser`, `resetPin`, `setUserActive` | Manajemen pengguna, proteksi admin terakhir, audit log |
+| `services/users.ts` | `listUsers`, `listUserSummaries`, `createUser`, `updateUser`, `resetPin`, `setUserActive` | Manajemen pengguna, proteksi authenticated terakhir, audit log |
 | `services/orders.ts` | `createOrder`, `listOrders`, `getOrder`, `getReceipt`, `updateOrderStatus`, `addOrderPayment`, `cancelOrder` | Order, antrean, invoice, pembayaran, pembatalan, struk publik |
 | `services/attendance.ts` | `listAttendance`, `saveAttendance`, `attendanceSummary` | Absensi harian dan ringkasan bulanan |
 | `services/payroll.ts` | `getPayroll`, `savePayroll` | Draft/final payroll, komponen gaji, kunci final |
@@ -595,12 +595,12 @@ npm run db:seed
 | Paket | 6 | 3 motor + 3 mobil |
 | Add-on | 4 | Semprot Wax, Ojek Ban, Semprot Interior, Poles Kaca |
 | Bank | 3 | BCA, BRI, Mandiri |
-| Admin | 1 | `admin@pos.test` / `admin123` |
+| Admin | 1 | `authenticated@pos.test` / `authenticated123` |
 
 - Seed **idempotent**: aman dijalankan berulang, memakai `onConflictDoUpdate`.
 - Harga seed masih **placeholder `1000`** sesuai rencana. Ganti lewat Pengaturan setelah frontend selesai.
-- PIN admin adalah PIN demo. **Wajib diganti** sebelum produksi.
-- Jika admin sudah ada, seed tidak mengubah role/PIN-nya.
+- PIN authenticated adalah PIN demo. **Wajib diganti** sebelum produksi.
+- Jika authenticated sudah ada, seed tidak mengubah role/PIN-nya.
 
 ---
 
@@ -708,12 +708,12 @@ Hal-hal berikut **belum** dikerjakan dan perlu diketahui tim:
 |---|---|---|
 | 1 | Belum ada endpoint `PATCH /api/banks/:id` (soft-delete bank masih via service) | Backlog Pengaturan |
 | 2 | Audit mencakup transaksi dan master data | Sudah dilakukan |
-| 3 | Cek “admin terakhir” memakai count lalu update, belum dalam transaksi | F7 (race condition) |
+| 3 | Cek “authenticated terakhir” memakai count lalu update, belum dalam transaksi | F7 (race condition) |
 | 4 | Endpoint update/reset user berdasarkan `id` belum memeriksa outlet pemilik | F2 bila multi-outlet |
 | 5 | `GET /api/outlets` mengembalikan semua outlet ke semua role | F2 bila multi-outlet |
 | 6 | Belum ada rate limiting login/PIN | F7 |
 | 7 | Belum ada observability/log terstruktur | F7 |
-| 8 | Harga seed dan PIN admin masih placeholder | Sebelum produksi |
+| 8 | Harga seed dan PIN authenticated masih placeholder | Sebelum produksi |
 | 9 | UI dan PWA sudah tersambung API; mode demo dihapus | Sudah dilakukan |
 | 10 | Belum ada endpoint khusus settings update (sudah ada `PATCH /api/settings`) | Sudah dilakukan |
 
