@@ -59,7 +59,7 @@ describe("sync service", () => {
 
   it("getSyncBootstrap mengembalikan master data dan counter awal", async () => {
     const data = await getSyncBootstrap(db, outletId);
-    expect(data.outlet.id).toBe(outletId);
+    expect(data.outlet?.id).toBe(outletId);
     expect(data.packages.length).toBeGreaterThan(0);
     expect(data.todayCounters).toBeDefined();
     expect(typeof data.todayCounters.lastInvoiceSeq).toBe("number");

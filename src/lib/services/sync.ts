@@ -12,7 +12,6 @@ import { listUserSummaries } from "./users";
 import {
   addOrderPayment,
   createOrder,
-  getOrder,
   jakartaDate,
   updateOrderStatus,
 } from "./orders";
@@ -20,8 +19,8 @@ import {
 export async function getSyncBootstrap(db: AppDatabase, outletId: string) {
   const [outlet, packages, addons, banks, users] = await Promise.all([
     getOutlet(db, outletId),
-    listServicePackages(db, outletId, { includeInactive: false }),
-    listAddons(db, outletId, { includeInactive: false }),
+    listServicePackages(db, { outletId, includeInactive: false }),
+    listAddons(db, { outletId, includeInactive: false }),
     listBanks(db, outletId, { includeInactive: false }),
     listUserSummaries(db, outletId),
   ]);

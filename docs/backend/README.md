@@ -32,7 +32,7 @@ Backend F1 menyediakan fondasi aplikasi full-stack Next.js 16:
 
 | Pemeriksaan | Hasil |
 |---|---|
-| `npm test` | 20 file, **100 test lulus** |
+| `npm test` | 28 file, **116 test lulus** |
 | `npm run lint` | Bersih |
 | `npx tsc --noEmit` | Bersih |
 | `npm run build` | Sukses, semua route API terdeteksi |
@@ -332,6 +332,7 @@ Body PATCH (semua field opsional):
 |---|---|---|---|
 | GET | `/api/banks` | authenticated | Bank aktif milik outlet user |
 | POST | `/api/banks` | authenticated | Tambah bank |
+| PATCH | `/api/banks/:id` | authenticated | Ubah nama, nomor rekening, pemilik, atau status aktif bank |
 
 Body POST:
 
@@ -344,14 +345,13 @@ Body POST:
 }
 ```
 
-> Belum ada endpoint `PATCH /api/banks/:id`, walaupun service `updateBank()` sudah tersedia. Ini masuk backlog.
-
 #### Order
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
 | GET | `/api/orders?date=...&from=...&to=...&includePaid=true\|false` | authenticated | Daftar order outlet dalam rentang tanggal; default hari ini |
 | GET | `/api/orders/:id` | authenticated | Detail order termasuk item dan pembayaran |
+| PATCH | `/api/orders/:id` | authenticated | Ubah item & data pelanggan (hanya saat status `menunggu`) |
 | POST | `/api/orders` | authenticated | Buat order (server menghitung total, antrean, invoice, snapshot) |
 | PATCH | `/api/orders/:id/status` | authenticated | Ubah status `menunggu` → `proses` → `selesai` |
 | POST | `/api/orders/:id/payments` | authenticated | Catat pembayaran pada order selesai → otomatis `paid` |
@@ -422,17 +422,29 @@ Body POST `/api/payroll`:
 | POST | `/api/cash-shifts` | authenticated | Buka shift kas (saldo awal) |
 | POST | `/api/cash-shifts/:id/close` | authenticated | Tutup shift; hitung kas seharusnya dari pembayaran tunai sejak dibuka |
 
-#### Laporan
+#### Dashboard & Laporan
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
+| GET | `/api/dashboard/today` | authenticated | Metrik ringkas hari ini (omzet, transaksi, tiket rata-rata, tunai/transfer, motor/mobil) |
 | GET | `/api/reports/transactions?from=...&to=...` | authenticated | Transaksi yang **sudah dibayar** dalam rentang, detail add-on |
+| GET | `/api/dashboard/today` | authenticated | Metrik ringkas hari ini (omzet, transaksi, tiket rata-rata, tunai/transfer, motor/mobil) |
+| GET | `/api/reports/transactions?from=...&to=...` | authenticated | Transaksi yang **sudah dibayar** dalam rentang, detail add-on |
+| GET | `/api/reports/omzet?from=...&to=...&groupBy=day\|week\|month` | authenticated | Tren omzet berkala |
 | GET | `/api/reports/paket?from=...&to=...` | authenticated | Agregasi per paket (jumlah & total) |
 | GET | `/api/reports/addon?from=...&to=...` | authenticated | Agregasi per add-on (qty, jumlah, total) |
 | GET | `/api/reports/payment-method?from=...&to=...` | authenticated | Agregasi per metode pembayaran (jumlah & total) |
 | GET | `/api/reports/employee?from=...&to=...` | authenticated | Agregasi per karyawan (jumlah & total) |
-| GET | `/api/reports/cash?date=YYYY-MM-DD` | authenticated | Rekap kas harian + shift terbuka/riwayat + total tunai |
+| GET | `/api/reports/cash?date=YYYY-MM-DD` | authenticated | Rekonsiliasi kas harian & shift |
 | GET | `/api/reports/export.csv?from=...&to=...&type=...` | authenticated | Ekspor CSV (`transactions`, `paket`, `addon`, `payment-method`, `employee`) |
+
+#### Audit & Offline Sync
+
+| Method | Path | Akses | Keterangan |
+|---|---|---|---|
+| GET | `/api/audit-logs?entity=...&limit=50&offset=0` | authenticated | Daftar riwayat audit log |
+| GET | `/api/sync/bootstrap` | authenticated | Master data + counter sequence invoice/antrean untuk cache offline |
+| POST | `/api/sync/batch` | authenticated | Batch sinkronisasi transaksi offline secara idempotent |
 
 #### Pengguna (query baru)
 
@@ -703,7 +715,7 @@ Hal-hal berikut **belum** dikerjakan dan perlu diketahui tim:
 
 | # | Item | Rencana |
 |---|---|---|
-| 1 | Belum ada endpoint `PATCH /api/banks/:id` (soft-delete bank masih via service) | Backlog Pengaturan |
+| 1 | Endpoint `PATCH /api/banks/:id` sudah tersedia | Selesai |
 | 2 | Audit mencakup transaksi dan master data | Sudah dilakukan |
 | 3 | Cek “authenticated terakhir” memakai count lalu update, belum dalam transaksi | F7 (race condition) |
 | 4 | Endpoint update/reset user berdasarkan `id` belum memeriksa outlet pemilik | F2 bila multi-outlet |
@@ -712,7 +724,7 @@ Hal-hal berikut **belum** dikerjakan dan perlu diketahui tim:
 | 7 | Belum ada observability/log terstruktur | F7 |
 | 8 | Harga seed dan PIN authenticated masih placeholder | Sebelum produksi |
 | 9 | UI dan PWA sudah tersambung API; mode demo dihapus | Sudah dilakukan |
-| 10 | Belum ada endpoint khusus settings update (sudah ada `PATCH /api/settings`) | Sudah dilakukan |
+| 10 | Endpoint settings, dashboard hari ini, dan sync offline | Selesai |
 
 ---
 
