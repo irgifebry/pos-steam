@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import { cloneElement, isValidElement } from "react";
+import { Fragment, cloneElement, isValidElement } from "react";
 import type { ReactElement, ReactNode } from "react";
 
 export function Field({
@@ -17,6 +17,31 @@ export function Field({
   children: ReactNode;
   className?: string;
 }) {
+  const errorId = htmlFor ? `${htmlFor}-error` : undefined;
+  const hintId = htmlFor ? `${htmlFor}-hint` : undefined;
+  const describedBy = error ? errorId : hint ? hintId : undefined;
+
+  function enhance(node: ReactNode): ReactNode {
+    if (Array.isArray(node)) return node.map((n) => enhance(n));
+    if (isValidElement(node)) {
+      if (node.type === Fragment) {
+        return cloneElement(node as ReactElement<Record<string, unknown>>, {}, enhance((node.props as { children?: ReactNode }).children));
+      }
+      const props = (node.props ?? {}) as Record<string, unknown>;
+      const existingDescribed = props["aria-describedby"];
+      const mergedDescribed =
+        [describedBy, typeof existingDescribed === "string" ? existingDescribed : undefined]
+          .filter(Boolean)
+          .filter((v, i, a) => a.indexOf(v) === i)
+          .join(" ") || undefined;
+      return cloneElement(node as ReactElement<Record<string, unknown>>, {
+        "aria-invalid": error ? true : props["aria-invalid"],
+        "aria-describedby": mergedDescribed,
+      });
+    }
+    return node;
+  }
+
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       {label && (
@@ -24,14 +49,17 @@ export function Field({
           {label}
         </label>
       )}
-      {error && isValidElement(children)
-        ? cloneElement(children as ReactElement<Record<string, unknown>>, {
-            "aria-invalid": true,
-            "aria-describedby": htmlFor ? `${htmlFor}-error` : undefined,
-          })
-        : children}
-      {error && <p id={htmlFor ? `${htmlFor}-error` : undefined} role="alert" className="text-sm text-danger">{error}</p>}
-      {!error && hint && <p className="text-sm text-muted">{hint}</p>}
+      {enhance(children)}
+      {error && (
+        <p id={errorId} role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+      {!error && hint && (
+        <p id={hintId} className="text-sm text-muted">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }

@@ -35,8 +35,8 @@ type ReportTx = {
 };
 
 type PaketRow = { packageName: string; count: number; total: number };
-type AddonRow = { name: string; count: number; total: number };
-type PaymentRow = { method: string; count: number; total: number };
+type AddonRow = { addonName: string; count: number; total: number };
+type PaymentRow = { paymentMethod: string; count: number; total: number };
 type EmployeeRow = { employee: string; count: number; total: number };
 type CashShiftView = {
   openingCash: number;
@@ -602,8 +602,8 @@ export default function LaporanPage() {
                   </thead>
                   <tbody>
                     {addonRows.map((r) => (
-                      <tr key={r.name} className="border-t border-line">
-                        <td className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.name}</td>
+                      <tr key={r.addonName} className="border-t border-line">
+                        <td className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.addonName}</td>
                         <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
                         <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
                       </tr>
@@ -662,8 +662,8 @@ export default function LaporanPage() {
                   </thead>
                   <tbody>
                     {paymentRows.map((r) => (
-                      <tr key={r.method} className="border-t border-line">
-                        <td className="py-2 pr-2 text-sm font-semibold text-ink"><Badge tone={r.method === "Tunai" ? "success" : "info"}>{r.method}</Badge></td>
+                      <tr key={r.paymentMethod} className="border-t border-line">
+                        <td className="py-2 pr-2 text-sm font-semibold text-ink"><Badge tone={r.paymentMethod === "Tunai" ? "success" : "info"}>{r.paymentMethod}</Badge></td>
                         <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
                         <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
                       </tr>

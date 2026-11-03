@@ -90,3 +90,23 @@ export async function updateBank(
   const [row] = await db.update(banks).set(values).where(eq(banks.id, id)).returning();
   return toDomain(row);
 }
+
+export async function deactivateBank(
+  db: AppDatabase,
+  id: string,
+  outletId?: string,
+): Promise<void> {
+  const updated = await db
+    .update(banks)
+    .set({ active: false })
+    .where(
+      outletId
+        ? and(eq(banks.id, id), eq(banks.outletId, outletId))
+        : eq(banks.id, id),
+    )
+    .returning({ id: banks.id });
+
+  if (updated.length === 0) {
+    throw new HttpError(404, "NOT_FOUND", "Bank tidak ditemukan");
+  }
+}

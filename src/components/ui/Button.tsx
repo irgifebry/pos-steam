@@ -7,6 +7,7 @@ type Size = "sm" | "md" | "lg";
 export function Button({
   variant = "primary",
   size = "md",
+  type = "button",
   fullWidth = false,
   className,
   children,
@@ -18,7 +19,7 @@ export function Button({
   children: ReactNode;
 }) {
   const base =
-    "inline-flex items-center justify-center gap-2 font-bold rounded-[var(--radius-md)] transition active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none tap-target";
+    "inline-flex items-center justify-center gap-2 font-bold rounded-[var(--radius-md)] transition active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none tap-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2";
   const sizes = {
     sm: "h-10 px-4 text-sm",
     md: "h-12 px-5 text-base",
@@ -33,6 +34,7 @@ export function Button({
   };
   return (
     <button
+      type={type}
       className={cn(base, sizes[size], variants[variant], fullWidth && "w-full", className)}
       {...props}
     >

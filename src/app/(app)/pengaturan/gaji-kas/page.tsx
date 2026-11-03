@@ -184,7 +184,7 @@ export default function GajiKasPage() {
                 <Input type="number" min="0" step="1" inputMode="numeric" value={dailyRate} onChange={(event) => { setDailyRate(event.target.value); }} placeholder="Masukkan nominal" disabled={loadingSettings} />
               </Field>
               <p className="text-sm text-muted">Tarif gaji tiap karyawan tetap diatur pada data karyawan.</p>
-              <Button variant="primary" type="submit" fullWidth disabled={loadingSettings}>Simpan gaji harian</Button>
+              <Button variant="primary" type="submit" fullWidth disabled={loadingSettings || saving} aria-disabled={loadingSettings || saving}>Simpan gaji harian</Button>
             </form>
           </Card>
 
@@ -206,13 +206,13 @@ export default function GajiKasPage() {
                 </div>
                 <Field label="Kas akhir terhitung (Rp)"><Input type="number" min="0" step="1" inputMode="numeric" value={closingAmount} onChange={(event) => setClosingAmount(event.target.value)} placeholder="Masukkan jumlah kas fisik" /></Field>
                 <p className="text-sm text-muted">Kas seharusnya dihitung server dari saldo awal ditambah pembayaran tunai sejak shift dibuka.</p>
-                <Button variant="primary" type="submit" fullWidth>Tutup kas</Button>
+                <Button variant="primary" type="submit" fullWidth disabled={saving} aria-disabled={saving}>Tutup kas</Button>
               </form>
             ) : (
               <form className="flex flex-col gap-4" onSubmit={openCash}>
                 <Field label="Saldo awal (Rp)"><Input type="number" min="0" step="1" inputMode="numeric" value={openingAmount} onChange={(event) => setOpeningAmount(event.target.value)} placeholder="Masukkan saldo awal" /></Field>
                 <Field label="Catatan (opsional)"><Input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Contoh: pergantian shift pagi" /></Field>
-                <Button variant="primary" type="submit" fullWidth>Buka kas</Button>
+                <Button variant="primary" type="submit" fullWidth disabled={saving} aria-disabled={saving}>Buka kas</Button>
               </form>
             )}
           </Card>

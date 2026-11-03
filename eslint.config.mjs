@@ -7,6 +7,9 @@ export default defineConfig([
   ...nextVitals,
   ...nextTs,
   {
+    ignores: ["public/sw.js"],
+  },
+  {
     rules: {
       "react-hooks/set-state-in-effect": "off",
     },

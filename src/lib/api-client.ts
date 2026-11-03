@@ -26,7 +26,12 @@ export async function apiFetch<T>(
     options?.redirectOnUnauthorized ?? initRedirect ?? true;
 
   const headers = new Headers(init?.headers);
-  if (!headers.has("content-type")) {
+  const requestBody = init?.body;
+  if (
+    !headers.has("content-type") &&
+    requestBody != null &&
+    !(requestBody instanceof FormData)
+  ) {
     headers.set("content-type", "application/json");
   }
 

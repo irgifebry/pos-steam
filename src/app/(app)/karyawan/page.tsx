@@ -14,6 +14,7 @@ import { formatAngka, formatTanggal, formatWaktu, rupiah } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
+import { useAppSession } from "@/components/SessionProvider";
 import type { AttendanceStatus, Role } from "@/lib/types";
 import type { PayrollView } from "@/lib/services/payroll";
 
@@ -81,7 +82,8 @@ function currentMonthISO() {
 }
 
 export default function KaryawanPage() {
-  const isAdmin = true;
+  const { role: currentRole } = useAppSession();
+  const isAdmin = currentRole === "admin";
   const [tab, setTab] = useState<"absensi" | "gaji">("absensi");
 
   const { toast, showToast, dismiss } = useToast();
