@@ -23,6 +23,8 @@ import type {
   servicePackageInputSchema,
   servicePackageUpdateSchema,
   settingsUpdateSchema,
+  syncBatchItemSchema,
+  syncBatchSchema,
   userCreateSchema,
   userInputSchema,
   userUpdateSchema,
@@ -56,3 +58,5 @@ export type CashShiftOpen = z.infer<typeof cashShiftOpenSchema>;
 export type CashShiftClose = z.infer<typeof cashShiftCloseSchema>;
 export type SettingsUpdate = z.infer<typeof settingsUpdateSchema>;
 export type ReportRange = z.infer<typeof reportRangeSchema>;
+export type SyncBatchItem = z.infer<typeof syncBatchItemSchema>;
+export type SyncBatch = z.infer<typeof syncBatchSchema>;

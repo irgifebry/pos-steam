@@ -199,3 +199,25 @@ export const reportRangeSchema = z.object({
   from: isoDateSchema,
   to: isoDateSchema,
 });
+
+export const syncBatchItemSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("order.create"),
+    clientId: z.string().uuid(),
+    payload: orderCreateSchema,
+  }),
+  z.object({
+    type: z.literal("order.status"),
+    orderId: z.string().min(1),
+    payload: orderStatusSchema,
+  }),
+  z.object({
+    type: z.literal("order.payment"),
+    orderId: z.string().min(1),
+    payload: orderPaymentInputSchema,
+  }),
+]);
+
+export const syncBatchSchema = z.object({
+  items: z.array(syncBatchItemSchema).max(50),
+});
