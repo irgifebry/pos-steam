@@ -13,6 +13,7 @@ import type {
   orderCreateSchema,
   orderPaymentInputSchema,
   orderStatusSchema,
+  orderUpdateSchema,
   outletInputSchema,
   outletUpdateSchema,
   payrollAdjustmentSchema,
@@ -43,6 +44,7 @@ export type UserInput = z.infer<typeof userInputSchema>;
 export type UserUpdate = z.infer<typeof userUpdateSchema>;
 export type UserCreate = z.infer<typeof userCreateSchema>;
 export type OrderCreate = z.infer<typeof orderCreateSchema>;
+export type OrderUpdate = z.infer<typeof orderUpdateSchema>;
 export type OrderStatusUpdate = z.infer<typeof orderStatusSchema>;
 export type OrderCancel = z.infer<typeof orderCancelSchema>;
 export type OrderPaymentInput = z.infer<typeof orderPaymentInputSchema>;

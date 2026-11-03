@@ -19,12 +19,14 @@ import {
   orderCreateSchema,
   orderPaymentInputSchema,
   orderStatusSchema,
+  orderUpdateSchema,
 } from "@/lib/schemas";
 import type {
   OrderCancel,
   OrderCreate,
   OrderPaymentInput,
   OrderStatusUpdate,
+  OrderUpdate,
   VehicleType,
 } from "@/lib/types";
 import type { SessionUser } from "@/lib/auth/session";
@@ -640,6 +642,175 @@ export async function createOrder(
   }
 
   throw new HttpError(500, "INTERNAL_ERROR", "Gagal membuat nomor antrean");
+}
+
+export async function updateOrder(
+  db: AppDatabase,
+  orderId: string,
+  outletId: string,
+  actor: SessionUser,
+  input: OrderUpdate,
+): Promise<OrderView> {
+  const data = orderUpdateSchema.parse(input);
+
+  const [order] = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.id, orderId), eq(orders.outletId, outletId)))
+    .limit(1);
+
+  if (!order) {
+    throw new HttpError(404, "NOT_FOUND", "Transaksi tidak ditemukan");
+  }
+
+  if (order.status !== "menunggu") {
+    throw new HttpError(
+      409,
+      "INVALID_STATUS",
+      "Perubahan pesanan hanya bisa dilakukan saat status menunggu",
+    );
+  }
+
+  await db.transaction(async (tx) => {
+    const [outlet] = await tx
+      .select()
+      .from(outlets)
+      .where(eq(outlets.id, outletId))
+      .limit(1);
+
+    const oldItems = await tx
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId));
+
+    const currentPackageItem = oldItems.find((item) => item.kind === "package");
+    const targetPackageId = data.packageId ?? currentPackageItem?.refId;
+
+    let pkg = null;
+    if (targetPackageId) {
+      const [foundPkg] = await tx
+        .select()
+        .from(servicePackages)
+        .where(
+          and(
+            eq(servicePackages.id, targetPackageId),
+            eq(servicePackages.outletId, outletId),
+            eq(servicePackages.active, true),
+          ),
+        )
+        .limit(1);
+      pkg = foundPkg;
+    }
+
+    if (!pkg) {
+      throw new HttpError(400, "VALIDATION_ERROR", "Paket tidak valid atau tidak ditemukan");
+    }
+
+    const currentAddonItems = oldItems.filter((item) => item.kind === "addon");
+    const targetAddons =
+      data.addons !== undefined
+        ? data.addons
+        : currentAddonItems.map((item) => ({
+            addonId: item.refId!,
+            qty: item.qty,
+          }));
+
+    const addonRows =
+      targetAddons.length === 0
+        ? []
+        : await tx
+            .select()
+            .from(addons)
+            .where(
+              and(
+                inArray(
+                  addons.id,
+                  targetAddons.map((item) => item.addonId),
+                ),
+                eq(addons.outletId, outletId),
+                eq(addons.active, true),
+              ),
+            );
+
+    const addonById = new Map(addonRows.map((row) => [row.id, row]));
+    for (const line of targetAddons) {
+      const addon = addonById.get(line.addonId);
+      if (!addon) {
+        throw new HttpError(400, "VALIDATION_ERROR", "Add-on tidak ditemukan");
+      }
+      if (!addon.vehicleTypes.includes(order.vehicleType as VehicleType)) {
+        throw new HttpError(
+          400,
+          "VALIDATION_ERROR",
+          "Add-on tidak tersedia untuk kendaraan ini",
+        );
+      }
+    }
+
+    const addonSubtotal = targetAddons.reduce((sum, line) => {
+      const addon = addonById.get(line.addonId);
+      return sum + (addon ? addon.price * line.qty : 0);
+    }, 0);
+
+    const subtotal = pkg.price + addonSubtotal;
+    const tax = Math.round((subtotal * Number(outlet?.taxPercent ?? 0)) / 100);
+    const grandTotal = subtotal + tax;
+
+    await tx.delete(orderItems).where(eq(orderItems.orderId, orderId));
+
+    await tx.insert(orderItems).values([
+      {
+        orderId,
+        kind: "package",
+        refId: pkg.id,
+        nameSnapshot: pkg.name,
+        priceSnapshot: pkg.price,
+        qty: 1,
+        subtotal: pkg.price,
+      },
+      ...targetAddons.map((line) => {
+        const addon = addonById.get(line.addonId)!;
+        return {
+          orderId,
+          kind: "addon",
+          refId: addon.id,
+          nameSnapshot: addon.name,
+          priceSnapshot: addon.price,
+          qty: line.qty,
+          subtotal: addon.price * line.qty,
+        };
+      }),
+    ]);
+
+    const updateFields: Partial<typeof orders.$inferInsert> = {
+      total: subtotal,
+      tax,
+      grandTotal,
+    };
+    if (data.customerName !== undefined) updateFields.customerName = data.customerName.trim();
+    if (data.customerPhone !== undefined) updateFields.customerPhone = data.customerPhone.trim();
+    if (data.plate !== undefined) updateFields.plate = normalizePlate(data.plate);
+
+    await tx.update(orders).set(updateFields).where(eq(orders.id, orderId));
+
+    await tx.insert(auditLogs).values({
+      outletId,
+      userId: actor.id,
+      action: "order.update",
+      entity: "order",
+      entityId: orderId,
+      before: {
+        total: order.total,
+        grandTotal: order.grandTotal,
+      },
+      after: {
+        total: subtotal,
+        grandTotal,
+      },
+    });
+  });
+
+  return getOrder(db, orderId, outletId);
 }
 
 export async function updateOrderStatus(

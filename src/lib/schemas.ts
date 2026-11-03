@@ -138,6 +138,14 @@ export const orderCreateSchema = z.object({
   payment: orderPaymentInputSchema.optional(),
 });
 
+export const orderUpdateSchema = z.object({
+  packageId: z.string().min(1).optional(),
+  addons: z.array(orderAddonSchema).optional(),
+  customerName: z.string().trim().max(80).optional(),
+  customerPhone: z.string().trim().max(30).optional(),
+  plate: z.string().trim().max(20).optional(),
+});
+
 export const orderStatusSchema = z.object({
   status: z.enum(["proses", "selesai"]),
 });

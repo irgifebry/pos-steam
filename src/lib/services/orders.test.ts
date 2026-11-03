@@ -10,7 +10,7 @@ import {
   orderItems,
   payments,
 } from "@/lib/db/schema";
-import { createOrder, updateOrderStatus, addOrderPayment, cancelOrder, getReceipt, listOrders } from "./orders";
+import { createOrder, updateOrderStatus, addOrderPayment, cancelOrder, getReceipt, listOrders, updateOrder } from "./orders";
 import { jakartaDate } from "./orders";
 import type { SessionUser } from "@/lib/auth/session";
 import type { OrderCreate } from "@/lib/types";
@@ -261,6 +261,39 @@ describe("order service", () => {
     });
     expect(list.length).toBeGreaterThan(0);
     expect(list.some((o) => o.paid)).toBe(true);
+  });
+
+  it("memperbarui item dan info pelanggan pada order status menunggu", async () => {
+    const created = await createOrder(db, outletId, actor, orderInput({ customerName: "Awal" }));
+    expect(created.status).toBe("menunggu");
+    expect(created.addons.length).toBe(0);
+
+    const updated = await updateOrder(db, created.id, outletId, actor, {
+      customerName: "Pelanggan Revisi",
+      addons: [{ addonId, qty: 2 }],
+    });
+
+    expect(updated.customerName).toBe("Pelanggan Revisi");
+    expect(updated.addons.length).toBe(1);
+    expect(updated.addons[0].qty).toBe(2);
+    // subtotal = 25000 (paket) + 10000 (2x5000 addon) = 35000
+    // tax 10% = 3500, grandTotal = 38500
+    expect(updated.total).toBe(35000);
+    expect(updated.tax).toBe(3500);
+    expect(updated.grandTotal).toBe(38500);
+  });
+
+  it("menolak updateOrder jika status bukan menunggu", async () => {
+    const created = await createOrder(db, outletId, actor, orderInput({}));
+    await updateOrderStatus(db, created.id, outletId, actor, { status: "proses" });
+
+    await expect(
+      updateOrder(db, created.id, outletId, actor, {
+        customerName: "Gagal Update",
+      }),
+    ).rejects.toMatchObject({
+      code: "INVALID_STATUS",
+    });
   });
 
   // type references keep imports used
