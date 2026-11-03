@@ -1,6 +1,6 @@
 import type { AppDatabase } from "@/lib/db/schema";
 import type { VehicleType } from "@/lib/types";
-import { listOrders } from "./orders";
+import { jakartaDate, listOrders } from "./orders";
 
 export type ReportTransaction = {
   id: string;
@@ -16,6 +16,60 @@ export type ReportTransaction = {
   customerName: string;
   plate: string;
 };
+
+export type TodayDashboardView = {
+  date: string;
+  totalRevenue: number;
+  totalTransactions: number;
+  averageTicket: number;
+  cashRevenue: number;
+  transferRevenue: number;
+  motorCount: number;
+  mobilCount: number;
+};
+
+export async function getTodayDashboard(
+  db: AppDatabase,
+  outletId: string,
+): Promise<TodayDashboardView> {
+  const today = jakartaDate();
+  const transactions = await listReportTransactions(db, outletId, today, today);
+
+  const totalTransactions = transactions.length;
+  let totalRevenue = 0;
+  let cashRevenue = 0;
+  let transferRevenue = 0;
+  let motorCount = 0;
+  let mobilCount = 0;
+
+  for (const t of transactions) {
+    totalRevenue += t.total;
+    if (t.paymentMethod === "Tunai") {
+      cashRevenue += t.total;
+    } else {
+      transferRevenue += t.total;
+    }
+    if (t.vehicleType === "mobil") {
+      mobilCount += 1;
+    } else {
+      motorCount += 1;
+    }
+  }
+
+  const averageTicket =
+    totalTransactions > 0 ? Math.round(totalRevenue / totalTransactions) : 0;
+
+  return {
+    date: today,
+    totalRevenue,
+    totalTransactions,
+    averageTicket,
+    cashRevenue,
+    transferRevenue,
+    motorCount,
+    mobilCount,
+  };
+}
 
 export async function listReportTransactions(
   db: AppDatabase,

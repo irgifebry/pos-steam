@@ -9,7 +9,7 @@ import {
   orders,
   payments,
 } from "@/lib/db/schema";
-import { listReportTransactions } from "./reports";
+import { listReportTransactions, getTodayDashboard } from "./reports";
 import { createOrder, updateOrderStatus, addOrderPayment } from "./orders";
 import type { SessionUser } from "@/lib/auth/session";
 
@@ -144,6 +144,18 @@ describe("reports service", () => {
 
     const kosong = await listReportTransactions(db, outletId, "2020-01-01", "2020-01-31");
     expect(kosong).toHaveLength(0);
+  });
+
+  it("menghitung metrik ringkasan dashboard hari ini secara akurat", async () => {
+    const summary = await getTodayDashboard(db, outletId);
+    expect(summary.date).toBe(today);
+    expect(summary.totalTransactions).toBeGreaterThanOrEqual(2);
+    expect(summary.totalRevenue).toBeGreaterThan(0);
+    expect(summary.cashRevenue).toBe(summary.totalRevenue); // semua bayar tunai di test ini
+    expect(summary.transferRevenue).toBe(0);
+    expect(summary.motorCount).toBe(summary.totalTransactions);
+    expect(summary.mobilCount).toBe(0);
+    expect(summary.averageTicket).toBe(Math.round(summary.totalRevenue / summary.totalTransactions));
   });
 
   it("referensi skema tersedia", () => {
