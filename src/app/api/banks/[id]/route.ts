@@ -17,7 +17,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
     const { id } = await params;
     const body = await request.json().catch(() => {
-      throw new HttpError(400, "INVALID_JSON", "Body permintaan tidak valid");
+      throw new HttpError(400, "INVALID_JSON", "Format JSON tidak valid");
     });
     const input = bankUpdateSchema.parse(body);
     const data = await updateBank(getDatabase(), id, input, user.outletId);
