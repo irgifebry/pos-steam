@@ -64,6 +64,25 @@ async function hydrate(
   }));
 }
 
+export async function getCurrentShiftCash(
+  db: AppDatabase,
+  outletId: string,
+  openedAt: Date,
+): Promise<number> {
+  const [cashRow] = await db
+    .select({ total: sql<number>`coalesce(sum(${payments.amount}), 0)` })
+    .from(payments)
+    .innerJoin(orders, eq(payments.orderId, orders.id))
+    .where(
+      and(
+        eq(orders.outletId, outletId),
+        eq(payments.method, "tunai"),
+        gte(payments.createdAt, openedAt),
+      ),
+    );
+  return Number(cashRow?.total ?? 0);
+}
+
 export async function getCashShiftState(
   db: AppDatabase,
   outletId: string,

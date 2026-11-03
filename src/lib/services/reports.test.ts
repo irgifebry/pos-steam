@@ -9,7 +9,7 @@ import {
   orders,
   payments,
 } from "@/lib/db/schema";
-import { listReportTransactions, getTodayDashboard } from "./reports";
+import { listReportTransactions, getTodayDashboard, getOmzetReport } from "./reports";
 import { createOrder, updateOrderStatus, addOrderPayment } from "./orders";
 import type { SessionUser } from "@/lib/auth/session";
 
@@ -156,6 +156,17 @@ describe("reports service", () => {
     expect(summary.motorCount).toBe(summary.totalTransactions);
     expect(summary.mobilCount).toBe(0);
     expect(summary.averageTicket).toBe(Math.round(summary.totalRevenue / summary.totalTransactions));
+  });
+
+  it("mengelompokkan omzet berdasarkan hari atau bulan", async () => {
+    const daily = await getOmzetReport(db, outletId, today, today, "day");
+    expect(daily.items.length).toBe(1);
+    expect(daily.items[0].period).toBe(today);
+    expect(daily.totalRevenue).toBeGreaterThan(0);
+
+    const monthly = await getOmzetReport(db, outletId, today, today, "month");
+    expect(monthly.items.length).toBe(1);
+    expect(monthly.items[0].period).toBe(today.slice(0, 7));
   });
 
   it("referensi skema tersedia", () => {

@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/auth/session";
 import { getDatabase } from "@/lib/db/provider";
 import { HttpError, jsonError } from "@/lib/http";
 import { jakartaDate } from "@/lib/services/orders";
-import { getCashShiftState } from "@/lib/services/cash-shifts";
+import { getCashShiftState, getCurrentShiftCash } from "@/lib/services/cash-shifts";
 import { listReportTransactions } from "@/lib/services/reports";
 import { initializeServer } from "@/lib/server-init";
 
@@ -20,10 +20,11 @@ export async function GET(request: Request) {
       throw new HttpError(400, "VALIDATION_ERROR", "Format tanggal tidak valid");
     }
 
-    const state = await getCashShiftState(getDatabase(), user.outletId);
+    const db = getDatabase();
+    const state = await getCashShiftState(db, user.outletId);
 
     const transactions = await listReportTransactions(
-      getDatabase(),
+      db,
       user.outletId,
       date,
       date,
@@ -33,7 +34,20 @@ export async function GET(request: Request) {
       .reduce((sum, t) => sum + t.total, 0);
 
     const open = state.open;
-    const expectedCash = open?.expectedCash ?? 0;
+    let expectedCash = 0;
+    let selisih: number | null = null;
+
+    if (open) {
+      const cashIn = await getCurrentShiftCash(db, user.outletId, open.openedAt);
+      expectedCash = open.openingCash + cashIn;
+      selisih = 0; // shift masih berjalan
+    } else {
+      const closedShiftForDate = state.history.find((s) => s.date === date && s.closedAt !== null);
+      if (closedShiftForDate) {
+        expectedCash = closedShiftForDate.expectedCash ?? 0;
+        selisih = closedShiftForDate.difference ?? 0;
+      }
+    }
 
     return Response.json({
       data: {
@@ -42,7 +56,7 @@ export async function GET(request: Request) {
         history: state.history,
         expectedCash,
         totalTunai,
-        selisih: totalTunai - expectedCash,
+        selisih,
       },
     });
   } catch (error) {

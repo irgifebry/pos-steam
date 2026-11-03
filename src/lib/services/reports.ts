@@ -28,48 +28,19 @@ export type TodayDashboardView = {
   mobilCount: number;
 };
 
-export async function getTodayDashboard(
-  db: AppDatabase,
-  outletId: string,
-): Promise<TodayDashboardView> {
-  const today = jakartaDate();
-  const transactions = await listReportTransactions(db, outletId, today, today);
+export type OmzetReportItem = {
+  period: string;
+  revenue: number;
+  count: number;
+  cash: number;
+  transfer: number;
+};
 
-  const totalTransactions = transactions.length;
-  let totalRevenue = 0;
-  let cashRevenue = 0;
-  let transferRevenue = 0;
-  let motorCount = 0;
-  let mobilCount = 0;
-
-  for (const t of transactions) {
-    totalRevenue += t.total;
-    if (t.paymentMethod === "Tunai") {
-      cashRevenue += t.total;
-    } else {
-      transferRevenue += t.total;
-    }
-    if (t.vehicleType === "mobil") {
-      mobilCount += 1;
-    } else {
-      motorCount += 1;
-    }
-  }
-
-  const averageTicket =
-    totalTransactions > 0 ? Math.round(totalRevenue / totalTransactions) : 0;
-
-  return {
-    date: today,
-    totalRevenue,
-    totalTransactions,
-    averageTicket,
-    cashRevenue,
-    transferRevenue,
-    motorCount,
-    mobilCount,
-  };
-}
+export type OmzetReport = {
+  totalRevenue: number;
+  totalTransactions: number;
+  items: OmzetReportItem[];
+};
 
 export async function listReportTransactions(
   db: AppDatabase,
@@ -114,4 +85,102 @@ export async function listReportTransactions(
     })
     .filter((r) => (opts.paymentMethod ? r.paymentMethod === opts.paymentMethod : true))
     .sort((a, b) => b.date.localeCompare(a.date) || b.invoiceNo.localeCompare(a.invoiceNo));
+}
+
+export async function getTodayDashboard(
+  db: AppDatabase,
+  outletId: string,
+): Promise<TodayDashboardView> {
+  const today = jakartaDate();
+  const transactions = await listReportTransactions(db, outletId, today, today);
+
+  const totalTransactions = transactions.length;
+  let totalRevenue = 0;
+  let cashRevenue = 0;
+  let transferRevenue = 0;
+  let motorCount = 0;
+  let mobilCount = 0;
+
+  for (const t of transactions) {
+    totalRevenue += t.total;
+    if (t.paymentMethod === "Tunai") {
+      cashRevenue += t.total;
+    } else {
+      transferRevenue += t.total;
+    }
+    if (t.vehicleType === "mobil") {
+      mobilCount += 1;
+    } else {
+      motorCount += 1;
+    }
+  }
+
+  const averageTicket =
+    totalTransactions > 0 ? Math.round(totalRevenue / totalTransactions) : 0;
+
+  return {
+    date: today,
+    totalRevenue,
+    totalTransactions,
+    averageTicket,
+    cashRevenue,
+    transferRevenue,
+    motorCount,
+    mobilCount,
+  };
+}
+
+export async function getOmzetReport(
+  db: AppDatabase,
+  outletId: string,
+  from: string,
+  to: string,
+  groupBy: "day" | "week" | "month" = "day",
+): Promise<OmzetReport> {
+  const transactions = await listReportTransactions(db, outletId, from, to);
+
+  const groups = new Map<string, OmzetReportItem>();
+
+  for (const t of transactions) {
+    let key = t.date;
+    if (groupBy === "month") {
+      key = t.date.slice(0, 7);
+    } else if (groupBy === "week") {
+      // Minggu dimulai dari hari Senin
+      const d = new Date(t.date);
+      const day = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() - day + 1);
+      key = d.toISOString().slice(0, 10);
+    }
+
+    const current = groups.get(key) ?? {
+      period: key,
+      revenue: 0,
+      count: 0,
+      cash: 0,
+      transfer: 0,
+    };
+
+    current.revenue += t.total;
+    current.count += 1;
+    if (t.paymentMethod === "Tunai") {
+      current.cash += t.total;
+    } else {
+      current.transfer += t.total;
+    }
+    groups.set(key, current);
+  }
+
+  const items = Array.from(groups.values()).sort((a, b) =>
+    a.period.localeCompare(b.period),
+  );
+
+  const totalRevenue = items.reduce((sum, item) => sum + item.revenue, 0);
+  const totalTransactions = items.reduce((sum, item) => sum + item.count, 0);
+
+  return {
+    totalRevenue,
+    totalTransactions,
+    items,
+  };
 }
