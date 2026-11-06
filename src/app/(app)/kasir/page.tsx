@@ -22,7 +22,8 @@ import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Spinner } from "@/components/ui/Spinner";
-import { apiFetch } from "@/lib/api-client";
+import { ApiError, apiFetch } from "@/lib/api-client";
+import { orderCreateSchema } from "@/lib/schemas";
 import { rupiah } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import type { Addon } from "@/lib/services/addons";
@@ -75,6 +76,22 @@ type SuccessInfo = {
   total: number;
 };
 
+function randomUUIDv4(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 16; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"));
+  return `${hex[0]}${hex[1]}${hex[2]}${hex[3]}-${hex[4]}${hex[5]}-${hex[6]}${hex[7]}-${hex[8]}${hex[9]}-${hex[10]}${hex[11]}${hex[12]}${hex[13]}${hex[14]}${hex[15]}`;
+}
+
 export default function KasirPage() {
   const [vehicleType, setVehicleType] = useState<VehicleType>("motor");
 
@@ -83,8 +100,12 @@ export default function KasirPage() {
   const [addons, setAddons] = useState<Addon[]>([]);
   const [addonsLoading, setAddonsLoading] = useState(false);
   const [banks, setBanks] = useState<Bank[]>([]);
+  const [banksLoading, setBanksLoading] = useState(true);
   const [catalogError, setCatalogError] = useState("");
   const [taxPercent, setTaxPercent] = useState<number>(0);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [settingsError, setSettingsError] = useState("");
+  const [settingsLoading, setSettingsLoading] = useState(true);
 
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [addonQty, setAddonQty] = useState<Record<string, number>>({});
@@ -103,6 +124,7 @@ export default function KasirPage() {
   const [ordersLoading, setOrdersLoading] = useState(true);
 
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [success, setSuccess] = useState<SuccessInfo | null>(null);
   const { toast, showToast, dismiss } = useToast();
   const [online, setOnline] = useState<boolean>(() =>
@@ -134,7 +156,7 @@ export default function KasirPage() {
         minute: "2-digit",
       });
       setRecent(
-        (res.data ?? []).map((order) => ({
+        (res?.data ?? []).map((order) => ({
           id: order.id,
           invoiceNo: order.invoiceNo,
           queueNumber: order.queueNo,
@@ -223,21 +245,35 @@ export default function KasirPage() {
   useEffect(() => {
     const controller = new AbortController();
     (async () => {
+      setBanksLoading(true);
+      setSettingsLoading(true);
       try {
         const res = await apiFetch<{ data: Bank[] }>("/api/banks", { signal: controller.signal });
+        if (controller.signal.aborted) return;
         setBanks(res?.data ?? []);
-      } catch {
-        if (!controller.signal.aborted) setBanks([]);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setBanks([]);
+        showToast(error instanceof Error ? error.message : "Gagal memuat bank");
+      } finally {
+        if (!controller.signal.aborted) setBanksLoading(false);
       }
       try {
         const res = await apiFetch<{ data: { outlet: { taxPercent: number } } }>("/api/settings", { signal: controller.signal });
+        if (controller.signal.aborted) return;
         if (res?.data?.outlet) setTaxPercent(Number(res.data.outlet.taxPercent) || 0);
-      } catch {
-        /* keep default 0 */
+        setSettingsLoaded(true);
+        setSettingsError("");
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setSettingsLoaded(false);
+        setSettingsError(error instanceof Error ? error.message : "Gagal memuat pengaturan pajak.");
+      } finally {
+        if (!controller.signal.aborted) setSettingsLoading(false);
       }
     })();
     return () => controller.abort();
-  }, []);
+  }, [showToast]);
 
   // Reset selection when vehicle type changes
   useEffect(() => {
@@ -301,17 +337,27 @@ export default function KasirPage() {
   }
 
   async function handleSubmit() {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    try {
     if (!online) {
       showToast("Transaksi memerlukan koneksi internet");
+      return;
+    }
+    if (!settingsLoaded) {
+      showToast(settingsError || "Pengaturan pajak belum dimuat. Coba lagi.");
       return;
     }
     if (!selectedPackage) {
       showToast("Pilih paket dulu ya");
       return;
     }
-    if (paymentMethod === "tunai" && cashNum < total) {
-      showToast("Uang diterima kurang");
-      return;
+    if (paymentMethod === "tunai") {
+      const cash = Number(cashReceived.replace(/\D/g, "")) || 0;
+      if (!Number.isFinite(cash) || cash < total) {
+        showToast("Uang diterima kurang");
+        return;
+      }
     }
     if (paymentMethod === "transfer" && !selectedBankId) {
       showToast("Pilih bank dulu ya");
@@ -329,7 +375,7 @@ export default function KasirPage() {
     setSubmitting(true);
 
     if (!clientIdRef.current) {
-      clientIdRef.current = crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+      clientIdRef.current = randomUUIDv4();
     }
     const body = {
       clientId: clientIdRef.current,
@@ -347,17 +393,42 @@ export default function KasirPage() {
       },
     };
 
+    // Client-side Zod validation before submit.
+    const parsed = orderCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      const first = parsed.error.issues[0]?.message ?? "Data transaksi tidak valid.";
+      showToast(first, "error");
+      setSubmitting(false);
+      return;
+    }
+
     // Keep form intact unless backend confirms order creation.
     let created: ApiOrder;
     try {
       const res = await apiFetch<{ data: ApiOrder }>("/api/orders", {
         method: "POST",
-        body: JSON.stringify(body),
+        body: JSON.stringify(parsed.data),
       });
       created = res.data;
       if (!created?.queueNo) throw new Error("Respon server tidak valid.");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Gagal menyimpan transaksi. Coba lagi.");
+      if (error instanceof ApiError && error.status === 409) {
+        await loadOrders();
+        setSelectedPackageId(null);
+        setAddonQty({});
+        setCustName("");
+        setCustPhone("");
+        setCustPlate("");
+        setCashReceived("");
+        setRefNumber("");
+        setSelectedBankId(banks[0]?.id ?? "");
+        setPaymentMethod("tunai");
+        clientIdRef.current = null;
+        showToast("Transaksi sudah tersimpan sebelumnya.", "info");
+        setSubmitting(false);
+        return;
+      }
+      showToast(error instanceof Error ? error.message : "Gagal menyimpan transaksi. Coba lagi.", "error");
       setSubmitting(false);
       return;
     }
@@ -383,6 +454,10 @@ export default function KasirPage() {
 
     clientIdRef.current = null;
     setSubmitting(false);
+    } finally {
+      setSubmitting(false);
+      submittingRef.current = false;
+    }
   }
 
   // default selected bank
@@ -515,7 +590,12 @@ export default function KasirPage() {
             );
           })}
           {!packagesLoading && packages.length === 0 && (
-            <p className="text-sm text-muted text-center py-4">Paket belum tersedia. Transaksi tidak dapat dilanjutkan sampai katalog berhasil dimuat.</p>
+            <div className="flex flex-col items-center gap-2 py-4">
+              <p className="text-sm text-muted text-center">Paket belum tersedia. Transaksi tidak dapat dilanjutkan sampai katalog berhasil dimuat.</p>
+              <Button variant="secondary" size="sm" onClick={() => void loadCatalog(vehicleType)}>
+                Coba lagi
+              </Button>
+            </div>
           )}
         </div>
       </section>
@@ -660,6 +740,15 @@ export default function KasirPage() {
               <span className="font-semibold text-ink">{rupiah(taxAmount)}</span>
             </div>
           )}
+          {settingsLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted">
+              <Spinner className="text-brand" />
+              Memuat pengaturan pajak...
+            </div>
+          )}
+          {settingsError && (
+            <p role="alert" className="text-sm text-danger">{settingsError}</p>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-base font-bold text-ink">Total</span>
             <span className="text-xl font-extrabold text-brand">{rupiah(total)}</span>
@@ -727,11 +816,13 @@ export default function KasirPage() {
           </Card>
         ) : (
           <Card className="flex flex-col gap-3">
+            {banksLoading && <Spinner className="text-brand self-start" />}
             <Field label="Pilih bank">
               <select
                 id="bank-select"
                 value={selectedBankId}
                 onChange={(e) => setSelectedBankId(e.target.value)}
+                aria-invalid={!selectedBankId}
                 className="w-full h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface text-base text-ink focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none"
                 aria-label="Pilih bank"
               >
@@ -750,6 +841,7 @@ export default function KasirPage() {
                 onChange={(e) => setRefNumber(e.target.value)}
                 placeholder="Nomor referensi transfer"
                 className="h-12 text-base"
+                aria-invalid={refNumber.trim() === ""}
                 aria-label="No. referensi"
               />
             </Field>
@@ -796,7 +888,7 @@ export default function KasirPage() {
             size="lg"
             fullWidth
             onClick={handleSubmit}
-            disabled={submitting || !selectedPackage || !online}
+            disabled={submitting || !selectedPackage || !online || !settingsLoaded}
           >
             {submitting ? (
               <>
@@ -831,7 +923,7 @@ export default function KasirPage() {
             <p className="text-sm text-muted">Nomor antrean</p>
             <p className="text-4xl font-extrabold text-brand">{success.queueNumber}</p>
             <p className="text-sm text-muted">
-              {(success.customer?.trim() ? success.customer : "—")} • {rupiah(success.total)}
+              {(success.customer?.trim() || "Pelanggan")} • {rupiah(success.total)}
             </p>
             <Button fullWidth size="lg" onClick={() => setSuccess(null)}>
               Selesai
@@ -847,10 +939,10 @@ export default function KasirPage() {
             <p className="text-center text-sm text-muted">{receipt.invoiceNo}</p>
             <div className="border-y border-line py-3 text-sm">
               <p>{receipt.queueNumber} • {receipt.time}</p>
-              <p>{receipt.customer} • {receipt.vehicleType === "motor" ? "Motor" : "Mobil"}</p>
+              <p>{receipt.customer?.trim() || "Pelanggan"} • {receipt.vehicleType === "motor" ? "Motor" : "Mobil"}</p>
               {receipt.plate && <p>Plat: {receipt.plate}</p>}
               {receipt.packageName ? <p>{receipt.packageName}</p> : <p>Rincian paket tidak tersedia.</p>}
-              {receipt.addons?.map((addon) => <p key={addon.name}>{addon.name} x{addon.qty} • {rupiah(addon.price * addon.qty)}</p>)}
+              {receipt.addons?.map((addon, idx) => <p key={idx}>{addon.name} x{addon.qty} • {rupiah(addon.price * addon.qty)}</p>)}
               <p className="mt-2 font-bold">Total: {rupiah(receipt.total)}</p>
               <p>Pembayaran: {receipt.paymentMethod === "tunai" ? "Tunai" : "Transfer"}</p>
               <p>Status: {receipt.paid ? "Lunas" : "Belum dibayar"}</p>
