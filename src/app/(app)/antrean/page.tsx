@@ -104,6 +104,7 @@ export default function AntreanPage() {
   const { toast, showToast, dismiss } = useToast();
   const refreshing = useRef(false);
   const hasLoadedRef = useRef(false);
+  const payOrderIdRef = useRef<string | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     if (refreshing.current) return;
@@ -261,8 +262,23 @@ export default function AntreanPage() {
     };
   }, [payOrder, payLoading]);
 
+  // Sinkronkan snapshot payOrder dengan data polled terbaru tanpa reset form.
   useEffect(() => {
     if (!payOrder) return;
+    const latest = orders.find((o) => o.id === payOrder.id);
+    if (!latest) setPayOrder(null);
+    else if (latest !== payOrder) setPayOrder(latest);
+  }, [orders, payOrder]);
+
+  useEffect(() => {
+    if (!payOrder) {
+      payOrderIdRef.current = null;
+      return;
+    }
+    // Reset form hanya saat order yang dibayar berubah (id baru), bukan saat
+    // polling memperbarui snapshot order yang sama.
+    if (payOrderIdRef.current === payOrder.id) return;
+    payOrderIdRef.current = payOrder.id;
     setPayMethod("tunai");
     setCashReceived("");
     setRefNo("");
