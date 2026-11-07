@@ -10,14 +10,14 @@ type RouteContext = { params: Promise<{ id: string }> };
 export async function PATCH(request: Request, { params }: RouteContext) {
   try {
     await initializeServer();
-    await requireUser();
+    const user = await requireUser();
     const { id } = await params;
 
     const body = await request.json().catch(() => {
       throw new HttpError(400, "INVALID_JSON", "Body permintaan tidak valid");
     });
     const input = addonUpdateSchema.parse(body);
-    const data = await updateAddon(getDatabase(), id, input);
+    const data = await updateAddon(getDatabase(), id, user.outletId ?? undefined, input);
 
     return Response.json({ data });
   } catch (error) {
@@ -28,10 +28,10 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 export async function DELETE(_request: Request, { params }: RouteContext) {
   try {
     await initializeServer();
-    await requireUser();
+    const user = await requireUser();
     const { id } = await params;
 
-    await deactivateAddon(getDatabase(), id);
+    await deactivateAddon(getDatabase(), id, user.outletId ?? undefined);
 
     return Response.json({ data: { id } });
   } catch (error) {

@@ -73,13 +73,13 @@ export async function createAddon(
 export async function updateAddon(
   db: AppDatabase,
   id: string,
-  inputOrOutlet: AddonUpdate | string,
+  inputOrOutlet: AddonUpdate | string | undefined,
   inputMaybe?: AddonUpdate,
 ): Promise<Addon> {
   let outletId: string | undefined;
   let input: AddonUpdate;
   if (inputMaybe !== undefined) {
-    outletId = inputOrOutlet as string;
+    outletId = inputOrOutlet as string | undefined;
     input = inputMaybe;
   } else {
     input = inputOrOutlet as AddonUpdate;

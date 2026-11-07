@@ -75,14 +75,14 @@ export async function createServicePackage(
 export async function updateServicePackage(
   db: AppDatabase,
   id: string,
-  inputOrOutlet: ServicePackageUpdate | string,
+  inputOrOutlet: ServicePackageUpdate | string | undefined,
   inputMaybe?: ServicePackageUpdate,
 ): Promise<ServicePackage> {
   // Backward-compatible: (db, id, input) or (db, id, outletId, input)
   let outletId: string | undefined;
   let input: ServicePackageUpdate;
   if (inputMaybe !== undefined) {
-    outletId = inputOrOutlet as string;
+    outletId = inputOrOutlet as string | undefined;
     input = inputMaybe;
   } else {
     input = inputOrOutlet as ServicePackageUpdate;
@@ -120,8 +120,15 @@ export async function updateServicePackage(
     const [row] = await db
       .update(servicePackages)
       .set(values)
-      .where(eq(servicePackages.id, id))
+      .where(
+        outletId
+          ? and(eq(servicePackages.id, id), eq(servicePackages.outletId, outletId))
+          : eq(servicePackages.id, id),
+      )
       .returning();
+    if (!row) {
+      throw new HttpError(404, "NOT_FOUND", "Paket tidak ditemukan");
+    }
     return toDomain(row);
   } catch (error) {
     if (isUniqueViolation(error)) {
