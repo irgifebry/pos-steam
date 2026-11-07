@@ -43,9 +43,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-bg md:grid md:grid-cols-[260px_minmax(0,1fr)]">
-      <aside className="hidden md:flex md:flex-col md:gap-6 md:bg-ink md:text-white md:px-5 md:py-6 md:rounded-r-[var(--radius-xl)]">
+      <aside className="hidden md:flex md:flex-col md:gap-6 md:bg-ink md:text-white md:px-5 md:py-6 md:rounded-r-[var(--radius-lg)]">
         <div className="flex items-center gap-3 px-1">
-          <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={1774} height={887} className="h-8 w-auto max-w-[140px] shrink-0" />
+          <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={120} height={60} className="h-8 w-auto max-w-[140px] shrink-0" />
         </div>
         <nav aria-label="Menu utama" className="flex flex-col gap-1">
           {[
@@ -73,7 +73,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="mt-auto px-1">
           <p className="font-display text-sm font-bold text-white">{user.name}</p>
-          <p className="text-xs text-white/60 capitalize">admin</p>
+          <p className="text-xs text-white/60 capitalize">{user.role}</p>
         </div>
       </aside>
       <div className="min-h-screen">
@@ -88,9 +88,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <ArrowLeft className="h-6 w-6" />
               </Link>
             )}
-            <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={1774} height={887} className="h-7 w-auto max-w-[120px] shrink-0" />
+            <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={120} height={60} className="h-7 w-auto max-w-[120px] shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="font-display text-lg font-bold text-ink leading-none tracking-tight">Cuci Steam</p>
+              <p className="font-display text-lg font-bold text-ink leading-none tracking-tight">Kyane</p>
               <p className="text-sm text-muted truncate mt-1">{user.name} · {user.role}</p>
             </div>
             <button

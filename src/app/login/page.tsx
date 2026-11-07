@@ -27,8 +27,8 @@ export default function LoginPage() {
       setError("Format email tidak valid");
       return;
     }
-    if (!/^\d{6,}$/.test(pin)) {
-      setError("PIN minimal 6 angka");
+    if (!/^\d{6,12}$/.test(pin)) {
+      setError("PIN harus 6-12 angka");
       return;
     }
     if (pin.length > 12) {
@@ -40,7 +40,6 @@ export default function LoginPage() {
       const result = await authClient.signIn.email({
         email: email.trim(),
         password: pin,
-        callbackURL: "/kasir",
       });
       if (result?.error) {
         setError(result.error.message || "Email atau PIN salah");
@@ -64,9 +63,9 @@ export default function LoginPage() {
         <div className="flex flex-col gap-3">
           <Image src="/kyane-logo.png" alt="KYANE Protect & Shine" width={1774} height={887} className="h-8 w-auto max-w-[160px] shrink-0" />
           <h1 className="font-display text-4xl font-extrabold text-ink tracking-tight leading-none">
-            Masuk ke shift kamu
+            Masuk ke panel admin
           </h1>
-          <p className="text-muted text-base">POS Cuci Steam — kasir, antrean, laporan, semua dalam satu.</p>
+          <p className="text-muted text-base">KYANE Protect &amp; Shine — POS outlet cuci steam motor &amp; mobil.</p>
         </div>
         <Card className="flex flex-col gap-4">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
