@@ -105,6 +105,9 @@ export default function AntreanPage() {
   const refreshing = useRef(false);
   const hasLoadedRef = useRef(false);
   const payOrderIdRef = useRef<string | null>(null);
+  const busyIdsRef = useRef<Set<string>>(new Set());
+  const payInFlightRef = useRef(false);
+  const cancelInFlightRef = useRef(false);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     if (refreshing.current) return;
@@ -167,12 +170,14 @@ export default function AntreanPage() {
   }, [summary, orders]);
 
   async function updateStatus(id: string, next: "proses" | "selesai") {
-    if (!navigator.onLine) {
-      showToast("Perubahan status memerlukan koneksi internet");
-      return;
-    }
+    if (busyIdsRef.current.has(id)) return;
+    busyIdsRef.current.add(id);
     setBusyId(id);
     try {
+      if (!navigator.onLine) {
+        showToast("Perubahan status memerlukan koneksi internet");
+        return;
+      }
       await apiFetch(`/api/orders/${id}/status`, {
         method: "PATCH",
         body: JSON.stringify({ status: next }),
@@ -182,35 +187,65 @@ export default function AntreanPage() {
       setError(err instanceof Error ? err.message : "Gagal memperbarui status");
       showToast(err instanceof Error ? err.message : "Gagal memperbarui status");
     } finally {
+      busyIdsRef.current.delete(id);
+      setBusyId(null);
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async function cancelOrderAction(id: string, reason: string) {
+    if (cancelInFlightRef.current) return;
+    cancelInFlightRef.current = true;
+    busyIdsRef.current.add(id);
+    setBusyId(id);
+    try {
+      if (!navigator.onLine) {
+        showToast("Pembatalan memerlukan koneksi internet");
+        return;
+      }
+      await apiFetch(`/api/orders/${id}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      showToast("Transaksi dibatalkan");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal membatalkan transaksi");
+      showToast(err instanceof Error ? err.message : "Gagal membatalkan transaksi");
+    } finally {
+      cancelInFlightRef.current = false;
+      busyIdsRef.current.delete(id);
       setBusyId(null);
     }
   }
 
   async function handlePay() {
-    if (!payOrder) return;
-    if (!navigator.onLine) {
-      showToast("Pembayaran memerlukan koneksi internet");
-      return;
-    }
-    if (payMethod === "transfer") {
-      if (!selectedBankId) {
-        showToast("Pilih bank dulu ya");
-        return;
-      }
-      if (!refNo.trim()) {
-        showToast("Nomor referensi transfer wajib diisi");
-        return;
-      }
-    }
-    if (payMethod === "tunai") {
-      const cashNum = Number((cashReceived || "").replace(/\D/g, "")) || 0;
-      if (cashNum < payOrder.grandTotal) {
-        showToast("Uang diterima kurang");
-        return;
-      }
-    }
-    setPayLoading(true);
+    if (payInFlightRef.current) return;
+    payInFlightRef.current = true;
     try {
+      if (!payOrder) return;
+      if (!navigator.onLine) {
+        showToast("Pembayaran memerlukan koneksi internet");
+        return;
+      }
+      if (payMethod === "transfer") {
+        if (!selectedBankId) {
+          showToast("Pilih bank dulu ya");
+          return;
+        }
+        if (!refNo.trim()) {
+          showToast("Nomor referensi transfer wajib diisi");
+          return;
+        }
+      }
+      if (payMethod === "tunai") {
+        const cashNum = Number((cashReceived || "").replace(/\D/g, "")) || 0;
+        if (cashNum < payOrder.grandTotal) {
+          showToast("Uang diterima kurang");
+          return;
+        }
+      }
+      setPayLoading(true);
       const body: {
         method: "tunai" | "transfer";
         cashReceived?: number;
@@ -242,6 +277,7 @@ export default function AntreanPage() {
       setError(err instanceof Error ? err.message : "Gagal mencatat pembayaran");
       showToast(err instanceof Error ? err.message : "Gagal mencatat pembayaran");
     } finally {
+      payInFlightRef.current = false;
       setPayLoading(false);
     }
   }
