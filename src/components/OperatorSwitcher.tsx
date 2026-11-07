@@ -14,15 +14,46 @@ type SwitchUser = { id: string; name: string; role: Role; email?: string };
 
 export function OperatorSwitcher({ onClose }: { onClose: () => void }) {
   const { role: currentRole } = useAppSession();
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
-    dialogRef.current?.focus();
+    panelRef.current?.focus();
     return () => {
       prev?.focus?.();
     };
   }, []);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      const focusables = panel.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   const [users, setUsers] = useState<SwitchUser[]>([]);
   const [selected, setSelected] = useState<string>("");
@@ -85,16 +116,22 @@ export function OperatorSwitcher({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="operator-switcher-title"
-      tabIndex={-1}
-      ref={dialogRef}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md bg-surface rounded-[var(--radius-lg)] p-5 shadow-[var(--shadow-float)]">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="operator-switcher-title"
+        aria-label="Ganti operator"
+        tabIndex={-1}
+        className="w-full max-w-md bg-surface rounded-[var(--radius-lg)] p-5 shadow-[var(--shadow-float)]"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+      >
         <div className="flex items-center justify-between mb-4">
           <h2 id="operator-switcher-title" className="text-xl font-bold">Ganti Operator</h2>
           <button
@@ -130,7 +167,8 @@ export function OperatorSwitcher({ onClose }: { onClose: () => void }) {
             type="password"
             placeholder="PIN"
             value={pin}
-            onChange={(e) => setPin(e.target.value)}
+            onChange={(e) => setPin(e.target.value.replace(/\\D/g, ""))}
+            maxLength={12}
           />
           {error && <p role="alert" className="text-sm text-danger">{error}</p>}
           <Button type="submit" fullWidth disabled={loading || !canSwitch}>

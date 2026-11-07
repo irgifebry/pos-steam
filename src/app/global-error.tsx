@@ -15,7 +15,7 @@ export default function GlobalError({
         <div className="w-full max-w-sm rounded-[var(--radius-md)] border border-line bg-surface p-6 text-center shadow-[var(--shadow-card)]">
           <h1 className="font-display text-2xl font-bold text-ink">Terjadi kesalahan</h1>
           <p role="alert" className="mt-2 text-sm text-muted">
-            {error?.message || "Maaf, terjadi kesalahan tak terduga."}
+            {process.env.NODE_ENV === "production" ? "Terjadi kesalahan" : error.message}
           </p>
           <div className="mt-6 flex flex-col gap-2 sm:flex-row">
             <button

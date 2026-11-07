@@ -427,6 +427,12 @@ Body POST `/api/payroll`:
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
 | GET | `/api/reports/transactions?from=...&to=...` | authenticated | Transaksi yang **sudah dibayar** dalam rentang, detail add-on |
+| GET | `/api/reports/paket?from=...&to=...` | authenticated | Agregasi per paket (jumlah & total) |
+| GET | `/api/reports/addon?from=...&to=...` | authenticated | Agregasi per add-on (qty, jumlah, total) |
+| GET | `/api/reports/payment-method?from=...&to=...` | authenticated | Agregasi per metode pembayaran (jumlah & total) |
+| GET | `/api/reports/employee?from=...&to=...` | authenticated | Agregasi per karyawan (jumlah & total) |
+| GET | `/api/reports/cash?date=YYYY-MM-DD` | authenticated | Rekap kas harian + shift terbuka/riwayat + total tunai |
+| GET | `/api/reports/export.csv?from=...&to=...&type=...` | authenticated | Ekspor CSV (`transactions`, `paket`, `addon`, `payment-method`, `employee`) |
 
 #### Pengguna (query baru)
 

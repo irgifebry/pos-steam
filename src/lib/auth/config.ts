@@ -18,7 +18,21 @@ export function createAuth(
     }),
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
-    trustedOrigins: [env.WEB_ORIGIN],
+    trustedOrigins: Array.from(
+    new Set(
+      [env.WEB_ORIGIN, env.BETTER_AUTH_URL]
+        .flatMap((v) => v.split(","))
+        .map((v) => v.trim())
+        .filter(Boolean)
+        .map((v) => {
+          try {
+            return new URL(v).origin;
+          } catch {
+            return v;
+          }
+        }),
+    ),
+  ),
     emailAndPassword: {
       enabled: true,
       minPasswordLength: 6,

@@ -99,10 +99,10 @@ export default function KaryawanPage() {
   const loadUsers = useCallback(async () => {
     try {
       const res = await apiFetch<{ data: UserView[] }>("/api/users?light=1");
-      setUsers(res.data ?? []);
+      setUsers(res?.data ?? []);
     } catch (e) {
       setUsers([]);
-      showToast(e instanceof Error ? e.message : "Gagal memuat daftar karyawan");
+      showToast(e instanceof Error ? e.message : "Gagal memuat daftar karyawan", "error");
     }
   }, [showToast]);
 
@@ -141,6 +141,22 @@ export default function KaryawanPage() {
     void loadAttendance(attDate);
   }, [attDate, loadAttendance]);
 
+  // Initialize default "hadir" record for every user on load.
+  useEffect(() => {
+    if (attLoading) return;
+    setAttendance((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const u of users) {
+        if (!next[u.id]) {
+          next[u.id] = { status: "hadir", checkIn: null, checkOut: null };
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [users, attLoading]);
+
   function setRecStatus(empId: string, status: AttendanceStatus) {
     setAttendance((prev) => ({
       ...prev,
@@ -151,7 +167,7 @@ export default function KaryawanPage() {
   function setRecTime(empId: string, field: "checkIn" | "checkOut", value: string) {
     setAttendance((prev) => ({
       ...prev,
-      [empId]: { ...(prev[empId] ?? { status: "hadir" }), [field]: value },
+      [empId]: { ...(prev[empId] ?? { status: "hadir" }), [field]: value || null },
     }));
   }
 
@@ -164,8 +180,18 @@ export default function KaryawanPage() {
         string,
         { status: AttendanceStatus; checkIn?: string; checkOut?: string }
       > = {};
+      // Build default record for every user, then overlay existing state.
+      for (const u of users) {
+        const rec = attendance[u.id] ?? { status: "hadir" as AttendanceStatus };
+        sanitizedRecords[u.id] = {
+          status: rec.status,
+          checkIn: rec.checkIn?.trim() ? rec.checkIn.trim() : undefined,
+          checkOut: rec.checkOut?.trim() ? rec.checkOut.trim() : undefined,
+        };
+      }
       for (const [userId, rec] of Object.entries(attendance)) {
         if (!activeIds.has(userId)) continue;
+        if (sanitizedRecords[userId]) continue;
         sanitizedRecords[userId] = {
           status: rec.status,
           checkIn: rec.checkIn?.trim() ? rec.checkIn.trim() : undefined,
@@ -177,7 +203,7 @@ export default function KaryawanPage() {
         body: JSON.stringify({ date: attDate, records: sanitizedRecords }),
       });
       await loadAttendance(attDate);
-      showToast("Absensi tersimpan.");
+      showToast("Absensi tersimpan.", "success");
     } catch (e) {
       setAttError(e instanceof Error ? e.message : "Gagal menyimpan absensi");
     } finally {
@@ -197,16 +223,21 @@ export default function KaryawanPage() {
   const finalized = payroll?.status === "final";
 
   const loadPayroll = useCallback(async () => {
+    if (!period) {
+      setPayError("Periode wajib diisi");
+      return;
+    }
     setPayLoading(true);
     setPayError("");
     try {
       const res = await apiFetch<{ data: PayrollView }>(
         `/api/payroll?period=${encodeURIComponent(period)}`,
       );
-      setPayroll(res?.data ?? null);
+      const data = res?.data ?? null;
+      setPayroll(data);
       setAdjustments(
         Object.fromEntries(
-          (res?.data?.items ?? []).map((it) => [
+          (data?.items ?? []).map((it) => [
             it.userId,
             { tunjangan: it.allowance, lembur: it.overtimePay, potongan: it.deductions },
           ]),
@@ -225,16 +256,38 @@ export default function KaryawanPage() {
   }, [loadPayroll]);
 
   function adjust(empId: string, field: keyof Adjustment, value: number) {
+    if (!Number.isFinite(value) || value < 0) {
+      showToast("Nilai tidak boleh negatif", "error");
+      return;
+    }
+    if (!Number.isInteger(value)) {
+      showToast("Masukkan angka bulat", "error");
+      return;
+    }
     setAdjustments((prev) => ({
       ...prev,
       [empId]: {
         ...(prev[empId] ?? { tunjangan: 0, lembur: 0, potongan: 0 }),
-        [field]: Math.max(0, value),
+        [field]: value,
       },
     }));
   }
 
-  async function persistPayroll(finalize: boolean) {
+  async function persistPayroll(finalize: boolean): Promise<PayrollView | null> {
+    if (!period) {
+      showToast("Periode wajib diisi", "error");
+      return null;
+    }
+    // Validate integer, non-negative adjustments.
+    for (const [uid, adj] of Object.entries(adjustments)) {
+      for (const v of [adj.tunjangan, adj.lembur, adj.potongan]) {
+        if (!Number.isInteger(v) || v < 0) {
+          showToast("Penyesuaian harus berupa angka bulat non-negatif", "error");
+          return null;
+        }
+      }
+      void uid;
+    }
     setPaySaving(true);
     setPayError("");
     try {
@@ -242,10 +295,13 @@ export default function KaryawanPage() {
         method: "POST",
         body: JSON.stringify({ period, adjustments, finalize }),
       });
-      setPayroll(res?.data ?? null);
-      showToast(finalize ? "Payroll difinalisasi." : "Draft payroll tersimpan.");
+      const data = res?.data ?? null;
+      setPayroll(data);
+      showToast(finalize ? "Payroll difinalisasi." : "Draft payroll tersimpan.", "success");
+      return data;
     } catch (e) {
       setPayError(e instanceof Error ? e.message : "Gagal menyimpan payroll");
+      return null;
     } finally {
       setPaySaving(false);
     }
@@ -253,10 +309,22 @@ export default function KaryawanPage() {
 
   function finalizePayroll() {
     if (!isAdmin || finalized) return;
+    if (payLoading) {
+      showToast("Masih memuat data payroll", "error");
+      return;
+    }
+    if (payError || !payroll) {
+      showToast("Gagal memuat payroll; muat ulang terlebih dahulu", "error");
+      return;
+    }
     if (!window.confirm("Finalisasi payroll bulan ini? Nominal akan terkunci dan tidak dapat diubah.")) {
       return;
     }
-    void persistPayroll(true);
+    void (async () => {
+      const saved = await persistPayroll(false);
+      if (!saved) return;
+      await persistPayroll(true);
+    })();
   }
 
   const rows = useMemo<PayrollRow[]>(() => {
@@ -267,7 +335,9 @@ export default function KaryawanPage() {
         potongan: it.deductions,
       };
       const pokok = it.daysPresent * it.dailyRate;
-      return { ...it, adj, pokok, net: pokok + adj.tunjangan + adj.lembur - adj.potongan };
+      const computedNet = pokok + adj.tunjangan + adj.lembur - adj.potongan;
+      const net = payroll?.status === "final" ? it.net : computedNet;
+      return { ...it, adj, pokok, net };
     });
   }, [payroll, adjustments]);
 
@@ -276,20 +346,54 @@ export default function KaryawanPage() {
       rows.reduce(
         (acc, r) => ({
           hadir: acc.hadir + r.hadir,
+          izin: acc.izin + r.izin,
+          sakit: acc.sakit + r.sakit,
+          alpha: acc.alpha + r.alpha,
+          cuti: acc.cuti + r.cuti,
+          totalHours: acc.totalHours + r.totalHours,
           pokok: acc.pokok + r.pokok,
           tunjangan: acc.tunjangan + r.adj.tunjangan,
           lembur: acc.lembur + r.adj.lembur,
           potongan: acc.potongan + r.adj.potongan,
           net: acc.net + r.net,
         }),
-        { hadir: 0, pokok: 0, tunjangan: 0, lembur: 0, potongan: 0, net: 0 },
+        { hadir: 0, izin: 0, sakit: 0, alpha: 0, cuti: 0, totalHours: 0, pokok: 0, tunjangan: 0, lembur: 0, potongan: 0, net: 0 },
       ),
     [rows],
   );
 
+  // Print slip: single trigger.
   useEffect(() => {
     if (printSlip) window.print();
   }, [printSlip]);
+
+  useEffect(() => {
+    setPrintSlip(null);
+  }, [period]);
+
+  useEffect(() => {
+    if (!printSlip) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setPrintSlip(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [printSlip]);
+
+  const TAB_ORDER: ("absensi" | "gaji")[] = ["absensi", "gaji"];
+  function onTabKeyDown(e: React.KeyboardEvent<HTMLButtonElement>, current: "absensi" | "gaji") {
+    const idx = TAB_ORDER.indexOf(current);
+    let next = idx;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (idx + 1) % TAB_ORDER.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (idx - 1 + TAB_ORDER.length) % TAB_ORDER.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = TAB_ORDER.length - 1;
+    else return;
+    e.preventDefault();
+    const nextKey = TAB_ORDER[next];
+    setTab(nextKey);
+    document.getElementById(`tab-${nextKey}`)?.focus();
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -301,16 +405,20 @@ export default function KaryawanPage() {
       {/* Tabs */}
       <div role="tablist" className="grid grid-cols-2 gap-2 rounded-[var(--radius-md)] bg-stone-100 p-1">
         {[
-          { key: "absensi", label: "Absensi", icon: Users },
-          { key: "gaji", label: "Gaji", icon: Calendar },
+          { key: "absensi" as const, label: "Absensi", icon: Users, panel: "panel-absensi" },
+          { key: "gaji" as const, label: "Gaji", icon: Calendar, panel: "panel-gaji" },
         ].map((t) => {
           const Icon = t.icon;
           return (
             <button
               key={t.key}
+              id={`tab-${t.key}`}
               role="tab"
               aria-selected={tab === t.key}
-              onClick={() => setTab(t.key as "absensi" | "gaji")}
+              aria-controls={t.panel}
+              tabIndex={tab === t.key ? 0 : -1}
+              onClick={() => setTab(t.key)}
+              onKeyDown={(e) => onTabKeyDown(e, t.key)}
               className={cn(
                 "flex items-center justify-center gap-2 rounded-[var(--radius-sm)] px-3 py-2 text-xs font-semibold transition",
                 tab === t.key ? "bg-ink text-white" : "text-muted hover:bg-stone-200",
@@ -324,19 +432,20 @@ export default function KaryawanPage() {
 
       {/* ============ Tab Absensi ============ */}
       {tab === "absensi" && (
-        <div className="flex flex-col gap-4">
+        <div role="tabpanel" id="panel-absensi" aria-labelledby="tab-absensi" tabIndex={0} className="flex flex-col gap-4">
           <Card className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <Calendar className="h-5 w-5 text-brand shrink-0" />
-              <Field label="Tanggal">
+              <Field label="Tanggal" htmlFor="att-date">
                 <Input
+                  id="att-date"
                   type="date"
                   value={attDate}
                   onChange={(e) => setAttDate(e.target.value)}
                 />
               </Field>
             </div>
-            {attError && <p className="text-sm text-danger">{attError}</p>}
+            {attError && <p role="alert" className="text-sm text-danger">{attError}</p>}
           </Card>
 
           {attLoading && (
@@ -365,6 +474,7 @@ export default function KaryawanPage() {
                       <button
                         key={s.value}
                         onClick={() => setRecStatus(u.id, s.value)}
+                        aria-pressed={rec.status === s.value}
                         className={cn(
                           "tap-target rounded-[var(--radius-sm)] border py-2 text-xs font-semibold transition",
                           rec.status === s.value
@@ -377,16 +487,18 @@ export default function KaryawanPage() {
                     ))}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <Field label="Jam masuk">
+                    <Field label="Jam masuk" htmlFor={`checkin-${u.id}`}>
                       <Input
+                        id={`checkin-${u.id}`}
                         type="time"
                         value={rec.checkIn ?? ""}
                         onChange={(e) => setRecTime(u.id, "checkIn", e.target.value)}
                         className="h-12 text-base"
                       />
                     </Field>
-                    <Field label="Jam keluar">
+                    <Field label="Jam keluar" htmlFor={`checkout-${u.id}`}>
                       <Input
+                        id={`checkout-${u.id}`}
                         type="time"
                         value={rec.checkOut ?? ""}
                         onChange={(e) => setRecTime(u.id, "checkOut", e.target.value)}
@@ -402,7 +514,7 @@ export default function KaryawanPage() {
                 </Card>
               );
             })}
-            {users.length === 0 && (
+            {!attLoading && users.length === 0 && (
               <p className="text-sm text-muted text-center py-6">Tidak ada data karyawan.</p>
             )}
           </div>
@@ -431,12 +543,17 @@ export default function KaryawanPage() {
 
       {/* ============ Tab Gaji ============ */}
       {tab === "gaji" && (
-        <div className="flex flex-col gap-4">
+        <div role="tabpanel" id="panel-gaji" aria-labelledby="tab-gaji" tabIndex={0} className="flex flex-col gap-4">
           <Card className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <Calendar className="h-5 w-5 text-brand shrink-0" />
-              <Field label="Periode (YYYY-MM)">
-                <Input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} />
+              <Field label="Periode (YYYY-MM)" htmlFor="pay-period">
+                <Input
+                  id="pay-period"
+                  type="month"
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                />
               </Field>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -445,7 +562,7 @@ export default function KaryawanPage() {
               </Badge>
               {payLoading && <span className="text-xs text-muted">Memuat...</span>}
             </div>
-            {payError && <p className="mt-2 text-sm text-danger">{payError}</p>}
+            {payError && <p role="alert" className="mt-2 text-sm text-danger">{payError}</p>}
           </Card>
 
           {payLoading && (
@@ -485,6 +602,11 @@ export default function KaryawanPage() {
                     <th scope="col" className="pb-3 font-semibold text-ink">Karyawan</th>
                     <th scope="col" className="pb-3 font-semibold text-ink">Role</th>
                     <th scope="col" className="pb-3 font-semibold text-ink text-right">Hadir</th>
+                    <th scope="col" className="pb-3 font-semibold text-ink text-right">Izin</th>
+                    <th scope="col" className="pb-3 font-semibold text-ink text-right">Sakit</th>
+                    <th scope="col" className="pb-3 font-semibold text-ink text-right">Alpha</th>
+                    <th scope="col" className="pb-3 font-semibold text-ink text-right">Cuti</th>
+                    <th scope="col" className="pb-3 font-semibold text-ink text-right">Jam</th>
                     <th scope="col" className="pb-3 font-semibold text-ink text-right">Gaji Pokok</th>
                     <th scope="col" className="pb-3 font-semibold text-ink text-right">Tunjangan</th>
                     <th scope="col" className="pb-3 font-semibold text-ink text-right">Lembur</th>
@@ -498,34 +620,48 @@ export default function KaryawanPage() {
                       <td scope="row" className="py-3">{r.name}</td>
                       <td className="py-3 text-xs text-muted capitalize">{r.role}</td>
                       <td className="py-3 text-right font-semibold tabular-nums">{r.hadir}</td>
+                      <td className="py-3 text-right tabular-nums">{r.izin}</td>
+                      <td className="py-3 text-right tabular-nums">{r.sakit}</td>
+                      <td className="py-3 text-right tabular-nums">{r.alpha}</td>
+                      <td className="py-3 text-right tabular-nums">{r.cuti}</td>
+                      <td className="py-3 text-right tabular-nums">{formatAngka(r.totalHours)}</td>
                       <td className="py-3 text-right tabular-nums">{rupiah(r.pokok)}</td>
                       <td className="py-3 text-right tabular-nums">
                         <Input
+                          id={`pay-${r.userId}-tunjangan`}
                           type="number"
+                          step="1"
                           inputMode="numeric"
                           value={r.adj.tunjangan}
                           onChange={(e) => adjust(r.userId, "tunjangan", Number(e.target.value) || 0)}
                           disabled={finalized || !isAdmin}
+                          aria-label={`Tunjangan ${r.name}`}
                           className="w-full h-10 px-2 text-right text-xs bg-transparent border-0 focus:ring-0"
                         />
                       </td>
                       <td className="py-3 text-right tabular-nums">
                         <Input
+                          id={`pay-${r.userId}-lembur`}
                           type="number"
+                          step="1"
                           inputMode="numeric"
                           value={r.adj.lembur}
                           onChange={(e) => adjust(r.userId, "lembur", Number(e.target.value) || 0)}
                           disabled={finalized || !isAdmin}
+                          aria-label={`Lembur ${r.name}`}
                           className="w-full h-10 px-2 text-right text-xs bg-transparent border-0 focus:ring-0"
                         />
                       </td>
                       <td className="py-3 text-right tabular-nums">
                         <Input
+                          id={`pay-${r.userId}-potongan`}
                           type="number"
+                          step="1"
                           inputMode="numeric"
                           value={r.adj.potongan}
                           onChange={(e) => adjust(r.userId, "potongan", Number(e.target.value) || 0)}
                           disabled={finalized || !isAdmin}
+                          aria-label={`Potongan ${r.name}`}
                           className="w-full h-10 px-2 text-right text-xs bg-transparent border-0 focus:ring-0"
                         />
                       </td>
@@ -534,8 +670,8 @@ export default function KaryawanPage() {
                   ))}
                   {rows.length === 0 && (
                     <tr>
-                      <td scope="row"
-                        colSpan={8}
+                      <td
+                        colSpan={13}
                         className="py-6 text-center text-sm text-muted"
                       >
                         Belum ada data payroll untuk periode ini.
@@ -543,10 +679,7 @@ export default function KaryawanPage() {
                     </tr>
                   )}
                   <tr className="border-t border-line font-bold">
-                    <td scope="row" className="py-3">Total</td>
-                    <td className="py-3 text-right" colSpan={2}>
-                      {formatAngka(totals.hadir)} hari
-                    </td>
+                    <td colSpan={8} className="py-3">Total ({formatAngka(totals.hadir)} hari hadir)</td>
                     <td className="py-3 text-right tabular-nums">{rupiah(totals.pokok)}</td>
                     <td className="py-3 text-right tabular-nums">{rupiah(totals.tunjangan)}</td>
                     <td className="py-3 text-right tabular-nums">{rupiah(totals.lembur)}</td>
@@ -607,7 +740,7 @@ export default function KaryawanPage() {
                       }}
                       className="no-print"
                     >
-                      <Printer className="h-4 w-4" /> Cetak Slip
+                      <Printer className="h-4 w-4" /> Cetak/Unduh PDF
                     </Button>
                   </div>
                 </div>
@@ -615,27 +748,25 @@ export default function KaryawanPage() {
             ))}
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              {isAdmin && (
+              {isAdmin && !finalized && (
                 <Button
-                  onClick={() => persistPayroll(false)}
-                  disabled={finalized || paySaving}
+                  onClick={() => void persistPayroll(false)}
+                  disabled={paySaving}
                   variant="secondary"
                   size="lg"
                 >
                   {paySaving ? "Menyimpan..." : <><Save className="h-4 w-4" /> Simpan Draft</>}
                 </Button>
               )}
-              {isAdmin && (
+              {isAdmin && !finalized && (
                 <Button
                   variant="primary"
                   onClick={finalizePayroll}
-                  disabled={finalized || paySaving}
+                  disabled={paySaving}
                   fullWidth={false}
                   size="lg"
                 >
-                  {finalized
-                    ? "Sudah Difinalisasi"
-                    : paySaving
+                  {paySaving
                     ? "Menyimpan..."
                     : <><Check className="h-4 w-4" /> Finalisasi Gaji</>}
                 </Button>
@@ -654,8 +785,12 @@ export default function KaryawanPage() {
 
       {/* Print overlay */}
       {printSlip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4"
+          onClick={() => setPrintSlip(null)}
+        >
           <style>{`
+            @page { size: A4; margin: 12mm; }
             @media print {
               body, html { margin: 0 !important; background: #fff !important; }
               body * { visibility: hidden !important; }
@@ -669,12 +804,15 @@ export default function KaryawanPage() {
               .no-print { display: none !important; }
             }
           `}</style>
-          <Card className="slip-print w-full max-w-sm flex flex-col gap-4 bg-white text-ink p-5 shadow-[var(--shadow-float)]">
+          <Card
+            className="slip-print w-full max-w-sm flex flex-col gap-4 bg-white text-ink p-5 shadow-[var(--shadow-float)]"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between">
               <h2 className="font-display text-xl font-bold">Slip Gaji</h2>
               <Badge tone="muted">{period}</Badge>
             </div>
-            <p className="text-sm text-muted">{printSlip.name} · {printSlip.role.toUpperCase()}</p>
+            <p className="text-sm text-muted">{printSlip.name} · {(printSlip.role ?? "").toUpperCase()}</p>
             <div className="border-y border-line py-3">
               <div className="flex justify-between gap-3"><span className="text-muted">Gaji pokok</span><span className="tabular-nums">{rupiah(printSlip.pokok)}</span></div>
               <div className="flex justify-between gap-3"><span className="text-muted">Tunjangan</span><span className="tabular-nums">{rupiah(printSlip.adj.tunjangan)}</span></div>
@@ -684,7 +822,6 @@ export default function KaryawanPage() {
             </div>
             <p className="text-xs text-center text-muted">Dicetak {formatTanggal(new Date())} · {finalized ? "Final" : "Draft"}</p>
             <div className="no-print flex gap-2">
-              <Button variant="primary" fullWidth onClick={() => window.print()}><Printer className="h-4 w-4" /> Cetak</Button>
               <Button fullWidth variant="secondary" onClick={() => setPrintSlip(null)}>Tutup</Button>
             </div>
           </Card>

@@ -30,8 +30,10 @@ function toDomain(row: OutletRow): Outlet {
   };
 }
 
-export async function listOutlets(db: AppDatabase): Promise<Outlet[]> {
-  const rows = await db.select().from(outlets).orderBy(asc(outlets.name));
+export async function listOutlets(db: AppDatabase, outletId?: string): Promise<Outlet[]> {
+  const rows = outletId
+    ? await db.select().from(outlets).where(eq(outlets.id, outletId)).orderBy(asc(outlets.name))
+    : await db.select().from(outlets).orderBy(asc(outlets.name));
   return rows.map(toDomain);
 }
 

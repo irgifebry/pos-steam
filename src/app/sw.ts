@@ -10,12 +10,20 @@ declare global {
 
 const swSelf = self as unknown as { __SW_MANIFEST: (PrecacheEntry | string)[] | undefined };
 
+const runtimeCaching = defaultCache.filter((entry) => {
+  // Jangan cache endpoint API sensitif — selalu network.
+  const urlPattern = (entry as { urlPattern?: RegExp | string }).urlPattern;
+  const source = typeof urlPattern === "string" ? urlPattern : urlPattern?.source ?? "";
+  return !source.includes("/api/");
+});
+
 const serwist = new Serwist({
-  precacheEntries: swSelf.__SW_MANIFEST,
+  // @ts-expect-error serwist webpack plugin replaces this literal
+  precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: defaultCache,
+  runtimeCaching,
   fallbacks: { entries: [{ url: "/offline", matcher: ({ request }) => request.destination === "document" }] },
 });
 

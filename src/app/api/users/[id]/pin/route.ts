@@ -18,7 +18,7 @@ export async function POST(request: Request, { params }: RouteContext) {
       throw new HttpError(400, "INVALID_JSON", "Body permintaan tidak valid");
     });
     const password = pinSchema.parse((body as { password?: unknown }).password);
-    await resetPin(getDatabase(), getAuth(), id, password, actor.id);
+    await resetPin(getDatabase(), getAuth(), id, password, actor.id, actor.outletId ?? undefined);
 
     return Response.json({ data: { id } });
   } catch (error) {

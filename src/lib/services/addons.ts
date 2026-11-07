@@ -73,8 +73,17 @@ export async function createAddon(
 export async function updateAddon(
   db: AppDatabase,
   id: string,
-  input: AddonUpdate,
+  inputOrOutlet: AddonUpdate | string,
+  inputMaybe?: AddonUpdate,
 ): Promise<Addon> {
+  let outletId: string | undefined;
+  let input: AddonUpdate;
+  if (inputMaybe !== undefined) {
+    outletId = inputOrOutlet as string;
+    input = inputMaybe;
+  } else {
+    input = inputOrOutlet as AddonUpdate;
+  }
   const data = addonUpdateSchema.parse(input);
 
   const values: Partial<typeof addons.$inferInsert> = {};
@@ -84,7 +93,15 @@ export async function updateAddon(
   if (data.vehicleTypes !== undefined) values.vehicleTypes = data.vehicleTypes;
   if (data.active !== undefined) values.active = data.active;
 
-  const [existing] = await db.select().from(addons).where(eq(addons.id, id)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(addons)
+    .where(
+      outletId
+        ? and(eq(addons.id, id), eq(addons.outletId, outletId))
+        : eq(addons.id, id),
+    )
+    .limit(1);
   if (!existing) {
     throw new HttpError(404, "NOT_FOUND", "Add-on tidak ditemukan");
   }
@@ -93,7 +110,15 @@ export async function updateAddon(
   }
 
   try {
-    const [row] = await db.update(addons).set(values).where(eq(addons.id, id)).returning();
+    const [row] = await db
+      .update(addons)
+      .set(values)
+      .where(
+        outletId
+          ? and(eq(addons.id, id), eq(addons.outletId, outletId))
+          : eq(addons.id, id),
+      )
+      .returning();
     return toDomain(row);
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -103,11 +128,19 @@ export async function updateAddon(
   }
 }
 
-export async function deactivateAddon(db: AppDatabase, id: string): Promise<void> {
+export async function deactivateAddon(
+  db: AppDatabase,
+  id: string,
+  outletId?: string,
+): Promise<void> {
   const updated = await db
     .update(addons)
     .set({ active: false })
-    .where(eq(addons.id, id))
+    .where(
+      outletId
+        ? and(eq(addons.id, id), eq(addons.outletId, outletId))
+        : eq(addons.id, id),
+    )
     .returning({ id: addons.id });
 
   if (updated.length === 0) {

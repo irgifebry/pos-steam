@@ -27,7 +27,7 @@ export default function OutletPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const { toast, showToast } = useToast();
+  const { toast, showToast, dismiss } = useToast();
 
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export default function OutletPage() {
         }
       } catch (e) {
         setOutlet(null);
-        showToast(e instanceof Error ? e.message : "Gagal memuat outlet");
+        showToast(e instanceof Error ? e.message : "Gagal memuat outlet", "error");
       } finally {
         setLoading(false);
       }
@@ -83,9 +83,9 @@ export default function OutletPage() {
         }),
       });
       setOutlet(res?.data ?? outlet);
-      showToast("Data outlet tersimpan");
+      showToast("Data outlet tersimpan", "success");
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Gagal menyimpan outlet");
+      showToast(e instanceof Error ? e.message : "Gagal menyimpan outlet", "error");
     } finally {
       setSaving(false);
     }
@@ -117,34 +117,43 @@ export default function OutletPage() {
 
       <Card>
         <form onSubmit={handleSave} className="flex flex-col gap-4">
-          <Field label="Nama Outlet">
+          <Field label="Nama Outlet" htmlFor="outlet-name">
             <Input
+              id="outlet-name"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
           </Field>
-          <Field label="Alamat">
+          <Field label="Alamat" htmlFor="outlet-address">
             <Input
+              id="outlet-address"
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
             />
           </Field>
-          <Field label="Telepon">
+          <Field label="Telepon" htmlFor="outlet-phone">
             <Input
+              id="outlet-phone"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
             />
           </Field>
-          <Field label="Footer Struk">
+          <Field label="Footer Struk" htmlFor="outlet-footer">
             <Input
+              id="outlet-footer"
               value={form.receiptFooter}
               onChange={(e) => setForm({ ...form, receiptFooter: e.target.value })}
               placeholder="Terima kasih sudah datang"
             />
           </Field>
-          <Field label="Pajak (%)">
+          <Field label="Pajak (%)" htmlFor="outlet-tax">
             <Input
+              id="outlet-tax"
               type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              inputMode="decimal"
               value={form.taxPercent}
               onChange={(e) => setForm({ ...form, taxPercent: e.target.value })}
             />
@@ -159,7 +168,7 @@ export default function OutletPage() {
 
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
-          <Toast message={toast.message} variant={toast.variant} />
+          <Toast message={toast.message} variant={toast.variant} onDismiss={dismiss} />
         </div>
       )}
     </div>

@@ -17,7 +17,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       throw new HttpError(400, "INVALID_JSON", "Body permintaan tidak valid");
     });
     const input = userUpdateSchema.parse(body);
-    const data = await updateUser(getDatabase(), id, input, actor.id);
+    const data = await updateUser(getDatabase(), id, input, actor.id, actor.outletId ?? undefined);
 
     return Response.json({ data });
   } catch (error) {

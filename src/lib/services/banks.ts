@@ -87,7 +87,18 @@ export async function updateBank(
     return toDomain(existing);
   }
 
-  const [row] = await db.update(banks).set(values).where(eq(banks.id, id)).returning();
+  const [row] = await db
+    .update(banks)
+    .set(values)
+    .where(
+      outletId
+        ? and(eq(banks.id, id), eq(banks.outletId, outletId))
+        : eq(banks.id, id),
+    )
+    .returning();
+  if (!row) {
+    throw new HttpError(404, "NOT_FOUND", "Bank tidak ditemukan");
+  }
   return toDomain(row);
 }
 

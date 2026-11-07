@@ -80,8 +80,27 @@ export type OrderView = {
   createdByName: string;
 };
 
+export type ReceiptOrderView = {
+  id: string;
+  invoiceNo: string;
+  queueNo: string;
+  businessDate: string;
+  customerName: string;
+  plate: string;
+  vehicleType: VehicleType;
+  status: string;
+  grandTotal: number;
+  tax: number;
+  packageName: string;
+  packagePrice: number;
+  addons: { id: string; name: string; qty: number; price: number; subtotal: number }[];
+  payment: OrderPaymentView | null;
+  paid: boolean;
+  createdByName: string;
+};
+
 export type ReceiptView = {
-  order: OrderView;
+  order: ReceiptOrderView;
   outlet: {
     id: string;
     name: string;
@@ -776,6 +795,11 @@ export async function cancelOrder(
 }
 
 export async function getReceipt(db: AppDatabase, token: string): Promise<ReceiptView> {
+  // Validasi token UUID sebelum query
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) {
+    throw new HttpError(404, "NOT_FOUND", "Struk tidak ditemukan");
+  }
+
   const [order] = await db
     .select()
     .from(orders)
@@ -798,7 +822,30 @@ export async function getReceipt(db: AppDatabase, token: string): Promise<Receip
   }
 
   return {
-    order: View,
+    order: {
+      id: View.id,
+      invoiceNo: View.invoiceNo,
+      queueNo: View.queueNo,
+      businessDate: View.businessDate,
+      customerName: View.customerName,
+      plate: View.plate,
+      vehicleType: View.vehicleType,
+      status: View.status,
+      grandTotal: View.grandTotal,
+      tax: View.tax,
+      packageName: View.packageName,
+      packagePrice: View.packagePrice,
+      addons: View.addons.map((a) => ({
+        id: a.id,
+        name: a.name,
+        qty: a.qty,
+        price: a.price,
+        subtotal: a.subtotal,
+      })),
+      payment: View.payment,
+      paid: View.paid,
+      createdByName: View.createdByName,
+    },
     outlet: {
       id: outlet.id,
       name: outlet.name,

@@ -75,8 +75,18 @@ export async function createServicePackage(
 export async function updateServicePackage(
   db: AppDatabase,
   id: string,
-  input: ServicePackageUpdate,
+  inputOrOutlet: ServicePackageUpdate | string,
+  inputMaybe?: ServicePackageUpdate,
 ): Promise<ServicePackage> {
+  // Backward-compatible: (db, id, input) or (db, id, outletId, input)
+  let outletId: string | undefined;
+  let input: ServicePackageUpdate;
+  if (inputMaybe !== undefined) {
+    outletId = inputOrOutlet as string;
+    input = inputMaybe;
+  } else {
+    input = inputOrOutlet as ServicePackageUpdate;
+  }
   const data = servicePackageUpdateSchema.parse(input);
 
   const values: Partial<typeof servicePackages.$inferInsert> = {};
@@ -91,7 +101,11 @@ export async function updateServicePackage(
   const [existing] = await db
     .select()
     .from(servicePackages)
-    .where(eq(servicePackages.id, id))
+    .where(
+      outletId
+        ? and(eq(servicePackages.id, id), eq(servicePackages.outletId, outletId))
+        : eq(servicePackages.id, id),
+    )
     .limit(1);
 
   if (!existing) {
@@ -117,11 +131,19 @@ export async function updateServicePackage(
   }
 }
 
-export async function deactivateServicePackage(db: AppDatabase, id: string): Promise<void> {
+export async function deactivateServicePackage(
+  db: AppDatabase,
+  id: string,
+  outletId?: string,
+): Promise<void> {
   const updated = await db
     .update(servicePackages)
     .set({ active: false })
-    .where(eq(servicePackages.id, id))
+    .where(
+      outletId
+        ? and(eq(servicePackages.id, id), eq(servicePackages.outletId, outletId))
+        : eq(servicePackages.id, id),
+    )
     .returning({ id: servicePackages.id });
 
   if (updated.length === 0) {

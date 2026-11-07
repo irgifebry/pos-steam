@@ -23,14 +23,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const u = data?.user as Record<string, unknown> | undefined;
   const validRoles: Role[] = ["admin"];
   const rawRole = u?.role;
-  const role: Role = validRoles.includes(rawRole as Role) ? (rawRole as Role) : "admin";
+  const roleValid = validRoles.includes(rawRole as Role);
 
-  const user = u
+  const user = u && roleValid
     ? {
         id: String(u.id),
         name: String(u.name ?? ""),
         email: String(u.email ?? ""),
-        role,
+        role: rawRole as Role,
       }
     : null;
 

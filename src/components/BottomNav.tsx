@@ -24,8 +24,7 @@ export function BottomNav() {
         style={{ gridTemplateColumns: `repeat(${Math.max(visibleTabs.length, 1)}, minmax(0, 1fr))` }}
       >
         {visibleTabs.map((t) => {
-            const active = pathname === t.href || pathname.startsWith(t.href + "/");
-            const Icon = t.icon;
+            const active = (pathname ?? "") === t.href || (pathname ?? "").startsWith(t.href + "/");            const Icon = t.icon;
             return (
               <Link
                 key={t.href}

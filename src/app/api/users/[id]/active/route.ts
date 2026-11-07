@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: RouteContext) {
       throw new HttpError(400, "INVALID_JSON", "Body permintaan tidak valid");
     });
     const { active } = userActiveSchema.parse(body);
-    await setUserActive(getDatabase(), id, active, actor.id);
+    await setUserActive(getDatabase(), id, active, actor.id, actor.outletId ?? undefined);
 
     return Response.json({ data: { id, active } });
   } catch (error) {

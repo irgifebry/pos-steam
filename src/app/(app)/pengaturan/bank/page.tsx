@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, Pencil, Trash2, Landmark } from "lucide-react";
+import { Plus, Pencil, Trash2, Landmark, UserCheck } from "lucide-react";
 
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, ApiError } from "@/lib/api-client";
 import type { Bank } from "@/lib/services/banks";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -25,22 +25,25 @@ const emptyForm = {
 export default function BankPage() {
   const [items, setItems] = useState<Bank[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Bank | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const { toast, showToast } = useToast();
+  const { toast, showToast, dismiss } = useToast();
   const modalRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
-      const res = await apiFetch<{ data: Bank[] }>("/api/banks");
+      const res = await apiFetch<{ data: Bank[] }>("/api/banks?includeInactive=true");
       setItems(res?.data ?? []);
     } catch (e) {
       setItems([]);
-      showToast(e instanceof Error ? e.message : "Gagal memuat bank");
+      setLoadError(true);
+      showToast(e instanceof Error ? e.message : "Gagal memuat bank", "error");
     } finally {
       setLoading(false);
     }
@@ -109,23 +112,41 @@ export default function BankPage() {
         });
       }
       setModalOpen(false);
-      showToast(editing ? "Bank diperbarui" : "Bank ditambahkan");
+      showToast(editing ? "Bank diperbarui" : "Bank ditambahkan", "success");
       await load();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Gagal menyimpan bank");
+      if (e instanceof ApiError && e.code === "DUPLICATE") {
+        showToast("Bank sudah terdaftar", "error");
+      } else {
+        showToast(e instanceof Error ? e.message : "Gagal menyimpan bank", "error");
+      }
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDeactivate(item: Bank) {
-    if (!confirm(`Nonaktifkan bank "${item.name}"?`)) return;
+  async function handleToggleActive(item: Bank) {
+    const action = item.active ? "nonaktifkan" : "aktifkan";
+    if (!confirm(`${action} bank "${item.name}"?`)) return;
     try {
-      await apiFetch(`/api/banks/${item.id}`, { method: "DELETE" });
-      showToast("Bank dinonaktifkan");
+      if (item.active) {
+        await apiFetch(`/api/banks/${item.id}`, { method: "DELETE" });
+      } else {
+        await apiFetch(`/api/banks/${item.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ active: true }),
+        });
+      }
+      showToast(`Bank ${action}`, "success");
       await load();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Gagal menonaktifkan bank");
+      if (e instanceof ApiError && e.code === "DUPLICATE") {
+        showToast("Bank sudah terdaftar", "error");
+      } else if (e instanceof ApiError && e.code === "NOT_FOUND") {
+        showToast("Bank tidak ditemukan", "error");
+      } else {
+        showToast(e instanceof Error ? e.message : "Gagal mengubah status", "error");
+      }
     }
   }
 
@@ -146,7 +167,13 @@ export default function BankPage() {
           <Spinner className="text-brand" />
         </div>
       )}
-      {!loading && items.length === 0 && (
+      {!loading && loadError && (
+        <Card className="text-center text-muted py-8">
+          <Landmark className="h-10 w-10 mx-auto mb-2 opacity-40" />
+          Gagal memuat data bank
+        </Card>
+      )}
+      {!loading && !loadError && items.length === 0 && (
         <Card className="text-center text-muted py-8">
           <Landmark className="h-10 w-10 mx-auto mb-2 opacity-40" />
           Belum ada bank
@@ -170,72 +197,80 @@ export default function BankPage() {
               <button
                 onClick={() => openEdit(it)}
                 className="h-10 w-10 rounded-xl border border-line flex items-center justify-center text-brand hover:bg-brand-soft"
-                aria-label="Edit"
+                aria-label={`Edit ${it.name}`}
               >
                 <Pencil className="h-4 w-4" />
               </button>
-              {it.active && (
-                <button
-                  onClick={() => handleDeactivate(it)}
-                  className="h-10 w-10 rounded-xl border border-line flex items-center justify-center text-danger hover:bg-danger-soft"
-                  aria-label="Nonaktifkan"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
+              <button
+                onClick={() => handleToggleActive(it)}
+                className={`h-10 w-10 rounded-xl border border-line flex items-center justify-center ${
+                  it.active
+                    ? "text-danger hover:bg-danger-soft"
+                    : "text-success hover:bg-success-soft"
+                }`}
+                aria-label={it.active ? `Nonaktifkan ${it.name}` : `Aktifkan ${it.name}`}
+              >
+                {it.active ? <Trash2 className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+              </button>
             </div>
           </Card>
         ))}
       </div>
 
-            <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? "Edit Bank" : "Tambah Bank"}
-        footer={
-          <Button variant="primary" type="submit" form="bank-form" fullWidth size="lg" disabled={saving}>
-            {saving ? "Menyimpan..." : "Simpan"}
-          </Button>
-        }
-      >
-        <form id="bank-form" onSubmit={handleSave} className="flex flex-col gap-4">
-          <Field label="Nama Bank">
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="BCA"
-            />
-          </Field>
-          <Field label="Nomor Rekening">
-            <Input
-              value={form.accountNumber}
-              onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
-            />
-          </Field>
-          <Field label="Nama Pemilik">
-            <Input
-              value={form.accountName}
-              onChange={(e) => setForm({ ...form, accountName: e.target.value })}
-            />
-          </Field>
-          <Field label="Status">
-            <label className="flex items-center gap-2 h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface">
-              <input
-                type="checkbox"
-                checked={form.active}
-                onChange={(e) => setForm({ ...form, active: e.target.checked })}
-                className="h-5 w-5"
+      <div ref={modalRef} tabIndex={-1} className="outline-none">
+        <Modal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title={editing ? "Edit Bank" : "Tambah Bank"}
+          footer={
+            <Button variant="primary" type="submit" form="bank-form" fullWidth size="lg" disabled={saving}>
+              {saving ? "Menyimpan..." : "Simpan"}
+            </Button>
+          }
+        >
+          <form id="bank-form" onSubmit={handleSave} className="flex flex-col gap-4">
+            <Field label="Nama Bank" htmlFor="bank-name">
+              <Input
+                id="bank-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="BCA"
               />
-              <span className="text-base">Aktif</span>
-            </label>
-          </Field>
-          {formError && <p className="text-sm text-danger">{formError}</p>}
-        </form>
-      </Modal>
+            </Field>
+            <Field label="Nomor Rekening" htmlFor="bank-account-number">
+              <Input
+                id="bank-account-number"
+                value={form.accountNumber}
+                onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
+              />
+            </Field>
+            <Field label="Nama Pemilik" htmlFor="bank-account-name">
+              <Input
+                id="bank-account-name"
+                value={form.accountName}
+                onChange={(e) => setForm({ ...form, accountName: e.target.value })}
+              />
+            </Field>
+            <Field label="Status" htmlFor="bank-active">
+              <label className="flex items-center gap-2 h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface">
+                <input
+                  id="bank-active"
+                  type="checkbox"
+                  checked={form.active}
+                  onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                  className="h-5 w-5"
+                />
+                <span className="text-base">Aktif</span>
+              </label>
+            </Field>
+            {formError && <p className="text-sm text-danger">{formError}</p>}
+          </form>
+        </Modal>
+      </div>
 
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
-          <Toast message={toast.message} variant={toast.variant} />
+          <Toast message={toast.message} variant={toast.variant} onDismiss={dismiss} />
         </div>
       )}
     </div>

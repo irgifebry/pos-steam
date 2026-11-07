@@ -56,7 +56,7 @@ export const servicePackageUpdateSchema = z.object({
   price: z.number().int().positive("Harga harus lebih dari 0").max(100_000_000).optional(),
   durationMin: z.number().int().positive("Estimasi durasi harus lebih dari 0").max(600).optional(),
   description: z.string().trim().max(200).optional(),
-  sortOrder: z.number().int().optional(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
   active: z.boolean().optional(),
 });
 
@@ -93,7 +93,7 @@ export const userUpdateSchema = z.object({
   active: z.boolean().optional(),
 });
 
-export const pinSchema = z.string().min(6, "PIN minimal 6 karakter").max(72);
+export const pinSchema = z.string().min(6, "PIN minimal 6 karakter").max(12, "PIN maksimal 12 karakter");
 
 export const userCreateSchema = userInputSchema.extend({
   password: pinSchema,
@@ -128,7 +128,7 @@ export const orderPaymentInputSchema = z.object({
 });
 
 export const orderCreateSchema = z.object({
-  clientId: z.string().uuid().optional(),
+  clientId: z.string().min(1).max(128).optional(),
   vehicleType: vehicleTypeSchema,
   packageId: z.string().min(1, "Paket wajib dipilih"),
   addons: z.array(orderAddonSchema).default([]),

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { cn } from "@/lib/cn";
 import { X } from "lucide-react";
 
@@ -15,15 +16,25 @@ export function Toast({
   variant = "info",
   message,
   onDismiss,
+  duration,
 }: {
   variant?: Variant;
   message: string;
   onDismiss?: () => void;
+  duration?: number;
 }) {
+  useEffect(() => {
+    if (!duration || !onDismiss) return;
+    const id = setTimeout(() => {
+      onDismiss();
+    }, duration);
+    return () => clearTimeout(id);
+  }, [duration, onDismiss]);
+
   return (
     <div
-      role={variant === "error" ? "alert" : "status"}
-      aria-live={variant === "error" ? "assertive" : "polite"}
+      role="status"
+      aria-live="polite"
       className={cn(
         "flex items-center gap-3 rounded-[var(--radius-md)] border border-line px-4 py-3 shadow-[var(--shadow-card)]",
         variantClasses[variant],
@@ -35,7 +46,7 @@ export function Toast({
           type="button"
           onClick={onDismiss}
           aria-label="Tutup"
-          className="h-8 w-8 rounded-lg flex items-center justify-center hover:bg-black/5"
+          className="h-8 w-8 rounded-[var(--radius-md)] flex items-center justify-center hover:bg-black/5"
         >
           <X className="h-4 w-4" />
         </button>

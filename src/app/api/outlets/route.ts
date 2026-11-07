@@ -8,8 +8,8 @@ import { initializeServer } from "@/lib/server-init";
 export async function GET() {
   try {
     await initializeServer();
-    await requireUser();
-    const data = await listOutlets(getDatabase());
+    const user = await requireUser();
+    const data = await listOutlets(getDatabase(), user.outletId ?? undefined);
     return Response.json({ data });
   } catch (error) {
     return jsonError(error);

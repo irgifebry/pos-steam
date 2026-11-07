@@ -1,10 +1,10 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
 import { account, auditLogs, session, user as userTable } from "@/lib/db/schema";
 import type { AppDatabase } from "@/lib/db/schema";
 import type { Auth } from "@/lib/auth/config";
-import { HttpError } from "@/lib/http";
+import { HttpError, isUniqueViolation } from "@/lib/http";
 import {
   userCreateSchema,
   userUpdateSchema,
@@ -173,13 +173,18 @@ export async function updateUser(
   id: string,
   input: UserUpdate,
   actorId?: string,
+  outletId?: string,
 ): Promise<AppUser> {
   const data = userUpdateSchema.parse(input);
 
   const [existing] = await db
     .select()
     .from(userTable)
-    .where(eq(userTable.id, id))
+    .where(
+      outletId
+        ? and(eq(userTable.id, id), eq(userTable.outletId, outletId))
+        : eq(userTable.id, id),
+    )
     .limit(1);
   if (!existing) {
     throw new HttpError(404, "NOT_FOUND", "Pengguna tidak ditemukan");
@@ -193,11 +198,19 @@ export async function updateUser(
   if (data.dailyRate !== undefined) values.dailyRate = data.dailyRate;
   if (data.active !== undefined) values.active = data.active;
 
-  const [row] = await db
-    .update(userTable)
-    .set(values)
-    .where(eq(userTable.id, id))
-    .returning();
+  let row;
+  try {
+    [row] = await db
+      .update(userTable)
+      .set(values)
+      .where(eq(userTable.id, id))
+      .returning();
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw new HttpError(409, "DUPLICATE", "Email sudah terdaftar");
+    }
+    throw error;
+  }
 
   if (data.active === false) {
     await db.delete(session).where(eq(session.userId, id));
@@ -235,13 +248,18 @@ export async function resetPin(
   id: string,
   newPassword: string,
   actorId?: string,
+  outletId?: string,
 ): Promise<void> {
   const password = pinSchema.parse(newPassword);
 
   const [existing] = await db
     .select({ id: userTable.id, outletId: userTable.outletId })
     .from(userTable)
-    .where(eq(userTable.id, id))
+    .where(
+      outletId
+        ? and(eq(userTable.id, id), eq(userTable.outletId, outletId))
+        : eq(userTable.id, id),
+    )
     .limit(1);
   if (!existing) {
     throw new HttpError(404, "NOT_FOUND", "Pengguna tidak ditemukan");
@@ -279,14 +297,33 @@ export async function setUserActive(
   id: string,
   active: boolean,
   actorId?: string,
+  outletId?: string,
 ): Promise<void> {
   const [existing] = await db
     .select()
     .from(userTable)
-    .where(eq(userTable.id, id))
+    .where(
+      outletId
+        ? and(eq(userTable.id, id), eq(userTable.outletId, outletId))
+        : eq(userTable.id, id),
+    )
     .limit(1);
   if (!existing) {
     throw new HttpError(404, "NOT_FOUND", "Pengguna tidak ditemukan");
+  }
+
+  if (actorId && actorId === id && !active) {
+    throw new HttpError(409, "LAST_ADMIN", "Tidak dapat menonaktifkan akun sendiri");
+  }
+
+  if (!active && existing.role === "admin") {
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(userTable)
+      .where(and(eq(userTable.role, "admin"), eq(userTable.active, true)));
+    if (Number(count) <= 1) {
+      throw new HttpError(409, "LAST_ADMIN", "Tidak dapat menonaktifkan admin terakhir");
+    }
   }
 
   await db.update(userTable).set({ active }).where(eq(userTable.id, id));

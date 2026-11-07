@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, Pencil, Trash2, Puzzle } from "lucide-react";
-import { apiFetch } from "@/lib/api-client";
+import { Plus, Pencil, Trash2, Puzzle, UserCheck } from "lucide-react";
+import { apiFetch, ApiError } from "@/lib/api-client";
 import { rupiah } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -33,7 +33,7 @@ export default function AddonPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const { toast, showToast } = useToast();
+  const { toast, showToast, dismiss } = useToast();
   const modalRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (modalOpen) modalRef.current?.focus();
@@ -45,8 +45,8 @@ export default function AddonPage() {
       const fetched: Addon[] = [];
       if (filter === "all") {
         const [motorRes, mobilRes] = await Promise.all([
-          apiFetch<{ data: Addon[] }>("/api/addons?vehicleType=motor"),
-          apiFetch<{ data: Addon[] }>("/api/addons?vehicleType=mobil"),
+          apiFetch<{ data: Addon[] }>("/api/addons?vehicleType=motor&includeInactive=true"),
+          apiFetch<{ data: Addon[] }>("/api/addons?vehicleType=mobil&includeInactive=true"),
         ]);
         const seen = new Set<string>();
         for (const it of [...(motorRes?.data ?? []), ...(mobilRes?.data ?? [])]) {
@@ -56,7 +56,7 @@ export default function AddonPage() {
         }
       } else {
         const res = await apiFetch<{ data: Addon[] }>(
-          `/api/addons?vehicleType=${filter}`,
+          `/api/addons?vehicleType=${filter}&includeInactive=true`,
         );
         fetched.push(...(res?.data ?? []).map((it) => ({
           ...it,
@@ -66,7 +66,7 @@ export default function AddonPage() {
       setItems(fetched);
     } catch (e) {
       setItems([]);
-      showToast(e instanceof Error ? e.message : "Gagal memuat add-on");
+      showToast(e instanceof Error ? e.message : "Gagal memuat add-on", "error");
     } finally {
       setLoading(false);
     }
@@ -147,25 +147,37 @@ export default function AddonPage() {
       showToast(editing ? "Add-on diperbarui" : "Add-on ditambahkan");
       await load();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Gagal menyimpan add-on");
+      if (e instanceof ApiError && e.code === "DUPLICATE") {
+        showToast("Add-on dengan nama itu sudah ada", "error");
+      } else {
+        showToast(e instanceof Error ? e.message : "Gagal menyimpan add-on");
+      }
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDeactivate(item: Addon) {
-    if (!confirm(`Nonaktifkan add-on "${item.name}"?`)) return;
+  async function handleToggleActive(item: Addon) {
+    const action = item.active ? "nonaktifkan" : "aktifkan";
+    if (!confirm(`${action} add-on "${item.name}"?`)) return;
     try {
-      await apiFetch(`/api/addons/${item.id}`, { method: "DELETE" });
-      showToast("Add-on dinonaktifkan");
+      if (item.active) {
+        await apiFetch(`/api/addons/${item.id}`, { method: "DELETE" });
+      } else {
+        await apiFetch(`/api/addons/${item.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ active: true }),
+        });
+      }
+      showToast(`Add-on ${action}`);
       await load();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Gagal menonaktifkan add-on");
+      showToast(e instanceof Error ? e.message : "Gagal mengubah status");
     }
   }
 
   const filtered = (items ?? []).filter((it) =>
-    filter === "all" ? true : Array.isArray(it.vehicleTypes) && (Array.isArray(it.vehicleTypes) ? it.vehicleTypes : []).includes(filter),
+    filter === "all" ? true : Array.isArray(it.vehicleTypes) && it.vehicleTypes.includes(filter),
   );
 
   return (
@@ -229,25 +241,28 @@ export default function AddonPage() {
               <button
                 onClick={() => openEdit(it)}
                 className="h-10 w-10 rounded-xl border border-line flex items-center justify-center text-brand hover:bg-brand-soft"
-                aria-label="Edit"
+                aria-label={`Edit ${it.name}`}
               >
                 <Pencil className="h-4 w-4" />
               </button>
-              {it.active && (
-                <button
-                  onClick={() => handleDeactivate(it)}
-                  className="h-10 w-10 rounded-xl border border-line flex items-center justify-center text-danger hover:bg-danger-soft"
-                  aria-label="Nonaktifkan"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
+              <button
+                onClick={() => handleToggleActive(it)}
+                className={`h-10 w-10 rounded-xl border border-line flex items-center justify-center ${
+                  it.active
+                    ? "text-danger hover:bg-danger-soft"
+                    : "text-success hover:bg-success-soft"
+                }`}
+                aria-label={it.active ? `Nonaktifkan ${it.name}` : `Aktifkan ${it.name}`}
+              >
+                {it.active ? <Trash2 className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+              </button>
             </div>
           </Card>
         ))}
       </div>
 
-            <Modal
+      <div ref={modalRef} tabIndex={-1} className="outline-none">
+        <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editing ? "Edit Add-on" : "Tambah Add-on"}
@@ -258,24 +273,30 @@ export default function AddonPage() {
         }
       >
         <form id="addon-form" onSubmit={handleSave} className="flex flex-col gap-4">
-          <Field label="Nama Add-on">
+          <Field label="Nama Add-on" htmlFor="addon-name">
             <Input
+              id="addon-name"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="Wax Premium"
             />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Harga (Rp)">
+            <Field label="Harga (Rp)" htmlFor="addon-price">
               <Input
+                id="addon-price"
                 type="number"
+                min="1"
+                step="1"
+                inputMode="numeric"
                 value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value })}
                 placeholder="15000"
               />
             </Field>
-            <Field label="Satuan">
+            <Field label="Satuan" htmlFor="addon-unit">
               <Input
+                id="addon-unit"
                 value={form.unitLabel}
                 onChange={(e) => setForm({ ...form, unitLabel: e.target.value })}
                 placeholder="pcs"
@@ -300,9 +321,10 @@ export default function AddonPage() {
               ))}
             </div>
           </Field>
-          <Field label="Status">
+          <Field label="Status" htmlFor="addon-active">
             <label className="flex items-center gap-2 h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface">
               <input
+                id="addon-active"
                 type="checkbox"
                 checked={form.active}
                 onChange={(e) => setForm({ ...form, active: e.target.checked })}
@@ -314,10 +336,11 @@ export default function AddonPage() {
           {formError && <p className="text-sm text-danger">{formError}</p>}
         </form>
       </Modal>
+      </div>
 
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
-          <Toast message={toast.message} variant={toast.variant} />
+          <Toast message={toast.message} variant={toast.variant} onDismiss={dismiss} />
         </div>
       )}
     </div>

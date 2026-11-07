@@ -16,7 +16,7 @@ export function Button({
   variant?: Variant;
   size?: Size;
   fullWidth?: boolean;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
   const base =
     "inline-flex items-center justify-center gap-2 font-bold rounded-[var(--radius-md)] transition active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none tap-target focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2";
@@ -32,10 +32,18 @@ export function Button({
     ghost: "bg-transparent text-ink hover:bg-surface-2",
     accent: "bg-accent text-ink hover:opacity-90 shadow-pop",
   };
+  const iconOnly = !children;
   return (
     <button
       type={type}
-      className={cn(base, sizes[size], variants[variant], fullWidth && "w-full", className)}
+      className={cn(
+        base,
+        sizes[size],
+        variants[variant],
+        fullWidth && "w-full",
+        iconOnly && "aspect-square px-0",
+        className,
+      )}
       {...props}
     >
       {children}

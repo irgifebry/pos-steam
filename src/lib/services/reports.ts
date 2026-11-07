@@ -22,6 +22,7 @@ export async function listReportTransactions(
   outletId: string,
   from: string,
   to: string,
+  opts: { vehicleType?: VehicleType; paymentMethod?: "Tunai" | "Transfer" } = {},
 ): Promise<ReportTransaction[]> {
   const rows = await listOrders(db, {
     outletId,
@@ -33,6 +34,7 @@ export async function listReportTransactions(
 
   return rows
     .filter((order) => order.paid)
+    .filter((order) => (opts.vehicleType ? order.vehicleType === opts.vehicleType : true))
     .map((order) => {
       const paymentMethod: "Tunai" | "Transfer" =
         order.payment?.method === "transfer" ? "Transfer" : "Tunai";
@@ -56,5 +58,6 @@ export async function listReportTransactions(
         plate: order.plate,
       };
     })
+    .filter((r) => (opts.paymentMethod ? r.paymentMethod === opts.paymentMethod : true))
     .sort((a, b) => b.date.localeCompare(a.date) || b.invoiceNo.localeCompare(a.invoiceNo));
 }

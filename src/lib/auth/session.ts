@@ -23,11 +23,12 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   if (user.active === false) return null;
 
   const role = roleSchema.safeParse(user.role);
+  if (!role.success) return null;
   return {
     id: String(user.id),
     name: String(user.name ?? ""),
     email: String(user.email ?? ""),
-    role: role.success ? role.data : "admin",
+    role: role.data,
     outletId: (user.outletId as string | null | undefined) ?? null,
     phone: String(user.phone ?? ""),
     dailyRate: Number(user.dailyRate ?? 0),

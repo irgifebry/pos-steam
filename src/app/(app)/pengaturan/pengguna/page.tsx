@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -10,7 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import { useAppSession } from "@/components/SessionProvider";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, ApiError } from "@/lib/api-client";
 import { rupiah } from "@/lib/format";
 import type { Role } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
@@ -38,7 +38,7 @@ const emptyForm = {
   email: "",
   role: "admin" as Role,
   phone: "",
-  dailyRate: "0",
+  dailyRate: "",
   password: "",
 };
 
@@ -54,7 +54,9 @@ export default function PenggunaPage() {
   const [newPin, setNewPin] = useState("");
   const [pinSaving, setPinSaving] = useState(false);
   const [pinError, setPinError] = useState("");
-  const { toast, showToast } = useToast();
+  const { toast, showToast, dismiss } = useToast();
+  const modalRef = useRef<HTMLDivElement>(null);
+  const pinModalRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -63,18 +65,26 @@ export default function PenggunaPage() {
       setItems(res?.data ?? []);
     } catch (e) {
       setItems([]);
-      showToast(e instanceof Error ? e.message : "Gagal memuat pengguna");
+      showToast(e instanceof Error ? e.message : "Gagal memuat pengguna", "error");
     } finally {
       setLoading(false);
     }
   }, [showToast]);
 
-  const { role: currentRole, isLoading: sessionLoading } = useAppSession();
+  const { user, isLoading: sessionLoading } = useAppSession();
 
   useEffect(() => {
-    if (sessionLoading || currentRole !== "admin") return;
+    if (sessionLoading || !user) return;
     load();
-  }, [sessionLoading, currentRole, load]);
+  }, [sessionLoading, user, load]);
+
+  useEffect(() => {
+    if (modalOpen) modalRef.current?.focus();
+  }, [modalOpen]);
+  useEffect(() => {
+    if (pinModal) pinModalRef.current?.focus();
+  }, [pinModal]);
+
   if (sessionLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-10">
@@ -82,7 +92,7 @@ export default function PenggunaPage() {
       </div>
     );
   }
-  const isAdmin = currentRole === "admin";
+  const isAdmin = !!user;
   if (!isAdmin) {
     return (
       <Card className="text-center text-muted py-10">
@@ -122,6 +132,10 @@ export default function PenggunaPage() {
     }
     if (!form.email.trim()) {
       setFormError("Email wajib diisi");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setFormError("Format email tidak valid");
       return;
     }
     if (form.dailyRate.trim() === "") {
@@ -170,10 +184,14 @@ export default function PenggunaPage() {
         });
       }
       setModalOpen(false);
-      showToast(editing ? "Pengguna diperbarui" : "Pengguna ditambahkan");
+      showToast(editing ? "Pengguna diperbarui" : "Pengguna ditambahkan", "success");
       await load();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Gagal menyimpan pengguna");
+      if (e instanceof ApiError && e.code === "DUPLICATE") {
+        showToast("Email sudah terdaftar", "error");
+      } else {
+        showToast(e instanceof Error ? e.message : "Gagal menyimpan pengguna");
+      }
     } finally {
       setSaving(false);
     }
@@ -187,10 +205,14 @@ export default function PenggunaPage() {
         method: "POST",
         body: JSON.stringify({ active: !item.active }),
       });
-      showToast(`Pengguna ${action}`);
+      showToast(`Pengguna ${action}`, "success");
       await load();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Gagal mengubah status");
+      if (e instanceof ApiError && e.code === "LAST_ADMIN") {
+        showToast("Tidak dapat menonaktifkan admin terakhir", "error");
+      } else {
+        showToast(e instanceof Error ? e.message : "Gagal mengubah status");
+      }
     }
   }
 
@@ -211,7 +233,7 @@ export default function PenggunaPage() {
       setPinModal(null);
       setNewPin("");
       setPinError("");
-      showToast("PIN berhasil di-reset");
+      showToast("PIN berhasil di-reset", "success");
     } catch (e) {
       setPinError(e instanceof Error ? e.message : "Gagal reset PIN");
     } finally {
@@ -264,7 +286,7 @@ export default function PenggunaPage() {
               <button
                 onClick={() => openEdit(it)}
                 className="h-10 w-10 rounded-xl border border-line flex items-center justify-center text-brand hover:bg-brand-soft"
-                aria-label="Edit"
+                aria-label={`Edit ${it.name}`}
               >
                 <Pencil className="h-4 w-4" />
               </button>
@@ -275,7 +297,7 @@ export default function PenggunaPage() {
                   setPinError("");
                 }}
                 className="h-10 w-10 rounded-xl border border-line flex items-center justify-center text-amber-700 hover:bg-accent-soft"
-                aria-label="Reset PIN"
+                aria-label={`Reset PIN ${it.name}`}
               >
                 <KeyRound className="h-4 w-4" />
               </button>
@@ -286,7 +308,7 @@ export default function PenggunaPage() {
                     ? "text-danger hover:bg-danger-soft"
                     : "text-success hover:bg-success-soft"
                 }`}
-                aria-label={it.active ? "Nonaktifkan" : "Aktifkan"}
+                aria-label={it.active ? `Nonaktifkan ${it.name}` : `Aktifkan ${it.name}`}
               >
                 {it.active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
               </button>
@@ -295,97 +317,111 @@ export default function PenggunaPage() {
         ))}
       </div>
 
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? "Edit Pengguna" : "Tambah Pengguna"}
-        footer={
-          <Button variant="primary" type="submit" form="pengguna-form" fullWidth size="lg" disabled={saving}>
-            {saving ? "Menyimpan..." : "Simpan"}
-          </Button>
-        }
-      >
-        <form id="pengguna-form" onSubmit={handleSave} className="flex flex-col gap-4">
-          <Field label="Nama">
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </Field>
-          <Field label="Email">
-            <Input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </Field>
-          <Field label="Role">
-            <select
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
-              className="w-full h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface text-base text-ink"
-            >
-              <option value="admin">Admin</option>
-            </select>
-          </Field>
-          <Field label="Telepon">
-            <Input
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            />
-          </Field>
-          <Field label="Gaji Harian (Rp)">
-            <Input
-              type="number"
-              value={form.dailyRate}
-              onChange={(e) => setForm({ ...form, dailyRate: e.target.value })}
-            />
-          </Field>
-          {!editing && (
-            <Field label="PIN (min 6)">
-              <Input
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-              />
-            </Field>
-          )}
-          {formError && <p className="text-sm text-danger">{formError}</p>}
-        </form>
-      </Modal>
-
-      <Modal
-        open={!!pinModal}
-        onClose={() => {
-          setPinModal(null);
-          setNewPin("");
-          setPinError("");
-        }}
-        title="Reset PIN"
-      >
-        {pinModal && (
-          <form id="pin-form" onSubmit={handleResetPin} className="flex flex-col gap-4">
-            <p className="text-sm text-muted">
-              Reset PIN untuk <b>{pinModal.name}</b>
-            </p>
-            <Field label="PIN Baru">
-              <Input
-                type="password"
-                value={newPin}
-                onChange={(e) => setNewPin(e.target.value)}
-              />
-            </Field>
-            {pinError && <p className="text-sm text-danger">{pinError}</p>}
-            <Button variant="primary" type="submit" form="pin-form" fullWidth size="lg" disabled={pinSaving}>
-              {pinSaving ? "Menyimpan..." : "Simpan PIN"}
+      <div ref={modalRef} tabIndex={-1} className="outline-none">
+        <Modal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          title={editing ? "Edit Pengguna" : "Tambah Pengguna"}
+          footer={
+            <Button variant="primary" type="submit" form="pengguna-form" fullWidth size="lg" disabled={saving}>
+              {saving ? "Menyimpan..." : "Simpan"}
             </Button>
+          }
+        >
+          <form id="pengguna-form" onSubmit={handleSave} className="flex flex-col gap-4">
+            <Field label="Nama" htmlFor="user-name">
+              <Input
+                id="user-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </Field>
+            <Field label="Email" htmlFor="user-email">
+              <Input
+                id="user-email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </Field>
+            <Field label="Role" htmlFor="user-role">
+              <select
+                id="user-role"
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
+                className="w-full h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface text-base text-ink"
+              >
+                <option value="admin">Admin</option>
+              </select>
+            </Field>
+            <Field label="Telepon" htmlFor="user-phone">
+              <Input
+                id="user-phone"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
+            </Field>
+            <Field label="Gaji Harian (Rp)" htmlFor="user-daily-rate">
+              <Input
+                id="user-daily-rate"
+                type="number"
+                min="0"
+                step="1"
+                inputMode="numeric"
+                value={form.dailyRate}
+                onChange={(e) => setForm({ ...form, dailyRate: e.target.value })}
+              />
+            </Field>
+            {!editing && (
+              <Field label="PIN (min 6)" htmlFor="user-password">
+                <Input
+                  id="user-password"
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                />
+              </Field>
+            )}
+            {formError && <p className="text-sm text-danger">{formError}</p>}
           </form>
-        )}
-      </Modal>
+        </Modal>
+      </div>
+
+      <div ref={pinModalRef} tabIndex={-1} className="outline-none">
+        <Modal
+          open={!!pinModal}
+          onClose={() => {
+            setPinModal(null);
+            setNewPin("");
+            setPinError("");
+          }}
+          title="Reset PIN"
+        >
+          {pinModal && (
+            <form id="pin-form" onSubmit={handleResetPin} className="flex flex-col gap-4">
+              <p className="text-sm text-muted">
+                Reset PIN untuk <b>{pinModal.name}</b>
+              </p>
+              <Field label="PIN Baru" htmlFor="new-pin">
+                <Input
+                  id="new-pin"
+                  type="password"
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value)}
+                />
+              </Field>
+              {pinError && <p className="text-sm text-danger">{pinError}</p>}
+              <Button variant="primary" type="submit" form="pin-form" fullWidth size="lg" disabled={pinSaving}>
+                {pinSaving ? "Menyimpan..." : "Simpan PIN"}
+              </Button>
+            </form>
+          )}
+        </Modal>
+      </div>
 
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
-          <Toast message={toast.message} variant={toast.variant} />
+          <Toast message={toast.message} variant={toast.variant} onDismiss={dismiss} />
         </div>
       )}
     </div>

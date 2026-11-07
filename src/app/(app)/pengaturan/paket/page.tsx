@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, Package } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, UserCheck } from "lucide-react";
 
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, ApiError } from "@/lib/api-client";
 import { rupiah } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -36,7 +36,7 @@ export default function PaketPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const { toast, showToast } = useToast();
+  const { toast, showToast, dismiss } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,8 +44,8 @@ export default function PaketPage() {
       const fetched: ServicePackage[] = [];
       if (filter === "all") {
         const [motorRes, mobilRes] = await Promise.all([
-          apiFetch<{ data: ServicePackage[] }>("/api/packages?vehicleType=motor"),
-          apiFetch<{ data: ServicePackage[] }>("/api/packages?vehicleType=mobil"),
+          apiFetch<{ data: ServicePackage[] }>("/api/packages?vehicleType=motor&includeInactive=true"),
+          apiFetch<{ data: ServicePackage[] }>("/api/packages?vehicleType=mobil&includeInactive=true"),
         ]);
         const seen = new Set<string>();
         for (const it of [...(motorRes?.data ?? []), ...(mobilRes?.data ?? [])]) {
@@ -55,7 +55,7 @@ export default function PaketPage() {
         }
       } else {
         const res = await apiFetch<{ data: ServicePackage[] }>(
-          `/api/packages?vehicleType=${filter}`,
+          `/api/packages?vehicleType=${filter}&includeInactive=true`,
         );
         fetched.push(...(res?.data ?? []));
       }
@@ -63,7 +63,7 @@ export default function PaketPage() {
       setItems(fetched);
     } catch (e) {
       setItems([]);
-      showToast(e instanceof Error ? e.message : "Gagal memuat paket");
+      showToast(e instanceof Error ? e.message : "Gagal memuat paket", "error");
     } finally {
       setLoading(false);
     }
@@ -104,8 +104,8 @@ export default function PaketPage() {
       setFormError("Nama paket wajib diisi");
       return;
     }
-    if (!Number.isInteger(price) || price <= 0) {
-      setFormError("Harga harus angka bulat lebih dari 0");
+    if (!Number.isInteger(price) || price <= 0 || price > 100_000_000) {
+      setFormError("Harga harus angka bulat 1-100.000.000");
       return;
     }
     const dur = Number(form.durationMin);
@@ -144,20 +144,32 @@ export default function PaketPage() {
       showToast(editing ? "Paket diperbarui" : "Paket ditambahkan");
       await load();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Gagal menyimpan paket");
+      if (e instanceof ApiError && e.code === "DUPLICATE") {
+        showToast("Paket dengan nama itu sudah ada", "error");
+      } else {
+        showToast(e instanceof Error ? e.message : "Gagal menyimpan paket");
+      }
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDeactivate(item: ServicePackage) {
-    if (!confirm(`Nonaktifkan paket "${item.name}"?`)) return;
+  async function handleToggleActive(item: ServicePackage) {
+    const action = item.active ? "nonaktifkan" : "aktifkan";
+    if (!confirm(`${action} paket "${item.name}"?`)) return;
     try {
-      await apiFetch(`/api/packages/${item.id}`, { method: "DELETE" });
-      showToast("Paket dinonaktifkan");
+      if (item.active) {
+        await apiFetch(`/api/packages/${item.id}`, { method: "DELETE" });
+      } else {
+        await apiFetch(`/api/packages/${item.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ active: true }),
+        });
+      }
+      showToast(`Paket ${action}`);
       await load();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : "Gagal menonaktifkan paket");
+      showToast(e instanceof Error ? e.message : "Gagal mengubah status");
     }
   }
 
@@ -229,19 +241,21 @@ export default function PaketPage() {
               <button
                 onClick={() => openEdit(it)}
                 className="h-10 w-10 rounded-xl border border-line flex items-center justify-center text-brand hover:bg-brand-soft"
-                aria-label="Edit"
+                aria-label={`Edit ${it.name}`}
               >
                 <Pencil className="h-4 w-4" />
               </button>
-              {it.active && (
-                <button
-                  onClick={() => handleDeactivate(it)}
-                  className="h-10 w-10 rounded-xl border border-line flex items-center justify-center text-danger hover:bg-danger-soft"
-                  aria-label="Nonaktifkan"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
+              <button
+                onClick={() => handleToggleActive(it)}
+                className={`h-10 w-10 rounded-xl border border-line flex items-center justify-center ${
+                  it.active
+                    ? "text-danger hover:bg-danger-soft"
+                    : "text-success hover:bg-success-soft"
+                }`}
+                aria-label={it.active ? `Nonaktifkan ${it.name}` : `Aktifkan ${it.name}`}
+              >
+                {it.active ? <Trash2 className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+              </button>
             </div>
           </Card>
         ))}
@@ -258,15 +272,17 @@ export default function PaketPage() {
         }
       >
         <form id="paket-form" onSubmit={handleSave} className="flex flex-col gap-4">
-          <Field label="Nama Paket">
+          <Field label="Nama Paket" htmlFor="paket-name">
             <Input
+              id="paket-name"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="Cuci Motor Reguler"
             />
           </Field>
-          <Field label="Tipe Kendaraan">
+          <Field label="Tipe Kendaraan" htmlFor="paket-vehicle">
             <select
+              id="paket-vehicle"
               value={form.vehicleType}
               onChange={(e) =>
                 setForm({ ...form, vehicleType: e.target.value as VehicleType })
@@ -278,41 +294,55 @@ export default function PaketPage() {
             </select>
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Harga (Rp)">
+            <Field label="Harga (Rp)" htmlFor="paket-price">
               <Input
+                id="paket-price"
                 type="number"
+                min="0"
+                step="1"
+                inputMode="numeric"
                 value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value })}
                 placeholder="25000"
               />
             </Field>
-            <Field label="Durasi (menit)">
+            <Field label="Durasi (menit)" htmlFor="paket-duration">
               <Input
+                id="paket-duration"
                 type="number"
+                min="1"
+                step="1"
+                inputMode="numeric"
                 value={form.durationMin}
                 onChange={(e) => setForm({ ...form, durationMin: e.target.value })}
                 placeholder="20"
               />
             </Field>
           </div>
-          <Field label="Deskripsi">
+          <Field label="Deskripsi" htmlFor="paket-desc">
             <Input
+              id="paket-desc"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="Opsional"
             />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Urutan">
+            <Field label="Urutan" htmlFor="paket-sort">
               <Input
+                id="paket-sort"
                 type="number"
+                min="0"
+                step="1"
+                inputMode="numeric"
                 value={form.sortOrder}
                 onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
               />
             </Field>
-            <Field label="Status">
+            <Field label="Status" htmlFor="paket-active">
               <label className="flex items-center gap-2 h-12 px-4 rounded-[var(--radius-sm)] border border-line bg-surface">
                 <input
+                  id="paket-active"
                   type="checkbox"
                   checked={form.active}
                   onChange={(e) => setForm({ ...form, active: e.target.checked })}
@@ -328,7 +358,7 @@ export default function PaketPage() {
 
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
-          <Toast message={toast.message} variant={toast.variant} />
+          <Toast message={toast.message} variant={toast.variant} onDismiss={dismiss} />
         </div>
       )}
     </div>

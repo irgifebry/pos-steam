@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Printer, ReceiptText, RefreshCw } from "lucide-react";
+import { ArrowLeft, Printer, ReceiptText, RefreshCw, Share2 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { rupiah } from "@/lib/format";
 
@@ -120,7 +120,7 @@ export default function ReceiptPage() {
               href="/kasir"
               className="inline-flex h-11 items-center gap-2 rounded-[var(--radius-sm)] bg-ink px-4 text-sm font-semibold text-white"
             >
-              <ArrowLeft className="h-4 w-4" /> Ke kasir
+              <ArrowLeft className="h-4 w-4" /> Kembali
             </Link>
           </div>
         </section>
@@ -236,11 +236,29 @@ export default function ReceiptPage() {
         >
           <Printer className="h-4 w-4" /> Cetak
         </button>
+        <button
+          type="button"
+          onClick={async () => {
+            const url = window.location.href;
+            if (typeof navigator.share === "function") {
+              try {
+                await navigator.share({ title: "Struk", url });
+              } catch {
+                // user cancelled
+              }
+            } else {
+              window.open(`https://wa.me/?text=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer");
+            }
+          }}
+          className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-line bg-surface text-sm font-semibold text-ink"
+        >
+          <Share2 className="h-4 w-4" /> Bagikan
+        </button>
         <Link
           href="/kasir"
           className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-line bg-surface text-sm font-semibold text-ink"
         >
-          <ArrowLeft className="h-4 w-4" /> Ke kasir
+          <ArrowLeft className="h-4 w-4" /> Kembali
         </Link>
       </div>
     </main>
