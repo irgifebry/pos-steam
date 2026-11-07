@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from "react";
 import Link from "next/link";
 
 export default function Error({
@@ -9,6 +10,9 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-8 bg-bg text-ink">
       <div className="w-full max-w-sm rounded-[var(--radius-md)] border border-line bg-surface p-6 text-center shadow-[var(--shadow-card)]">
