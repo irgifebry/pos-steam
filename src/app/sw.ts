@@ -8,8 +8,6 @@ declare global {
   }
 }
 
-const swSelf = self as unknown as { __SW_MANIFEST: (PrecacheEntry | string)[] | undefined };
-
 const runtimeCaching = defaultCache.filter((entry) => {
   // Jangan cache endpoint API sensitif — selalu network.
   const urlPattern = (entry as { urlPattern?: RegExp | string }).urlPattern;
