@@ -19,8 +19,23 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   let data: unknown = null;
   if (text) { try { data = JSON.parse(text); } catch { data = text; } }
   if (!response.ok) {
-    const error = data && typeof data === 'object' ? (data as { error?: { code?: string; message?: string } }).error : undefined;
-    throw new ApiError(response.status, error?.code || 'HTTP_ERROR', error?.message || (typeof data === 'string' ? data : 'Terjadi kesalahan pada server'));
+    let errorCode = 'HTTP_ERROR';
+    let errorMessage = 'Terjadi kesalahan pada server';
+    if (data && typeof data === 'object') {
+      const obj = data as Record<string, unknown>;
+      if (typeof obj.message === 'string') errorMessage = obj.message;
+      if (typeof obj.code === 'string') errorCode = obj.code;
+      if (obj.error && typeof obj.error === 'object') {
+        const errObj = obj.error as Record<string, unknown>;
+        if (typeof errObj.message === 'string') errorMessage = errObj.message;
+        if (typeof errObj.code === 'string') errorCode = errObj.code;
+      } else if (typeof obj.error === 'string') {
+        errorMessage = obj.error;
+      }
+    } else if (typeof data === 'string' && data) {
+      errorMessage = data;
+    }
+    throw new ApiError(response.status, errorCode, errorMessage);
   }
   if (data && typeof data === 'object' && 'data' in data) return (data as { data: T }).data;
   return data as T;
