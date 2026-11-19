@@ -36,13 +36,19 @@ export const api = {
   request,
   auth: {
     login: async (email: string, password: string): Promise<Session> => {
-      const result = await request<Session>('/api/auth/sign-in/email', { ...json('POST', { email, password }), auth: false });
-      const cookieHeader = (result as Session & { token?: string }).token;
-      if (cookieHeader) await setSession({ ...result, token: cookieHeader });
-      else await setSession(result);
-      await setActiveUser(result.user); return result;
+      const result = await request<Session & { token?: string; session?: { token?: string; cookie?: string; expiresAt?: string } }>('/api/auth/sign-in/email', { ...json('POST', { email, password }), auth: false });
+      const normalized: Session = {
+        ...result,
+        token: result.token ?? result.session?.token,
+        cookie: result.cookie ?? result.session?.cookie,
+        expiresAt: result.expiresAt ?? result.session?.expiresAt,
+      };
+      await setSession(normalized);
+      await setActiveUser(normalized.user);
+      return normalized;
     },
-    session: () => request<Session>('/api/auth/get-session'),
+    getSession: () => request<Session & { session?: { token?: string; cookie?: string } } | null>('/api/auth/get-session'),
+    session: () => request<Session & { session?: { token?: string; cookie?: string } } | null>('/api/auth/get-session'),
     logout: async () => { try { await request<void>('/api/auth/sign-out', json('POST')); } finally { await clearAuthStorage(); } },
   },
   packages: {

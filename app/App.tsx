@@ -3,7 +3,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { ChartNoAxesCombined, ClipboardList, Droplets, Settings, Users } from 'lucide-react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { LoginScreen } from './src/screens/LoginScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -26,9 +28,11 @@ function PlaceholderScreen({ title, description }: { title: string; description:
   );
 }
 
-export default function App() {
+function AuthenticatedApp() {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return <View style={styles.loading}><ActivityIndicator size="large" color="#2563eb" /></View>;
+  if (!isAuthenticated) return <LoginScreen />;
   return (
-    <SafeAreaProvider>
       <NavigationContainer>
         <StatusBar style="dark" />
         <Tab.Navigator
@@ -52,11 +56,15 @@ export default function App() {
           ))}
         </Tab.Navigator>
       </NavigationContainer>
-    </SafeAreaProvider>
   );
 }
 
+export default function App() {
+  return <SafeAreaProvider><AuthProvider><AuthenticatedApp /></AuthProvider></SafeAreaProvider>;
+}
+
 const styles = StyleSheet.create({
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9' },
   screen: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f8f8', padding: 24 },
   iconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#d9f0f0', alignItems: 'center', justifyContent: 'center', marginBottom: 22 },
   eyebrow: { color: '#087e8b', fontSize: 12, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8 },
