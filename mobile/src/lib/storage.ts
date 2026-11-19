@@ -1,11 +1,38 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import type { Session, User } from '../types';
 
 const KEYS = { baseUrl: '@pos/base-url', session: '@pos/session', user: '@pos/user' } as const;
-export const DEFAULT_BASE_URL = 'http://localhost:3000';
+
+export function resolveDefaultBaseUrl(): string {
+  // Ambil hostUri dari Expo saat dibuka via Expo Go di HP atau simulator
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as unknown as { manifest2?: { extra?: { expoGo?: { debuggerHost?: string } } } })?.manifest2?.extra?.expoGo?.debuggerHost ||
+    (Constants as unknown as { manifest?: { debuggerHost?: string } })?.manifest?.debuggerHost;
+
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+      return `http://${ip}:3000`;
+    }
+  }
+
+  if (Platform.OS === 'android') {
+    return 'http://192.168.101.4:3000';
+  }
+
+  // Fallback ke IP LAN laptop tempat server Next.js berjalan
+  return 'http://192.168.101.4:3000';
+}
+
+export const DEFAULT_BASE_URL = resolveDefaultBaseUrl();
 
 export async function getBaseUrl(): Promise<string> {
-  return (await AsyncStorage.getItem(KEYS.baseUrl))?.replace(/\/+$/, '') || DEFAULT_BASE_URL;
+  const saved = await AsyncStorage.getItem(KEYS.baseUrl);
+  if (saved) return saved.replace(/\/+$/, '');
+  return resolveDefaultBaseUrl();
 }
 export async function setBaseUrl(url: string): Promise<void> {
   const normalized = url.trim().replace(/\/+$/, '');

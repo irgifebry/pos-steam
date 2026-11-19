@@ -1,5 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ChartNoAxesCombined, Clock3, CreditCard, Settings, UserRoundCheck } from 'lucide-react-native';
+import { BarChart3, ListChecks, Settings, ShoppingCart, Users } from 'lucide-react-native';
 import { AntreanScreen } from '../screens/AntreanScreen';
 import { KasirScreen } from '../screens/KasirScreen';
 import { KaryawanScreen } from '../screens/KaryawanScreen';
@@ -9,10 +9,10 @@ import { PengaturanScreen } from '../screens/PengaturanScreen';
 const Tab = createBottomTabNavigator();
 
 const tabIcons = {
-  Kasir: CreditCard,
-  Antrean: Clock3,
-  Laporan: ChartNoAxesCombined,
-  Karyawan: UserRoundCheck,
+  Kasir: ShoppingCart,
+  Antrean: ListChecks,
+  Laporan: BarChart3,
+  Karyawan: Users,
   Pengaturan: Settings,
 } as const;
 
@@ -22,13 +22,34 @@ export function BottomTabNavigator() {
       screenOptions={({ route }) => {
         const Icon = tabIcons[route.name as keyof typeof tabIcons];
         return {
-          headerStyle: { backgroundColor: '#ffffff' },
-          headerTitleStyle: { color: '#0f172a', fontWeight: '700' },
-          tabBarActiveTintColor: '#2563eb',
-          tabBarInactiveTintColor: '#78888b',
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-          tabBarStyle: { height: 64, paddingTop: 6, paddingBottom: 8, borderTopColor: '#e2e8f0' },
-          tabBarIcon: ({ color, size }) => <Icon color={color} size={size} />,
+          headerStyle: {
+            backgroundColor: '#ffffff',
+            borderBottomColor: '#bae6fd',
+            borderBottomWidth: 1,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTitleStyle: {
+            color: '#0f172a', // --color-ink
+            fontWeight: '800',
+            fontSize: 18,
+          },
+          tabBarActiveTintColor: '#0ea5e9', // --color-brand
+          tabBarInactiveTintColor: '#475569', // --color-muted
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: '700',
+            marginTop: -2,
+          },
+          tabBarStyle: {
+            height: 62,
+            paddingTop: 6,
+            paddingBottom: 8,
+            backgroundColor: '#ffffff', // --color-surface
+            borderTopColor: '#bae6fd', // --color-line
+            borderTopWidth: 1,
+          },
+          tabBarIcon: ({ color, size }) => <Icon color={color} size={size || 22} />,
         };
       }}
     >
