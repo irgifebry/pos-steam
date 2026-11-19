@@ -8,13 +8,16 @@ type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown; auth?: boole
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { auth = true, headers: supplied, body, ...init } = options;
+  const baseUrl = await getBaseUrl();
   const headers = new Headers(supplied);
   headers.set('Accept', 'application/json');
+  // Better Auth validates Origin header; React Native doesn't send one automatically
+  if (!headers.has('Origin')) headers.set('Origin', baseUrl);
   const session = auth ? await getSession() : null;
   if (session?.token) headers.set('Authorization', `Bearer ${session.token}`);
   if (session?.cookie) headers.set('Cookie', session.cookie);
   if (body !== undefined) headers.set('Content-Type', 'application/json');
-  const response = await fetch(`${await getBaseUrl()}${path}`, { ...init, headers, credentials: 'include', body: body === undefined ? undefined : JSON.stringify(body) });
+  const response = await fetch(`${baseUrl}${path}`, { ...init, headers, credentials: 'include', body: body === undefined ? undefined : JSON.stringify(body) });
   const text = response.status === 204 ? '' : await response.text();
   let data: unknown = null;
   if (text) { try { data = JSON.parse(text); } catch { data = text; } }
