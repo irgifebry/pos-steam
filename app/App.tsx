@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { AntreanScreen } from './src/screens/AntreanScreen';
 import { KasirScreen } from './src/screens/KasirScreen';
+import { LaporanScreen } from './src/screens/LaporanScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -53,7 +54,7 @@ function AuthenticatedApp() {
               name={name}
               options={{ title, tabBarIcon: ({ color, size }) => <Icon color={color} size={size} /> }}
             >
-              {() => name === 'Antrean' ? <AntreanScreen /> : name === 'Kasir' ? <KasirScreen /> : <PlaceholderScreen title={title} description={description} />}
+              {() => name === 'Antrean' ? <AntreanScreen /> : name === 'Kasir' ? <KasirScreen /> : name === 'Laporan' ? <LaporanScreen /> : <PlaceholderScreen title={title} description={description} />}
             </Tab.Screen>
           ))}
         </Tab.Navigator>
