@@ -47,6 +47,8 @@ export function KasirScreen() {
 
   const selectedPackage = packages.find((item) => item.id === packageId);
   const subtotal = useMemo(() => (selectedPackage?.price ?? 0) + addons.filter((addon) => addonIds.includes(addon.id)).reduce((sum, addon) => sum + addon.price, 0), [selectedPackage, addons, addonIds]);
+  const tax = useMemo(() => Math.round((subtotal * (activeOutlet?.taxPercent ?? 0)) / 100), [subtotal, activeOutlet?.taxPercent]);
+  const total = useMemo(() => subtotal + tax, [subtotal, tax]);
   const canSubmit = Boolean(selectedPackage && !loading && !submitting);
 
   async function completeOrder(payment: OrderPaymentInput) {
@@ -87,11 +89,14 @@ export function KasirScreen() {
         {loading ? <ActivityIndicator color="#2563eb" /> : error && !packages.length ? <View style={styles.notice}><Text accessibilityRole="alert" style={styles.error}>{error}</Text><Pressable onPress={() => void loadMasterData()} style={styles.retry}><Text style={styles.retryText}>Coba lagi</Text></Pressable></View> : <PackageList vehicleType={vehicleType} packages={packages} addons={addons} packageId={packageId} addonIds={addonIds} onPackageChange={setPackageId} onAddonToggle={(id) => setAddonIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id])} />}
       </View>
       {!!error && packages.length > 0 && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-      <View style={styles.summary}><View style={styles.summaryLine}><Text style={styles.summaryLabel}>Subtotal</Text><Text style={styles.summaryValue}>{formatIDR(subtotal)}</Text></View><View style={[styles.summaryLine, styles.totalLine]}><Text style={styles.totalLabel}>Total</Text><Text style={styles.totalValue}>{formatIDR(subtotal)}</Text></View>
+      <View style={styles.summary}>
+        <View style={styles.summaryLine}><Text style={styles.summaryLabel}>Subtotal</Text><Text style={styles.summaryValue}>{formatIDR(subtotal)}</Text></View>
+        {tax > 0 && <View style={styles.summaryLine}><Text style={styles.summaryLabel}>Pajak ({activeOutlet?.taxPercent ?? 0}%)</Text><Text style={styles.summaryValue}>{formatIDR(tax)}</Text></View>}
+        <View style={[styles.summaryLine, styles.totalLine]}><Text style={styles.totalLabel}>Total</Text><Text style={styles.totalValue}>{formatIDR(total)}</Text></View>
         <Pressable accessibilityRole="button" disabled={!canSubmit} onPress={() => { setError(''); setPaymentOpen(true); }} style={[styles.submit, !canSubmit && styles.disabled]}>{submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Simpan & bayar</Text>}</Pressable>
       </View>
     </ScrollView>
-    <PaymentModal visible={paymentOpen} total={subtotal} banks={banks} onClose={() => { if (!submitting) setPaymentOpen(false); }} onSubmit={completeOrder} />
+    <PaymentModal visible={paymentOpen} total={total} banks={banks} onClose={() => { if (!submitting) setPaymentOpen(false); }} onSubmit={completeOrder} />
     <Modal visible={Boolean(receipt)} transparent animationType="fade" onRequestClose={() => setReceipt(null)}>
       <View style={styles.modalBackdrop}><View style={styles.receiptCard}><Text style={styles.success}>Transaksi berhasil</Text><Text style={styles.receiptTitle}>{receipt?.order.invoiceNo}</Text><Text style={styles.queue}>Antrean {receipt?.order.queueNo} · {receipt?.order.vehicleType === 'motor' ? 'Motor' : 'Mobil'}</Text><View style={styles.divider} /><Text style={styles.receiptLine}>Paket · {receipt?.order.packageName}</Text><Text style={styles.receiptLine}>Plat · {receipt?.order.plate || '—'}</Text><Text style={styles.receiptTotal}>{formatIDR(receipt?.order.grandTotal ?? 0)}</Text><Text selectable style={styles.receiptUrl}>{receipt?.url}</Text>
         <Pressable accessibilityRole="button" disabled={shareBusy} onPress={() => void shareReceipt()} style={styles.submit}>{shareBusy ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Bagikan struk via WhatsApp</Text>}</Pressable>
