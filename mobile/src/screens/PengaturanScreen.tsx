@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pencil, Plus, X, KeyRound, UserX, UserCheck, Ban, CircleCheck } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import type { Addon, Bank, Outlet, ServicePackage, User } from '../types';
@@ -50,7 +51,7 @@ function CrudModal({
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{title}</Text>
             <Pressable onPress={onClose} style={styles.modalClose}>
-              <Text style={styles.modalCloseText}>✕</Text>
+              <X size={16} color={colors.muted} />
             </Pressable>
           </View>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.modalBody}>
@@ -158,7 +159,8 @@ function PaketSection() {
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Paket Layanan <Text style={styles.count}>({items.length})</Text></Text>
         <Pressable onPress={openAdd} style={styles.addBtn}>
-          <Text style={styles.addBtnText}>+ Tambah</Text>
+          <Plus size={13} color="#fff" />
+          <Text style={styles.addBtnText}>Tambah</Text>
         </Pressable>
       </View>
       {loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: 8 }} /> : items.length === 0 ? (
@@ -179,10 +181,10 @@ function PaketSection() {
           </View>
           <View style={styles.rowActions}>
             <Pressable onPress={() => openEdit(item)} style={styles.iconBtn}>
-              <Text style={styles.iconBtnText}>✏️</Text>
+              <Pencil size={16} color={colors.brandDark} />
             </Pressable>
             <Pressable onPress={() => void toggleActive(item)} style={[styles.iconBtn, item.active ? styles.iconBtnDanger : styles.iconBtnSuccess]}>
-              <Text style={styles.iconBtnText}>{item.active ? '🚫' : '✅'}</Text>
+              {item.active ? <Ban size={16} color={colors.danger} /> : <CircleCheck size={16} color={colors.successDark} />}
             </Pressable>
           </View>
         </View>
@@ -305,7 +307,8 @@ function AddonSection() {
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Add-on <Text style={styles.count}>({items.length})</Text></Text>
         <Pressable onPress={openAdd} style={styles.addBtn}>
-          <Text style={styles.addBtnText}>+ Tambah</Text>
+          <Plus size={13} color="#fff" />
+          <Text style={styles.addBtnText}>Tambah</Text>
         </Pressable>
       </View>
       {loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: 8 }} /> : items.length === 0 ? (
@@ -328,10 +331,10 @@ function AddonSection() {
           </View>
           <View style={styles.rowActions}>
             <Pressable onPress={() => openEdit(item)} style={styles.iconBtn}>
-              <Text style={styles.iconBtnText}>✏️</Text>
+              <Pencil size={16} color={colors.brandDark} />
             </Pressable>
             <Pressable onPress={() => void toggleActive(item)} style={[styles.iconBtn, item.active ? styles.iconBtnDanger : styles.iconBtnSuccess]}>
-              <Text style={styles.iconBtnText}>{item.active ? '🚫' : '✅'}</Text>
+              {item.active ? <Ban size={16} color={colors.danger} /> : <CircleCheck size={16} color={colors.successDark} />}
             </Pressable>
           </View>
         </View>
@@ -446,7 +449,8 @@ function BankSection() {
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Rekening Transfer <Text style={styles.count}>({items.length})</Text></Text>
         <Pressable onPress={openAdd} style={styles.addBtn}>
-          <Text style={styles.addBtnText}>+ Tambah</Text>
+          <Plus size={13} color="#fff" />
+          <Text style={styles.addBtnText}>Tambah</Text>
         </Pressable>
       </View>
       {loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: 8 }} /> : items.length === 0 ? (
@@ -463,10 +467,10 @@ function BankSection() {
           </View>
           <View style={styles.rowActions}>
             <Pressable onPress={() => openEdit(item)} style={styles.iconBtn}>
-              <Text style={styles.iconBtnText}>✏️</Text>
+              <Pencil size={16} color={colors.brandDark} />
             </Pressable>
             <Pressable onPress={() => void toggleActive(item)} style={[styles.iconBtn, item.active ? styles.iconBtnDanger : styles.iconBtnSuccess]}>
-              <Text style={styles.iconBtnText}>{item.active ? '🚫' : '✅'}</Text>
+              {item.active ? <Ban size={16} color={colors.danger} /> : <CircleCheck size={16} color={colors.successDark} />}
             </Pressable>
           </View>
         </View>
@@ -584,7 +588,8 @@ function PenggunaSection() {
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Pengguna <Text style={styles.count}>({items.length})</Text></Text>
         <Pressable onPress={openAdd} style={styles.addBtn}>
-          <Text style={styles.addBtnText}>+ Tambah</Text>
+          <Plus size={13} color="#fff" />
+          <Text style={styles.addBtnText}>Tambah</Text>
         </Pressable>
       </View>
       {loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: 8 }} /> : items.length === 0 ? (
@@ -607,13 +612,13 @@ function PenggunaSection() {
           </View>
           <View style={styles.rowActions}>
             <Pressable onPress={() => openEdit(item)} style={styles.iconBtn}>
-              <Text style={styles.iconBtnText}>✏️</Text>
+              <Pencil size={16} color={colors.brandDark} />
             </Pressable>
             <Pressable onPress={() => { setPinTarget(item); setNewPin(''); setPinError(''); }} style={styles.iconBtn}>
-              <Text style={styles.iconBtnText}>🔑</Text>
+              <KeyRound size={16} color={colors.warning} />
             </Pressable>
             <Pressable onPress={() => void handleToggleActive(item)} style={[styles.iconBtn, item.active ? styles.iconBtnDanger : styles.iconBtnSuccess]}>
-              <Text style={styles.iconBtnText}>{item.active ? '🚫' : '✅'}</Text>
+              {item.active ? <UserX size={16} color={colors.danger} /> : <UserCheck size={16} color={colors.successDark} />}
             </Pressable>
           </View>
         </View>
@@ -655,7 +660,7 @@ function PenggunaSection() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Reset PIN</Text>
               <Pressable onPress={() => setPinTarget(null)} style={styles.modalClose}>
-                <Text style={styles.modalCloseText}>✕</Text>
+                <X size={16} color={colors.muted} />
               </Pressable>
             </View>
             <View style={styles.modalBody}>
@@ -856,7 +861,7 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionTitle: { color: colors.ink, fontSize: 15, fontWeight: '800' },
   count: { color: colors.muted, fontSize: 12 },
-  addBtn: { backgroundColor: colors.brand, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.brand, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
   addBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   field: { gap: 6 },
   label: { color: colors.ink, fontSize: 12, fontWeight: '700' },
@@ -877,7 +882,6 @@ const styles = StyleSheet.create({
   vehicleBadge: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.line },
   vehicleBadgeText: { color: colors.brandDark, fontSize: 10, fontWeight: '800' },
   iconBtn: { width: 34, height: 34, borderRadius: 8, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  iconBtnText: { fontSize: 15 },
   iconBtnDanger: { borderColor: colors.dangerSoft },
   iconBtnSuccess: { borderColor: colors.successSoft },
   rowActions2: { flexDirection: 'row', gap: 6 },
@@ -897,7 +901,6 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.line },
   modalTitle: { color: colors.ink, fontSize: 18, fontWeight: '800' },
   modalClose: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  modalCloseText: { color: colors.muted, fontWeight: '800' },
   modalBody: { padding: 20, gap: 14 },
   formError: { color: colors.dangerDark, backgroundColor: colors.dangerSoft, padding: 10, borderRadius: 8, fontSize: 13 },
   // Segment control
