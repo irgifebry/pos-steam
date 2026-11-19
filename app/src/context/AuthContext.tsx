@@ -12,6 +12,7 @@ type AuthContextValue = {
   isLoading: boolean;
   login: (email: string, passwordOrPin: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateActiveOutlet: (outlet: Outlet) => void;
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -80,9 +81,11 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
     }
   }, []);
 
+  const updateActiveOutlet = useCallback((outlet: Outlet) => setActiveOutlet(outlet), []);
+
   const value = useMemo(() => ({
-    user, session, activeOutlet, isAuthenticated: Boolean(user && session), isLoading, login, logout,
-  }), [user, session, activeOutlet, isLoading, login, logout]);
+    user, session, activeOutlet, isAuthenticated: Boolean(user && session), isLoading, login, logout, updateActiveOutlet,
+  }), [user, session, activeOutlet, isLoading, login, logout, updateActiveOutlet]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

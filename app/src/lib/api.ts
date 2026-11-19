@@ -1,5 +1,5 @@
 import { clearAuthStorage, getBaseUrl, getSession, setActiveUser, setSession } from './storage';
-import type { Addon, Attendance, AttendanceSave, Bank, CashShift, Order, OrderCancel, OrderCreate, OrderPaymentInput, OrderStatus, Payroll, Reports, ServicePackage, Session, User } from '../types';
+import type { Addon, Attendance, AttendanceSave, Bank, CashShift, Order, OrderCancel, OrderCreate, OrderPaymentInput, OrderStatus, Outlet, Payroll, Reports, ServicePackage, Session, User } from '../types';
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) { super(message); this.name = 'ApiError'; }
@@ -52,12 +52,18 @@ export const api = {
     logout: async () => { try { await request<void>('/api/auth/sign-out', json('POST')); } finally { await clearAuthStorage(); } },
   },
   packages: {
-    list: (params: { vehicleType?: string; active?: boolean } = {}) => request<ServicePackage[]>(`/api/packages${query({ vehicleType: params.vehicleType, includeInactive: params.active === false ? true : undefined })}`),
+    list: async (params: { vehicleType?: string; active?: boolean } = {}) => {
+      const result = await request<ServicePackage[] | { packages?: ServicePackage[]; items?: ServicePackage[] }>(`/api/packages${query({ vehicleType: params.vehicleType, includeInactive: params.active === false ? true : undefined })}`);
+      return Array.isArray(result) ? result : result.packages ?? result.items ?? [];
+    },
     create: (body: Partial<ServicePackage>) => request<ServicePackage>('/api/packages', json('POST', body)),
     update: (id: string, body: Partial<ServicePackage>) => request<ServicePackage>(`/api/packages/${encodeURIComponent(id)}`, json('PATCH', body)),
   },
   addons: {
-    list: (params: { vehicleType?: string; includeInactive?: boolean } = {}) => request<Addon[]>(`/api/addons${query(params)}`),
+    list: async (params: { vehicleType?: string; includeInactive?: boolean } = {}) => {
+      const result = await request<Addon[] | { addons?: Addon[]; items?: Addon[] }>(`/api/addons${query(params)}`);
+      return Array.isArray(result) ? result : result.addons ?? result.items ?? [];
+    },
     create: (body: Partial<Addon>) => request<Addon>('/api/addons', json('POST', body)),
     update: (id: string, body: Partial<Addon>) => request<Addon>(`/api/addons/${encodeURIComponent(id)}`, json('PATCH', body)),
   },
@@ -94,7 +100,16 @@ export const api = {
     get: () => request<Record<string, unknown>>('/api/settings'),
     update: (body: Record<string, unknown>) => request<Record<string, unknown>>('/api/settings', json('PATCH', body)),
   },
-  banks: () => request<Bank[]>('/api/banks'),
+  outlets: {
+    update: async (body: Partial<Outlet>) => {
+      const result = await request<Outlet | { outlet?: Outlet }>('/api/outlets', json('PATCH', body));
+      return 'outlet' in result && result.outlet ? result.outlet : result as Outlet;
+    },
+  },
+  banks: async (includeInactive = false) => {
+    const result = await request<Bank[] | { banks?: Bank[]; items?: Bank[] }>(`/api/banks${query({ includeInactive: includeInactive || undefined })}`);
+    return Array.isArray(result) ? result : result.banks ?? result.items ?? [];
+  },
   users: () => request<User[]>('/api/users'),
 };
 
