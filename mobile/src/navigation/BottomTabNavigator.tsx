@@ -1,11 +1,11 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Image, Platform, StyleSheet, View } from 'react-native';
 import { BarChart3, ListChecks, Settings, ShoppingCart, Users } from 'lucide-react-native';
 import { AntreanScreen } from '../screens/AntreanScreen';
 import { KasirScreen } from '../screens/KasirScreen';
 import { KaryawanScreen } from '../screens/KaryawanScreen';
 import { LaporanScreen } from '../screens/LaporanScreen';
 import { PengaturanScreen } from '../screens/PengaturanScreen';
+import { AppHeader } from '../components/AppHeader';
 import { colors } from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
@@ -18,34 +18,13 @@ const tabIcons = {
   Pengaturan: Settings,
 } as const;
 
-function BrandHeaderLogo() {
-  return (
-    <View style={styles.headerLogoContainer}>
-      <Image
-        source={require('../../assets/kyane-logo.png')}
-        style={styles.logoImage}
-        resizeMode="contain"
-      />
-    </View>
-  );
-}
-
 export function BottomTabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => {
         const Icon = tabIcons[route.name as keyof typeof tabIcons];
         return {
-          headerStyle: {
-            backgroundColor: colors.surface,
-            borderBottomColor: colors.line,
-            borderBottomWidth: 1,
-            elevation: 0,
-            shadowOpacity: 0,
-            height: Platform.OS === 'ios' ? 96 : 56,
-          },
-          headerLeft: () => <BrandHeaderLogo />,
-          headerTitle: '',
+          header: () => <AppHeader />,
           tabBarActiveTintColor: colors.brand,
           tabBarInactiveTintColor: colors.muted,
           tabBarLabelStyle: {
@@ -73,15 +52,3 @@ export function BottomTabNavigator() {
     </Tab.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-  headerLogoContainer: {
-    paddingLeft: 4, // Digeser mentok ke kiri agar pas dengan padding layar
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  logoImage: {
-    width: 140,
-    height: 36,
-  },
-});

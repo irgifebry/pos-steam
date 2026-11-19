@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CheckCircle2, ChevronRight, Globe2, ShieldCheck, Sparkles, X } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { getBaseUrl, setBaseUrl } from '../lib/storage';
+import { KyaneLogo } from '../components/KyaneLogo';
 
 export function LoginScreen() {
   const { login } = useAuth();
@@ -150,11 +151,9 @@ export function LoginScreen() {
 
           {/* Brand Header */}
           <View style={styles.header}>
-            <Image
-              source={require('../../assets/kyane-logo.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
+            <View style={styles.logoCenter}>
+              <KyaneLogo width={180} height={54} />
+            </View>
             <Text style={styles.title}>Masuk ke panel admin</Text>
             <Text style={styles.subtitle}>KYANE Protect &amp; Shine — POS outlet cuci steam motor &amp; mobil.</Text>
           </View>
@@ -350,24 +349,26 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 8,
+    alignItems: 'center',
   },
-  logoImage: {
-    width: 160,
-    height: 48,
-    alignSelf: 'flex-start',
-    marginBottom: 4,
+  logoCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    marginBottom: 6,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '800',
     color: '#0f172a', // --color-ink
     letterSpacing: -0.5,
-    marginTop: 4,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
     color: '#475569', // --color-muted
     lineHeight: 20,
+    textAlign: 'center',
   },
   card: {
     backgroundColor: '#ffffff',
