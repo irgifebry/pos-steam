@@ -49,7 +49,7 @@ export const api = {
     },
     getSession: () => request<Session & { session?: { token?: string; cookie?: string } } | null>('/api/auth/get-session'),
     session: () => request<Session & { session?: { token?: string; cookie?: string } } | null>('/api/auth/get-session'),
-    logout: async () => { try { await request<void>('/api/auth/sign-out', json('POST')); } finally { await clearAuthStorage(); } },
+    logout: async () => { try { await request<void>('/api/auth/sign-out', json('POST', {})); } finally { await clearAuthStorage(); } },
   },
   packages: {
     list: async (params: { vehicleType?: string; active?: boolean } = {}) => {

@@ -19,20 +19,31 @@ export function createAuth(
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: Array.from(
-    new Set(
-      [env.WEB_ORIGIN, env.BETTER_AUTH_URL]
-        .flatMap((v) => v.split(","))
-        .map((v) => v.trim())
-        .filter(Boolean)
-        .map((v) => {
-          try {
-            return new URL(v).origin;
-          } catch {
-            return v;
-          }
-        }),
+      new Set(
+        [
+          env.WEB_ORIGIN,
+          env.BETTER_AUTH_URL,
+          // Izinkan request autentikasi dari Expo mobile app dan IP jaringan lokal
+          "exp://*",
+          "http://localhost:*",
+          "http://127.0.0.1:*",
+          "http://192.168.*:*",
+          "http://10.*:*",
+          "http://172.*:*",
+        ]
+          .flatMap((v) => v.split(","))
+          .map((v) => v.trim())
+          .filter(Boolean)
+          .map((v) => {
+            if (v.includes("*")) return v;
+            try {
+              return new URL(v).origin;
+            } catch {
+              return v;
+            }
+          }),
+      ),
     ),
-  ),
     emailAndPassword: {
       enabled: true,
       minPasswordLength: 6,
