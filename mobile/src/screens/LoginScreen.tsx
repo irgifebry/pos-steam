@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -149,14 +150,13 @@ export function LoginScreen() {
 
           {/* Brand Header */}
           <View style={styles.header}>
-            <View style={styles.badgeRow}>
-              <View style={styles.logoBadge}>
-                <Sparkles size={16} color="#0284c7" />
-                <Text style={styles.badgeText}>KYANE Protect & Shine</Text>
-              </View>
-            </View>
+            <Image
+              source={require('../../assets/kyane-logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>Masuk ke panel admin</Text>
-            <Text style={styles.subtitle}>POS outlet cuci steam motor &amp; mobil.</Text>
+            <Text style={styles.subtitle}>KYANE Protect &amp; Shine — POS outlet cuci steam motor &amp; mobil.</Text>
           </View>
 
           {/* Login Card */}
@@ -349,28 +349,13 @@ const styles = StyleSheet.create({
     maxWidth: 240,
   },
   header: {
-    gap: 6,
+    gap: 8,
   },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#e0f2fe',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#bae6fd',
-  },
-  badgeText: {
-    color: '#0284c7',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+  logoImage: {
+    width: 160,
+    height: 48,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
   },
   title: {
     fontSize: 28,

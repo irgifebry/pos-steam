@@ -1,4 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Image, View } from 'react-native';
 import { BarChart3, ListChecks, Settings, ShoppingCart, Users } from 'lucide-react-native';
 import { AntreanScreen } from '../screens/AntreanScreen';
 import { KasirScreen } from '../screens/KasirScreen';
@@ -16,6 +17,18 @@ const tabIcons = {
   Pengaturan: Settings,
 } as const;
 
+function BrandHeaderLogo() {
+  return (
+    <View style={{ paddingLeft: 16 }}>
+      <Image
+        source={require('../../assets/kyane-logo.png')}
+        style={{ width: 125, height: 32 }}
+        resizeMode="contain"
+      />
+    </View>
+  );
+}
+
 export function BottomTabNavigator() {
   return (
     <Tab.Navigator
@@ -29,11 +42,8 @@ export function BottomTabNavigator() {
             elevation: 0,
             shadowOpacity: 0,
           },
-          headerTitleStyle: {
-            color: '#0f172a', // --color-ink
-            fontWeight: '800',
-            fontSize: 18,
-          },
+          headerLeft: () => <BrandHeaderLogo />,
+          headerTitle: '',
           tabBarActiveTintColor: '#0ea5e9', // --color-brand
           tabBarInactiveTintColor: '#475569', // --color-muted
           tabBarLabelStyle: {
