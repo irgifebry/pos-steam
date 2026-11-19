@@ -1,11 +1,12 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Image, View } from 'react-native';
+import { Image, Platform, StyleSheet, View } from 'react-native';
 import { BarChart3, ListChecks, Settings, ShoppingCart, Users } from 'lucide-react-native';
 import { AntreanScreen } from '../screens/AntreanScreen';
 import { KasirScreen } from '../screens/KasirScreen';
 import { KaryawanScreen } from '../screens/KaryawanScreen';
 import { LaporanScreen } from '../screens/LaporanScreen';
 import { PengaturanScreen } from '../screens/PengaturanScreen';
+import { colors } from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
 
@@ -19,10 +20,10 @@ const tabIcons = {
 
 function BrandHeaderLogo() {
   return (
-    <View style={{ paddingLeft: 16 }}>
+    <View style={styles.headerLogoContainer}>
       <Image
         source={require('../../assets/kyane-logo.png')}
-        style={{ width: 125, height: 32 }}
+        style={styles.logoImage}
         resizeMode="contain"
       />
     </View>
@@ -36,16 +37,17 @@ export function BottomTabNavigator() {
         const Icon = tabIcons[route.name as keyof typeof tabIcons];
         return {
           headerStyle: {
-            backgroundColor: '#ffffff',
-            borderBottomColor: '#bae6fd',
+            backgroundColor: colors.surface,
+            borderBottomColor: colors.line,
             borderBottomWidth: 1,
             elevation: 0,
             shadowOpacity: 0,
+            height: Platform.OS === 'ios' ? 96 : 56,
           },
           headerLeft: () => <BrandHeaderLogo />,
           headerTitle: '',
-          tabBarActiveTintColor: '#0ea5e9', // --color-brand
-          tabBarInactiveTintColor: '#475569', // --color-muted
+          tabBarActiveTintColor: colors.brand,
+          tabBarInactiveTintColor: colors.muted,
           tabBarLabelStyle: {
             fontSize: 11,
             fontWeight: '700',
@@ -55,8 +57,8 @@ export function BottomTabNavigator() {
             height: 62,
             paddingTop: 6,
             paddingBottom: 8,
-            backgroundColor: '#ffffff', // --color-surface
-            borderTopColor: '#bae6fd', // --color-line
+            backgroundColor: colors.surface,
+            borderTopColor: colors.line,
             borderTopWidth: 1,
           },
           tabBarIcon: ({ color, size }) => <Icon color={color} size={size || 22} />,
@@ -71,3 +73,15 @@ export function BottomTabNavigator() {
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  headerLogoContainer: {
+    paddingLeft: 4, // Digeser mentok ke kiri agar pas dengan padding layar
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  logoImage: {
+    width: 140,
+    height: 36,
+  },
+});
