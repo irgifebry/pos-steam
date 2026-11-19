@@ -112,4 +112,3 @@ export const api = {
   },
   users: () => request<User[]>('/api/users'),
 };
-

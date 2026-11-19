@@ -43,7 +43,7 @@ export function AntreanScreen() {
 
   useEffect(() => {
     void loadOrders();
-    const timer = setInterval(() => void loadOrders(true), 30_000);
+    const timer = setInterval(() => void loadOrders(true), 5_000);
     return () => clearInterval(timer);
   }, [loadOrders]);
 

@@ -46,8 +46,12 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
           setUser(result.user);
           setActiveOutlet(result.activeOutlet ?? result.outlet ?? null);
         }
-      } catch {
-        await clearAuthStorage();
+      } catch (err: unknown) {
+        // Hanya hapus auth storage jika server memberikan status 401 Unauthorized
+        const status = (err as { status?: number })?.status;
+        if (status === 401) {
+          await clearAuthStorage();
+        }
       } finally {
         if (mounted) setIsLoading(false);
       }
