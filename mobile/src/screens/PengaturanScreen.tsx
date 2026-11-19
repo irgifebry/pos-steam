@@ -15,7 +15,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import { getBaseUrl, setBaseUrl, normalizeBaseUrl } from '../lib/storage';
 import type { Addon, Bank, Outlet, ServicePackage } from '../types';
 import { colors } from '../theme/colors';
 
@@ -30,12 +29,9 @@ export function PengaturanScreen() {
   const [packages, setPackages] = useState<ServicePackage[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
-  const [serverUrl, setServerUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [savingOutlet, setSavingOutlet] = useState(false);
-  const [savingServer, setSavingServer] = useState(false);
-  const [testingServer, setTestingServer] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -45,12 +41,11 @@ export function PengaturanScreen() {
       else setLoading(true);
       setError('');
       try {
-        const [settings, packageRows, addonRows, bankRows, baseUrl] = await Promise.all([
+        const [settings, packageRows, addonRows, bankRows] = await Promise.all([
           api.settings.get(),
           api.packages.list({ active: false }),
           api.addons.list({ includeInactive: true }),
           api.banks(true),
-          getBaseUrl(),
         ]);
         const configured = settings.outlet as Outlet | undefined;
         const resolvedOutlet = configured ?? activeOutlet;
@@ -66,7 +61,6 @@ export function PengaturanScreen() {
         setPackages(packageRows);
         setAddons(addonRows);
         setBanks(bankRows);
-        setServerUrl(baseUrl);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : 'Gagal memuat pengaturan.');
       } finally {
@@ -112,40 +106,6 @@ export function PengaturanScreen() {
       setError(cause instanceof Error ? cause.message : 'Gagal menyimpan profil outlet.');
     } finally {
       setSavingOutlet(false);
-    }
-  }
-
-  async function testConnection() {
-    if (testingServer) return;
-    setTestingServer(true);
-    setError('');
-    setMessage('');
-    try {
-      const normalized = normalizeBaseUrl(serverUrl.trim());
-      const response = await fetch(`${normalized}/api/health`);
-      if (!response.ok) throw new Error(`Server merespons dengan status ${response.status}.`);
-      setMessage('Koneksi server berhasil.');
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Tidak dapat terhubung ke server.');
-    } finally {
-      setTestingServer(false);
-    }
-  }
-
-  async function saveServer() {
-    if (savingServer) return;
-    setSavingServer(true);
-    setError('');
-    setMessage('');
-    try {
-      await setBaseUrl(serverUrl);
-      const updated = await getBaseUrl();
-      setServerUrl(updated);
-      setMessage(`URL server berhasil disimpan: ${updated}`);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'URL server tidak valid.');
-    } finally {
-      setSavingServer(false);
     }
   }
 
@@ -345,40 +305,6 @@ export function PengaturanScreen() {
               ) : (
                 <Text style={styles.muted}>Belum ada rekening transfer terdaftar.</Text>
               )}
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Koneksi server</Text>
-              <Field label="URL server">
-                <TextInput
-                  accessibilityLabel="URL server"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="url"
-                  value={serverUrl}
-                  onChangeText={setServerUrl}
-                  placeholder="https://pos.contoh.id"
-                  style={styles.input}
-                />
-              </Field>
-              <View style={styles.buttonRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={testingServer}
-                  onPress={() => void testConnection()}
-                  style={[styles.secondaryButton, testingServer && styles.disabled]}
-                >
-                  <Text style={styles.secondaryButtonText}>{testingServer ? 'Menguji…' : 'Tes koneksi'}</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={savingServer}
-                  onPress={() => void saveServer()}
-                  style={[styles.primaryButton, savingServer && styles.disabled]}
-                >
-                  <Text style={styles.primaryButtonText}>{savingServer ? 'Menyimpan…' : 'Simpan URL'}</Text>
-                </Pressable>
-              </View>
             </View>
 
             <Pressable accessibilityRole="button" onPress={confirmLogout} style={styles.logoutButton}>

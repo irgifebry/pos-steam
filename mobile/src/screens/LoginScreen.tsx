@@ -1,10 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -14,10 +11,10 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CheckCircle2, ChevronRight, Globe2, ShieldCheck, Sparkles, X } from 'lucide-react-native';
+import { ShieldCheck } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
-import { getBaseUrl, setBaseUrl } from '../lib/storage';
 import { KyaneLogo } from '../components/KyaneLogo';
+import { colors } from '../theme/colors';
 
 export function LoginScreen() {
   const { login } = useAuth();
@@ -26,43 +23,6 @@ export function LoginScreen() {
   const [pin, setPin] = useState('123456');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [serverUrl, setServerUrlState] = useState('');
-  const [serverOpen, setServerOpen] = useState(false);
-  const [serverInput, setServerInput] = useState('');
-  const [testingServer, setTestingServer] = useState(false);
-  const [serverStatus, setServerStatus] = useState<'connected' | 'checking' | 'error'>('checking');
-
-  useEffect(() => {
-    let active = true;
-    async function initServer() {
-      const current = await getBaseUrl();
-      if (!active) return;
-      setServerUrlState(current);
-      setServerInput(current);
-      checkConnection(current);
-    }
-    void initServer();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  async function checkConnection(url: string) {
-    setServerStatus('checking');
-    try {
-      const res = await fetch(`${url.replace(/\/+$/, '')}/api/health`, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      });
-      if (res.ok) {
-        setServerStatus('connected');
-      } else {
-        setServerStatus('error');
-      }
-    } catch {
-      setServerStatus('error');
-    }
-  }
 
   async function submitLogin() {
     setError('');
@@ -89,28 +49,13 @@ export function LoginScreen() {
       await login(cleanEmail, pin);
     } catch (cause) {
       const msg = cause instanceof Error ? cause.message : '';
-      if (/network|fetch|abort|timeout/i.test(msg) || serverStatus === 'error') {
-        setError(`Gagal menghubungi server (${serverUrl}). Pastikan HP dan laptop di WiFi yang sama, atau sesuaikan IP server.`);
+      if (/network|fetch|abort|timeout/i.test(msg)) {
+        setError('Gagal menghubungi server. Pastikan HP dan server backend terhubung di jaringan yang sama.');
       } else {
         setError(msg || 'Email atau PIN salah. Silakan coba lagi.');
       }
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function handleSaveServer() {
-    setTestingServer(true);
-    try {
-      await setBaseUrl(serverInput);
-      const updated = await getBaseUrl();
-      setServerUrlState(updated);
-      await checkConnection(updated);
-      setServerOpen(false);
-    } catch (err) {
-      Alert.alert('Gagal Menyimpan', err instanceof Error ? err.message : 'Terjadi kesalahan.');
-    } finally {
-      setTestingServer(false);
     }
   }
 
@@ -120,39 +65,17 @@ export function LoginScreen() {
         contentContainerStyle={[
           styles.scroll,
           {
-            paddingTop: Math.max(insets.top, 20) + 12,
+            paddingTop: Math.max(insets.top, 20) + 16,
             paddingBottom: Math.max(insets.bottom, 20) + 16,
           },
         ]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.inner}>
-          {/* Server Indicator Pill */}
-          <Pressable
-            onPress={() => {
-              setServerInput(serverUrl);
-              setServerOpen(true);
-            }}
-            style={styles.serverPill}
-          >
-            <View
-              style={[
-                styles.statusDot,
-                serverStatus === 'connected' && styles.dotGreen,
-                serverStatus === 'checking' && styles.dotYellow,
-                serverStatus === 'error' && styles.dotRed,
-              ]}
-            />
-            <Text style={styles.serverPillText} numberOfLines={1}>
-              Server: {serverUrl || 'Memuat...'}
-            </Text>
-            <ChevronRight size={14} color="#64748b" />
-          </Pressable>
-
-          {/* Brand Header */}
+          {/* Brand Header with Center Logo */}
           <View style={styles.header}>
             <View style={styles.logoCenter}>
-              <KyaneLogo width={180} height={54} />
+              <KyaneLogo width={200} height={60} />
             </View>
             <Text style={styles.title}>Masuk ke panel admin</Text>
             <Text style={styles.subtitle}>KYANE Protect &amp; Shine — POS outlet cuci steam motor &amp; mobil.</Text>
@@ -160,7 +83,7 @@ export function LoginScreen() {
 
           {/* Login Card */}
           <View style={styles.card}>
-            {/* Quick Demo Fill Pill */}
+            {/* Quick Demo Fill Button */}
             <Pressable
               onPress={() => {
                 setEmail('admin@pos.test');
@@ -169,7 +92,7 @@ export function LoginScreen() {
               }}
               style={styles.demoBox}
             >
-              <ShieldCheck size={16} color="#0284c7" />
+              <ShieldCheck size={18} color={colors.brandDark} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.demoTitle}>Akun Default Terpasang</Text>
                 <Text style={styles.demoSub}>admin@pos.test · PIN: 123456</Text>
@@ -186,7 +109,7 @@ export function LoginScreen() {
                 autoComplete="email"
                 keyboardType="email-address"
                 placeholder="nama@contoh.id"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.lightMuted}
                 editable={!loading}
                 onChangeText={setEmail}
                 style={styles.input}
@@ -206,7 +129,7 @@ export function LoginScreen() {
                 secureTextEntry
                 maxLength={12}
                 placeholder="••••••"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.lightMuted}
                 editable={!loading}
                 onChangeText={(val) => setPin(val.replace(/\D/g, ''))}
                 onSubmitEditing={() => void submitLogin()}
@@ -248,54 +171,6 @@ export function LoginScreen() {
           </View>
         </View>
       </ScrollView>
-
-      {/* Modal Setting Server */}
-      <Modal visible={serverOpen} transparent animationType="fade" onRequestClose={() => setServerOpen(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Globe2 size={18} color="#0284c7" />
-                <Text style={styles.modalTitle}>Konfigurasi Server API</Text>
-              </View>
-              <Pressable onPress={() => setServerOpen(false)} hitSlop={10}>
-                <X size={20} color="#64748b" />
-              </Pressable>
-            </View>
-            <Text style={styles.modalDescription}>
-              Masukkan IP laptop dan port tempat Next.js berjalan (misal: http://192.168.101.4:3000) agar HP dapat terhubung.
-            </Text>
-
-            <TextInput
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              placeholder="http://192.168.1.x:3000"
-              placeholderTextColor="#94a3b8"
-              onChangeText={setServerInput}
-              style={[styles.input, { marginBottom: 16 }]}
-              value={serverInput}
-            />
-
-            <View style={styles.modalButtons}>
-              <Pressable onPress={() => setServerOpen(false)} style={styles.modalCancelBtn}>
-                <Text style={styles.modalCancelText}>Batal</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => void handleSaveServer()}
-                disabled={testingServer}
-                style={[styles.modalSaveBtn, testingServer && styles.dimmed]}
-              >
-                {testingServer ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.modalSaveText}>Simpan &amp; Uji</Text>
-                )}
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -303,7 +178,7 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f9ff', // matches web --color-bg
+    backgroundColor: colors.bg,
   },
   scroll: {
     flexGrow: 1,
@@ -314,38 +189,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     alignSelf: 'center',
-    gap: 16,
-  },
-  serverPill: {
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#bae6fd',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    gap: 8,
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  dotGreen: { backgroundColor: '#16a34a' },
-  dotYellow: { backgroundColor: '#eab308' },
-  dotRed: { backgroundColor: '#ef4444' },
-  serverPillText: {
-    fontSize: 12,
-    color: '#475569',
-    fontWeight: '600',
-    maxWidth: 240,
+    gap: 18,
   },
   header: {
     gap: 8,
@@ -360,24 +204,24 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#0f172a', // --color-ink
+    color: colors.ink,
     letterSpacing: -0.5,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#475569', // --color-muted
+    color: colors.muted,
     lineHeight: 20,
     textAlign: 'center',
   },
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 18,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#bae6fd',
+    borderColor: colors.line,
     gap: 16,
-    shadowColor: '#0f172a',
+    shadowColor: colors.ink,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 16,
@@ -386,9 +230,9 @@ const styles = StyleSheet.create({
   demoBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f9ff',
+    backgroundColor: colors.bg,
     borderWidth: 1,
-    borderColor: '#bae6fd',
+    borderColor: colors.line,
     borderRadius: 12,
     padding: 10,
     gap: 10,
@@ -396,18 +240,18 @@ const styles = StyleSheet.create({
   demoTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0f172a',
+    color: colors.ink,
   },
   demoSub: {
     fontSize: 11,
-    color: '#0284c7',
+    color: colors.brandDark,
     fontWeight: '600',
   },
   demoAction: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0284c7',
-    backgroundColor: '#e0f2fe',
+    color: colors.brandDark,
+    backgroundColor: colors.brandSoft,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
@@ -423,53 +267,53 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0f172a',
+    color: colors.ink,
   },
   labelHint: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.muted,
   },
   input: {
     height: 48,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: colors.inputBorder,
     borderRadius: 10,
     paddingHorizontal: 14,
     fontSize: 15,
-    color: '#0f172a',
+    color: colors.ink,
   },
   pinInput: {
     letterSpacing: 4,
     fontWeight: '700',
   },
   errorBox: {
-    backgroundColor: '#fee2e2',
+    backgroundColor: colors.dangerSoft,
     borderWidth: 1,
-    borderColor: '#fca5a5',
+    borderColor: colors.danger,
     borderRadius: 10,
     padding: 12,
   },
   errorText: {
     fontSize: 13,
-    color: '#b91c1c',
+    color: colors.dangerDark,
     lineHeight: 18,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   submitBtn: {
     height: 48,
-    backgroundColor: '#0ea5e9', // --color-brand
+    backgroundColor: colors.brand,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0ea5e9',
+    shadowColor: colors.brand,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 2,
   },
   submitBtnPressed: {
-    backgroundColor: '#0284c7',
+    backgroundColor: colors.brandDark,
   },
   submitBtnText: {
     color: '#ffffff',
@@ -487,64 +331,7 @@ const styles = StyleSheet.create({
   footerNote: {
     textAlign: 'center',
     fontSize: 12,
-    color: '#64748b',
+    color: colors.muted,
     marginTop: 2,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 20,
-    gap: 12,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  modalDescription: {
-    fontSize: 13,
-    color: '#475569',
-    lineHeight: 18,
-    marginBottom: 4,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-  },
-  modalCancelBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    backgroundColor: '#f1f5f9',
-  },
-  modalCancelText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  modalSaveBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 10,
-    backgroundColor: '#0ea5e9',
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  modalSaveText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#ffffff',
   },
 });
