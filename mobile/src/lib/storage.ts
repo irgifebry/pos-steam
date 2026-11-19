@@ -34,8 +34,36 @@ export async function getBaseUrl(): Promise<string> {
   if (saved) return saved.replace(/\/+$/, '');
   return resolveDefaultBaseUrl();
 }
+export function normalizeBaseUrl(input: string): string {
+  let trimmed = input.trim();
+  // Jika user memasukkan alamat exp://192.168.1.x:8081 atau sejenisnya
+  if (trimmed.startsWith('exp://')) {
+    trimmed = trimmed.replace('exp://', 'http://');
+    // Ganti port Metro bundler 8081 jika ada ke port 3000 Next.js
+    if (trimmed.includes(':8081')) {
+      trimmed = trimmed.replace(':8081', ':3000');
+    }
+  } else if (!/^https?:\/\//i.test(trimmed)) {
+    // Jika tidak ada protokol, defaultkan ke http://
+    trimmed = `http://${trimmed}`;
+  }
+
+  // Jika user hanya memasukkan IP atau host tanpa port, dan bukan domain https baku
+  try {
+    const parsed = new URL(trimmed);
+    if (!parsed.port && parsed.hostname !== 'localhost' && !parsed.hostname.includes('.vercel.app')) {
+      parsed.port = '3000';
+      trimmed = parsed.toString();
+    }
+  } catch {
+    // Biarkan jika format belum selesai diketik
+  }
+
+  return trimmed.replace(/\/+$/, '');
+}
+
 export async function setBaseUrl(url: string): Promise<void> {
-  const normalized = url.trim().replace(/\/+$/, '');
+  const normalized = normalizeBaseUrl(url);
   if (!/^https?:\/\//i.test(normalized)) throw new Error('Base URL harus menggunakan http:// atau https://');
   await AsyncStorage.setItem(KEYS.baseUrl, normalized);
 }

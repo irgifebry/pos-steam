@@ -98,16 +98,12 @@ export function LoginScreen() {
   }
 
   async function handleSaveServer() {
-    const trimmed = serverInput.trim().replace(/\/+$/, '');
-    if (!/^https?:\/\//i.test(trimmed)) {
-      Alert.alert('Format Salah', 'Alamat server harus diawali dengan http:// atau https://');
-      return;
-    }
     setTestingServer(true);
     try {
-      await setBaseUrl(trimmed);
-      setServerUrlState(trimmed);
-      await checkConnection(trimmed);
+      await setBaseUrl(serverInput);
+      const updated = await getBaseUrl();
+      setServerUrlState(updated);
+      await checkConnection(updated);
       setServerOpen(false);
     } catch (err) {
       Alert.alert('Gagal Menyimpan', err instanceof Error ? err.message : 'Terjadi kesalahan.');

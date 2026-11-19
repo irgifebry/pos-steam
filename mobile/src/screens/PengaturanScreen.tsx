@@ -70,10 +70,8 @@ export function PengaturanScreen() {
     if (testingServer) return;
     setTestingServer(true); setError(''); setMessage('');
     try {
-      const url = new URL(serverUrl.trim());
-      if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('Gunakan URL berawalan http:// atau https://.');
-      const normalizedPath = url.pathname.replace(/\/$/, '');
-      const response = await fetch(`${url.origin}${normalizedPath.endsWith('/api') ? normalizedPath : `${normalizedPath}/api`}/health`);
+      const normalized = (await import('../lib/storage')).normalizeBaseUrl(serverUrl.trim());
+      const response = await fetch(`${normalized}/api/health`);
       if (!response.ok) throw new Error(`Server merespons dengan status ${response.status}.`);
       setMessage('Koneksi server berhasil.');
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Tidak dapat terhubung ke server.'); }
@@ -83,7 +81,12 @@ export function PengaturanScreen() {
   async function saveServer() {
     if (savingServer) return;
     setSavingServer(true); setError(''); setMessage('');
-    try { await setBaseUrl(serverUrl); setServerUrl(await getBaseUrl()); setMessage('URL server berhasil disimpan.'); }
+    try {
+      await setBaseUrl(serverUrl);
+      const updated = await getBaseUrl();
+      setServerUrl(updated);
+      setMessage(`URL server berhasil disimpan: ${updated}`);
+    }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'URL server tidak valid.'); }
     finally { setSavingServer(false); }
   }
