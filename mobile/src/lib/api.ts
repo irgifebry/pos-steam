@@ -76,6 +76,7 @@ export const api = {
     },
     create: (body: Partial<ServicePackage>) => request<ServicePackage>('/api/packages', json('POST', body)),
     update: (id: string, body: Partial<ServicePackage>) => request<ServicePackage>(`/api/packages/${encodeURIComponent(id)}`, json('PATCH', body)),
+    delete: (id: string) => request<void>(`/api/packages/${encodeURIComponent(id)}`, json('DELETE')),
   },
   addons: {
     list: async (params: { vehicleType?: string; includeInactive?: boolean } = {}) => {
@@ -84,6 +85,7 @@ export const api = {
     },
     create: (body: Partial<Addon>) => request<Addon>('/api/addons', json('POST', body)),
     update: (id: string, body: Partial<Addon>) => request<Addon>(`/api/addons/${encodeURIComponent(id)}`, json('PATCH', body)),
+    delete: (id: string) => request<void>(`/api/addons/${encodeURIComponent(id)}`, json('DELETE')),
   },
   orders: {
     list: (params: { date?: string; from?: string; to?: string; includePaid?: boolean } = {}) => request<Order[]>(`/api/orders${query(params)}`),
@@ -124,9 +126,24 @@ export const api = {
       return 'outlet' in result && result.outlet ? result.outlet : result as Outlet;
     },
   },
-  banks: async (includeInactive = false) => {
-    const result = await request<Bank[] | { banks?: Bank[]; items?: Bank[] }>(`/api/banks${query({ includeInactive: includeInactive || undefined })}`);
-    return Array.isArray(result) ? result : result.banks ?? result.items ?? [];
+  banks: {
+    list: async (includeInactive = false) => {
+      const result = await request<Bank[] | { banks?: Bank[]; items?: Bank[] }>(`/api/banks${query({ includeInactive: includeInactive || undefined })}`);
+      return Array.isArray(result) ? result : result.banks ?? result.items ?? [];
+    },
+    create: (body: Partial<Bank>) => request<Bank>('/api/banks', json('POST', body)),
+    update: (id: string, body: Partial<Bank>) => request<Bank>(`/api/banks/${encodeURIComponent(id)}`, json('PATCH', body)),
+    delete: (id: string) => request<void>(`/api/banks/${encodeURIComponent(id)}`, json('DELETE')),
   },
-  users: () => request<User[]>('/api/users'),
+  users: {
+    list: () => request<User[]>('/api/users'),
+    create: (body: { name: string; email: string; role: string; phone: string; dailyRate: number; password: string; active: boolean }) =>
+      request<User>('/api/users', json('POST', body)),
+    update: (id: string, body: { name?: string; email?: string; role?: string; phone?: string; dailyRate?: number }) =>
+      request<User>(`/api/users/${encodeURIComponent(id)}`, json('PATCH', body)),
+    setActive: (id: string, active: boolean) =>
+      request<User>(`/api/users/${encodeURIComponent(id)}/active`, json('POST', { active })),
+    resetPin: (id: string, password: string) =>
+      request<void>(`/api/users/${encodeURIComponent(id)}/pin`, json('POST', { password })),
+  },
 };

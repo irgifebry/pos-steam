@@ -13,8 +13,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QueueCard } from '../components/QueueCard';
+import { PaymentModal } from '../components/PaymentModal';
 import { api } from '../lib/api';
-import type { Order, OrderStatus, VehicleType } from '../types';
+import type { Bank, Order, OrderPaymentInput, OrderStatus, VehicleType } from '../types';
 import { colors } from '../theme/colors';
 
 const tabs: { label: string; status?: OrderStatus }[] = [
@@ -43,6 +44,8 @@ export function AntreanScreen() {
   const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [saving, setSaving] = useState(false);
+  const [payTarget, setPayTarget] = useState<Order | null>(null);
+  const [banks, setBanks] = useState<Bank[]>([]);
 
   const loadOrders = useCallback(async (background = false) => {
     if (background) setRefreshing(true);
@@ -74,6 +77,10 @@ export function AntreanScreen() {
     const timer = setInterval(() => void loadOrders(true), 5_000);
     return () => clearInterval(timer);
   }, [loadOrders]);
+
+  useEffect(() => {
+    api.banks.list().then(setBanks).catch(() => setBanks([]));
+  }, []);
 
   const filtered = useMemo(
     () =>
@@ -109,6 +116,13 @@ export function AntreanScreen() {
     }
   };
 
+  const payOrder = async (payment: OrderPaymentInput) => {
+    if (!payTarget) return;
+    await api.orders.pay(payTarget.id, payment);
+    setPayTarget(null);
+    await loadOrders(true);
+  };
+
   return (
     <View style={[styles.screen, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       <FlatList
@@ -124,6 +138,7 @@ export function AntreanScreen() {
               setCancelTarget(order);
               setCancelReason('');
             }}
+            onPay={(order) => setPayTarget(order)}
           />
         )}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
@@ -235,6 +250,13 @@ export function AntreanScreen() {
           </View>
         </View>
       </Modal>
+      <PaymentModal
+        visible={Boolean(payTarget)}
+        total={payTarget ? (payTarget.grandTotal ?? payTarget.total ?? 0) : 0}
+        banks={banks}
+        onClose={() => setPayTarget(null)}
+        onSubmit={payOrder}
+      />
     </View>
   );
 }

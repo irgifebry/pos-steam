@@ -22,11 +22,13 @@ export function QueueCard({
   onStart,
   onFinish,
   onCancel,
+  onPay,
 }: {
   order: Order;
   onStart: (order: Order) => void;
   onFinish: (order: Order) => void;
   onCancel: (order: Order) => void;
+  onPay?: (order: Order) => void;
 }) {
   const [elapsed, setElapsed] = useState(() => elapsedSince(order.startedAt ?? order.createdAt));
 
@@ -78,7 +80,13 @@ export function QueueCard({
         </Pressable>
       )}
       {(order.status === 'selesai' || order.status === 'paid') && (
-        <Text style={styles.completed}>{order.paid ? 'Lunas' : 'Selesai'}</Text>
+        order.paid
+          ? <Text style={styles.completed}>Lunas</Text>
+          : onPay
+            ? <Pressable accessibilityRole="button" onPress={() => onPay(order)} style={[styles.action, styles.primary]}>
+                <Text style={styles.primaryText}>Bayar</Text>
+              </Pressable>
+            : <Text style={styles.completed}>Selesai</Text>
       )}
     </View>
   );

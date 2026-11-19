@@ -28,7 +28,7 @@ export function KaryawanScreen() {
     else setLoading(true);
     setError('');
     try {
-      const [people, records] = await Promise.all([api.users(), api.attendance.list(dateKey(new Date()))]);
+      const [people, records] = await Promise.all([api.users.list(), api.attendance.list(dateKey(new Date()))]);
       setUsers(people);
       setAttendance(records);
     } catch (cause) {

@@ -33,7 +33,7 @@ export function KasirScreen() {
   const loadMasterData = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const [packageData, addonData, bankData] = await Promise.all([api.packages.list(), api.addons.list(), api.banks()]);
+      const [packageData, addonData, bankData] = await Promise.all([api.packages.list(), api.addons.list(), api.banks.list()]);
       setPackages(packageData); setAddons(addonData); setBanks(bankData);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Gagal memuat paket dan add-on.'); }
     finally { setLoading(false); }
