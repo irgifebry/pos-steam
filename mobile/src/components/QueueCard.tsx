@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Order } from '../types';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
+import { useStyles } from '../theme/useStyles';
+import type { Palette } from '../theme/palettes';
 
-const statusInfo: Record<Order['status'], { label: string; color: string; background: string }> = {
-  menunggu: { label: 'Menunggu', color: colors.warningDark, background: colors.warningSoft },
-  proses: { label: 'Proses', color: colors.brandDark, background: colors.brandSoft },
-  selesai: { label: 'Selesai', color: colors.successDark, background: colors.successSoft },
-  paid: { label: 'Selesai', color: colors.successDark, background: colors.successSoft },
-  dibatalkan: { label: 'Dibatalkan', color: colors.dangerDark, background: colors.dangerSoft },
-};
+function buildStatusInfo(colors: Palette): Record<Order['status'], { label: string; color: string; background: string }> {
+  return {
+    menunggu: { label: 'Menunggu', color: colors.warningDark, background: colors.warningSoft },
+    proses: { label: 'Proses', color: colors.brandDark, background: colors.brandSoft },
+    selesai: { label: 'Selesai', color: colors.successDark, background: colors.successSoft },
+    paid: { label: 'Selesai', color: colors.successDark, background: colors.successSoft },
+    dibatalkan: { label: 'Dibatalkan', color: colors.dangerDark, background: colors.dangerSoft },
+  };
+}
 
 function elapsedSince(date: string) {
   const minutes = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 60_000));
@@ -30,6 +34,9 @@ export function QueueCard({
   onCancel: (order: Order) => void;
   onPay?: (order: Order) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
+  const statusInfo = buildStatusInfo(colors);
   const [elapsed, setElapsed] = useState(() => elapsedSince(order.startedAt ?? order.createdAt));
 
   useEffect(() => {
@@ -92,32 +99,34 @@ export function QueueCard({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 16,
-    padding: 16,
-    gap: 9,
-  },
-  topLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  queue: { color: colors.ink, fontSize: 20, fontWeight: '800' },
-  badge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  badgeText: { fontSize: 12, fontWeight: '800' },
-  details: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  plate: { color: colors.ink, fontSize: 16, fontWeight: '800' },
-  vehicle: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
-  motor: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line },
-  car: { backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.line },
-  vehicleText: { color: colors.muted, fontWeight: '700', fontSize: 11 },
-  package: { color: colors.muted, fontSize: 14, fontWeight: '600' },
-  time: { color: colors.lightMuted, fontSize: 12 },
-  actions: { flexDirection: 'row', gap: 9, marginTop: 4 },
-  action: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 10, paddingHorizontal: 12 },
-  primary: { backgroundColor: colors.brand },
-  primaryText: { color: '#fff', fontWeight: '800' },
-  cancel: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.dangerSoft },
-  cancelText: { color: colors.danger, fontWeight: '800' },
-  completed: { color: colors.successDark, fontWeight: '800', marginTop: 3 },
-});
+function buildStyles(colors: Palette) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.line,
+      borderRadius: 16,
+      padding: 16,
+      gap: 9,
+    },
+    topLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    queue: { color: colors.ink, fontSize: 20, fontWeight: '800' },
+    badge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+    badgeText: { fontSize: 12, fontWeight: '800' },
+    details: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    plate: { color: colors.ink, fontSize: 16, fontWeight: '800' },
+    vehicle: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
+    motor: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line },
+    car: { backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.line },
+    vehicleText: { color: colors.muted, fontWeight: '700', fontSize: 11 },
+    package: { color: colors.muted, fontSize: 14, fontWeight: '600' },
+    time: { color: colors.lightMuted, fontSize: 12 },
+    actions: { flexDirection: 'row', gap: 9, marginTop: 4 },
+    action: { minHeight: 42, flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 10, paddingHorizontal: 12 },
+    primary: { backgroundColor: colors.brand },
+    primaryText: { color: '#fff', fontWeight: '800' },
+    cancel: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.dangerSoft },
+    cancelText: { color: colors.danger, fontWeight: '800' },
+    completed: { color: colors.successDark, fontWeight: '800', marginTop: 3 },
+  });
+}

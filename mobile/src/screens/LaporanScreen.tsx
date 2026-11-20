@@ -5,7 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatCard } from '../components/StatCard';
 import { api } from '../lib/api';
 import type { Order } from '../types';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
+import { useStyles } from '../theme/useStyles';
+import type { Palette } from '../theme/palettes';
 
 type Dashboard = {
   date?: string;
@@ -27,15 +29,16 @@ const dateKey = (date: Date) => {
   const part = (type: string) => parts.find((item) => item.type === type)?.value ?? '';
   return `${part('year')}-${part('month')}-${part('day')}`;
 };
-const statusStyle: Record<string, { label: string; color: string; background: string }> = {
-  menunggu: { label: 'Menunggu', color: colors.warningDark, background: colors.warningSoft },
-  proses: { label: 'Proses', color: colors.brandDark, background: colors.brandSoft },
-  selesai: { label: 'Selesai', color: colors.successDark, background: colors.successSoft },
-  paid: { label: 'Lunas', color: colors.successDark, background: colors.successSoft },
-  dibatalkan: { label: 'Dibatalkan', color: colors.dangerDark, background: colors.dangerSoft },
-};
-
 export function LaporanScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
+  const statusStyle: Record<string, { label: string; color: string; background: string }> = {
+    menunggu: { label: 'Menunggu', color: colors.warningDark, background: colors.warningSoft },
+    proses: { label: 'Proses', color: colors.brandDark, background: colors.brandSoft },
+    selesai: { label: 'Selesai', color: colors.successDark, background: colors.successSoft },
+    paid: { label: 'Lunas', color: colors.successDark, background: colors.successSoft },
+    dibatalkan: { label: 'Dibatalkan', color: colors.dangerDark, background: colors.dangerSoft },
+  };
   const insets = useSafeAreaInsets();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [omzet, setOmzet] = useState<OmzetSummary | null>(null);
@@ -120,8 +123,8 @@ export function LaporanScreen() {
             <View style={styles.metricGrid}>
               <StatCard title="Total Omzet Hari Ini" value={rupiah(revenue)} subtitle="Transaksi lunas" icon={Banknote} accentColor={colors.brandDark} />
               <StatCard title="Jumlah Transaksi" value={transactionCount} subtitle="Transaksi lunas" icon={ReceiptText} accentColor={colors.brand} />
-              <StatCard title="Total Motor" value={dashboard?.motorCount ?? transactions.filter((item) => item.vehicleType === 'motor').length} subtitle="Kendaraan hari ini" icon={Motorbike} accentColor="#0284c7" />
-              <StatCard title="Total Mobil" value={dashboard?.mobilCount ?? transactions.filter((item) => item.vehicleType === 'mobil').length} subtitle="Kendaraan hari ini" icon={CarFront} accentColor="#0369a1" />
+              <StatCard title="Total Motor" value={dashboard?.motorCount ?? transactions.filter((item) => item.vehicleType === 'motor').length} subtitle="Kendaraan hari ini" icon={Motorbike} accentColor={colors.brand} />
+              <StatCard title="Total Mobil" value={dashboard?.mobilCount ?? transactions.filter((item) => item.vehicleType === 'mobil').length} subtitle="Kendaraan hari ini" icon={CarFront} accentColor={colors.brandDark} />
             </View>
             <View style={styles.section}>
               <View style={styles.sectionHeading}>
@@ -213,7 +216,8 @@ export function LaporanScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function buildStyles(colors: Palette) {
+  return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, gap: 14, flexGrow: 1 },
   heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -255,4 +259,5 @@ const styles = StyleSheet.create({
   plate: { color: colors.brandDark, fontWeight: '700', fontSize: 13 },
   transactionBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   transactionTotal: { color: colors.ink, fontWeight: '800', fontSize: 13 },
-});
+  });
+}

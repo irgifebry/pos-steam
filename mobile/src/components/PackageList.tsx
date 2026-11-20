@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Addon, ServicePackage, VehicleType } from '../types';
-import { colors } from '../theme/colors';
+import { useStyles } from '../theme/useStyles';
+import type { Palette } from '../theme/palettes';
 
 export const formatIDR = (amount: number) => `Rp ${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(amount)}`;
 
@@ -23,6 +24,7 @@ export function PackageList({
   onPackageChange,
   onAddonToggle,
 }: Props) {
+  const styles = useStyles(buildStyles);
   const visiblePackages = packages.filter((item) => item.active && item.vehicleType === vehicleType);
   const visibleAddons = addons.filter((item) => item.active && item.vehicleTypes.includes(vehicleType));
 
@@ -75,7 +77,8 @@ export function PackageList({
   );
 }
 
-const styles = StyleSheet.create({
+function buildStyles(colors: Palette) {
+  return StyleSheet.create({
   container: { gap: 10 },
   heading: { fontSize: 15, fontWeight: '800', color: colors.ink },
   addonHeading: { marginTop: 8 },
@@ -100,4 +103,5 @@ const styles = StyleSheet.create({
   detail: { color: colors.muted, fontSize: 12 },
   price: { color: colors.brandDark, fontSize: 13, fontWeight: '800' },
   empty: { color: colors.muted, fontSize: 13, paddingVertical: 8 },
-});
+  });
+}

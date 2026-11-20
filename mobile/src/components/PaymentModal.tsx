@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { formatIDR } from './PackageList';
 import type { Bank, OrderPaymentInput } from '../types';
-import { colors } from '../theme/colors';
+import { useStyles } from '../theme/useStyles';
+import type { Palette } from '../theme/palettes';
 
 type Props = { visible: boolean; total: number; banks: Bank[]; onClose: () => void; onSubmit: (payment: OrderPaymentInput) => Promise<void> };
 type Method = 'cash' | 'transfer';
 const nominalButtons = [{ label: 'Pas', value: 0 }, { label: '20rb', value: 20000 }, { label: '50rb', value: 50000 }, { label: '100rb', value: 100000 }];
 
 export function PaymentModal({ visible, total, banks, onClose, onSubmit }: Props) {
+  const styles = useStyles(buildStyles);
   const [method, setMethod] = useState<Method>('cash');
   const [cash, setCash] = useState(String(total));
   const [bankId, setBankId] = useState('');
@@ -151,7 +153,8 @@ export function PaymentModal({ visible, total, banks, onClose, onSubmit }: Props
   );
 }
 
-const styles = StyleSheet.create({
+function buildStyles(colors: Palette) {
+  return StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.48)', justifyContent: 'flex-end' },
   card: { maxHeight: '90%', backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
   content: { padding: 22, gap: 14 },
@@ -175,7 +178,8 @@ const styles = StyleSheet.create({
   error: { color: colors.dangerDark, backgroundColor: colors.dangerSoft, padding: 10, borderRadius: 8, fontSize: 13 },
   cancel: { padding: 13, borderRadius: 10, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line },
   cancelText: { color: colors.muted, fontWeight: '700' },
-  confirm: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 13, borderRadius: 10, backgroundColor: colors.brand },
+  confirm: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 13, borderRadius: 10, backgroundColor: colors.brandDeep },
   confirmText: { color: '#fff', fontWeight: '700', textAlign: 'center' },
   disabled: { opacity: 0.65 },
-});
+  });
+}

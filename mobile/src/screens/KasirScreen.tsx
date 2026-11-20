@@ -7,11 +7,16 @@ import { PaymentModal } from '../components/PaymentModal';
 import { VehicleSelector } from '../components/VehicleSelector';
 import { api } from '../lib/api';
 import { getBaseUrl } from '../lib/storage';
+import { useTheme } from '../theme/ThemeContext';
+import { useStyles } from '../theme/useStyles';
+import type { Palette } from '../theme/palettes';
 import type { Addon, Bank, Order, OrderPaymentInput, ServicePackage, VehicleType } from '../types';
 
 const newClientId = () => `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 
 export function KasirScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
   const { user, activeOutlet } = useAuth();
   const insets = useSafeAreaInsets();
   const [vehicleType, setVehicleType] = useState<VehicleType>('motor');
@@ -86,63 +91,67 @@ export function KasirScreen() {
         <Text style={styles.label}>Catatan</Text><TextInput accessibilityLabel="Catatan" multiline placeholder="Catatan untuk pesanan (opsional)" value={notes} onChangeText={setNotes} style={[styles.input, styles.notes]} />
       </View>
       <View style={styles.section}><Text style={styles.sectionTitle}>Paket & add-on</Text>
-        {loading ? <ActivityIndicator color="#2563eb" /> : error && !packages.length ? <View style={styles.notice}><Text accessibilityRole="alert" style={styles.error}>{error}</Text><Pressable onPress={() => void loadMasterData()} style={styles.retry}><Text style={styles.retryText}>Coba lagi</Text></Pressable></View> : <PackageList vehicleType={vehicleType} packages={packages} addons={addons} packageId={packageId} addonIds={addonIds} onPackageChange={setPackageId} onAddonToggle={(id) => setAddonIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id])} />}
+        {loading ? <ActivityIndicator color={colors.brand} /> : error && !packages.length ? <View style={styles.notice}><Text accessibilityRole="alert" style={styles.error}>{error}</Text><Pressable onPress={() => void loadMasterData()} style={styles.retry}><Text style={styles.retryText}>Coba lagi</Text></Pressable></View> : <PackageList vehicleType={vehicleType} packages={packages} addons={addons} packageId={packageId} addonIds={addonIds} onPackageChange={setPackageId} onAddonToggle={(id) => setAddonIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id])} />}
       </View>
       {!!error && packages.length > 0 && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+      <View style={styles.dividerSection} />
       <View style={styles.summary}>
         <View style={styles.summaryLine}><Text style={styles.summaryLabel}>Subtotal</Text><Text style={styles.summaryValue}>{formatIDR(subtotal)}</Text></View>
         {tax > 0 && <View style={styles.summaryLine}><Text style={styles.summaryLabel}>Pajak ({activeOutlet?.taxPercent ?? 0}%)</Text><Text style={styles.summaryValue}>{formatIDR(tax)}</Text></View>}
         <View style={[styles.summaryLine, styles.totalLine]}><Text style={styles.totalLabel}>Total</Text><Text style={styles.totalValue}>{formatIDR(total)}</Text></View>
-        <Pressable accessibilityRole="button" disabled={!canSubmit} onPress={() => { setError(''); setPaymentOpen(true); }} style={[styles.submit, !canSubmit && styles.disabled]}>{submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Simpan & bayar</Text>}</Pressable>
+        <Pressable accessibilityRole="button" disabled={!canSubmit} onPress={() => { setError(''); setPaymentOpen(true); }} style={[styles.submit, !canSubmit && styles.disabled]}>{submitting ? <ActivityIndicator color={colors.night} /> : <Text style={styles.submitText}>Simpan & bayar</Text>}</Pressable>
       </View>
     </ScrollView>
     <PaymentModal visible={paymentOpen} total={total} banks={banks} onClose={() => { if (!submitting) setPaymentOpen(false); }} onSubmit={completeOrder} />
     <Modal visible={Boolean(receipt)} transparent animationType="fade" onRequestClose={() => setReceipt(null)}>
       <View style={styles.modalBackdrop}><View style={styles.receiptCard}><Text style={styles.success}>Transaksi berhasil</Text><Text style={styles.receiptTitle}>{receipt?.order.invoiceNo}</Text><Text style={styles.queue}>Antrean {receipt?.order.queueNo} · {receipt?.order.vehicleType === 'motor' ? 'Motor' : 'Mobil'}</Text><View style={styles.divider} /><Text style={styles.receiptLine}>Paket · {receipt?.order.packageName}</Text><Text style={styles.receiptLine}>Plat · {receipt?.order.plate || '—'}</Text><Text style={styles.receiptTotal}>{formatIDR(receipt?.order.grandTotal ?? 0)}</Text><Text selectable style={styles.receiptUrl}>{receipt?.url}</Text>
-        <Pressable accessibilityRole="button" disabled={shareBusy} onPress={() => void shareReceipt()} style={styles.submit}>{shareBusy ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Bagikan struk via WhatsApp</Text>}</Pressable>
+        <Pressable accessibilityRole="button" disabled={shareBusy} onPress={() => void shareReceipt()} style={styles.submit}>{shareBusy ? <ActivityIndicator color={colors.night} /> : <Text style={styles.submitText}>Bagikan struk via WhatsApp</Text>}</Pressable>
         <Pressable accessibilityRole="button" onPress={() => { setReceipt(null); setVehicleType('motor'); setPlate(''); setCustomerName(''); setNotes(''); setAddonIds([]); }} style={styles.done}><Text style={styles.doneText}>Transaksi baru</Text></Pressable>
       </View></View>
     </Modal>
   </KeyboardAvoidingView>;
 }
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#f0f9ff' },
+function buildStyles(colors: Palette) {
+  return StyleSheet.create({
+  flex: { flex: 1, backgroundColor: colors.bg },
   content: { paddingHorizontal: 16, gap: 14 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
-  eyebrow: { color: '#0284c7', fontWeight: '800', fontSize: 11, letterSpacing: 1.5 },
-  title: { color: '#0f172a', fontSize: 24, fontWeight: '800' },
+  eyebrow: { color: colors.brand, fontWeight: '800', fontSize: 11, letterSpacing: 1.5 },
+  title: { color: colors.ink, fontSize: 24, fontWeight: '800' },
   operator: { alignItems: 'flex-end', maxWidth: '45%' },
-  operatorName: { color: '#0f172a', fontWeight: '700', fontSize: 13 },
-  outlet: { color: '#475569', fontSize: 12 },
-  section: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#bae6fd', padding: 16, gap: 10 },
-  sectionTitle: { color: '#0f172a', fontSize: 15, fontWeight: '800' },
-  label: { color: '#0f172a', fontSize: 12, fontWeight: '700', marginTop: 2 },
-  optional: { color: '#64748b', fontWeight: '400' },
-  input: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 10, height: 46, paddingHorizontal: 12, color: '#0f172a', backgroundColor: '#fff', fontSize: 15 },
+  operatorName: { color: colors.ink, fontWeight: '700', fontSize: 13 },
+  outlet: { color: colors.muted, fontSize: 12 },
+  section: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.line, padding: 16, gap: 10 },
+  sectionTitle: { color: colors.ink, fontSize: 15, fontWeight: '800' },
+  label: { color: colors.muted, fontSize: 12, fontWeight: '700', marginTop: 2 },
+  optional: { color: colors.lightMuted, fontWeight: '400' },
+  input: { borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 10, height: 46, paddingHorizontal: 12, color: colors.ink, backgroundColor: colors.surface, fontSize: 15 },
   notes: { minHeight: 68, textAlignVertical: 'top', paddingTop: 11 },
-  summary: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#bae6fd', padding: 16, gap: 12 },
+  summary: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.line, padding: 16, gap: 12 },
   summaryLine: { flexDirection: 'row', justifyContent: 'space-between' },
-  summaryLabel: { color: '#475569', fontSize: 14 },
-  summaryValue: { color: '#0f172a', fontWeight: '700' },
-  totalLine: { borderTopWidth: 1, borderColor: '#e2e8f0', paddingTop: 12 },
-  totalLabel: { color: '#0f172a', fontSize: 16, fontWeight: '800' },
-  totalValue: { color: '#0284c7', fontSize: 20, fontWeight: '800' },
-  submit: { minHeight: 48, borderRadius: 10, backgroundColor: '#0ea5e9', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 },
-  submitText: { color: '#fff', fontWeight: '800', fontSize: 15, textAlign: 'center' },
+  summaryLabel: { color: colors.muted, fontSize: 14 },
+  summaryValue: { color: colors.ink, fontWeight: '700' },
+  totalLine: { borderTopWidth: 1, borderColor: colors.line, paddingTop: 12 },
+  totalLabel: { color: colors.ink, fontSize: 16, fontWeight: '800' },
+  totalValue: { color: colors.brand, fontSize: 20, fontWeight: '800' },
+  dividerSection: { height: 1, backgroundColor: colors.line },
+  submit: { minHeight: 48, borderRadius: 10, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 },
+  submitText: { color: colors.night, fontWeight: '800', fontSize: 15, textAlign: 'center' },
   disabled: { opacity: 0.55 },
   notice: { gap: 10 },
-  error: { color: '#b91c1c', backgroundColor: '#fee2e2', padding: 10, borderRadius: 9, fontSize: 13 },
-  retry: { padding: 10, backgroundColor: '#e0f2fe', alignItems: 'center', borderRadius: 9 },
-  retryText: { color: '#0284c7', fontWeight: '700' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'center', padding: 20 },
-  receiptCard: { backgroundColor: '#fff', borderRadius: 20, padding: 22, gap: 12, borderWidth: 1, borderColor: '#bae6fd' },
-  success: { color: '#16a34a', fontWeight: '800', textAlign: 'center', fontSize: 15 },
-  receiptTitle: { color: '#0f172a', fontSize: 22, fontWeight: '800', textAlign: 'center' },
-  queue: { color: '#475569', textAlign: 'center' },
-  divider: { borderTopWidth: 1, borderColor: '#e2e8f0', marginVertical: 3 },
-  receiptLine: { color: '#0f172a', fontSize: 14 },
-  receiptTotal: { color: '#0284c7', fontWeight: '800', fontSize: 22, textAlign: 'right' },
-  receiptUrl: { color: '#475569', fontSize: 12, textAlign: 'center' },
+  error: { color: colors.dangerDark, backgroundColor: colors.dangerSoft, padding: 10, borderRadius: 9, fontSize: 13 },
+  retry: { padding: 10, backgroundColor: colors.brandSoft, alignItems: 'center', borderRadius: 9 },
+  retryText: { color: colors.brand, fontWeight: '700' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
+  receiptCard: { backgroundColor: colors.nightMid, borderRadius: 20, padding: 22, gap: 12, borderWidth: 1, borderColor: colors.line },
+  success: { color: colors.successDark, fontWeight: '800', textAlign: 'center', fontSize: 15 },
+  receiptTitle: { color: colors.ink, fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  queue: { color: colors.muted, textAlign: 'center' },
+  divider: { borderTopWidth: 1, borderColor: colors.line, marginVertical: 3 },
+  receiptLine: { color: colors.ink, fontSize: 14 },
+  receiptTotal: { color: colors.brand, fontWeight: '800', fontSize: 22, textAlign: 'right' },
+  receiptUrl: { color: colors.muted, fontSize: 12, textAlign: 'center' },
   done: { alignItems: 'center', padding: 12 },
-  doneText: { color: '#0284c7', fontWeight: '700' }
-});
+  doneText: { color: colors.brand, fontWeight: '700' }
+  });
+}

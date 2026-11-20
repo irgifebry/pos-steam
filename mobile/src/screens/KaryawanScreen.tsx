@@ -4,7 +4,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AbsensiScreen } from './AbsensiScreen';
 import { api } from '../lib/api';
 import type { Attendance, User } from '../types';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
+import { useStyles } from '../theme/useStyles';
+import type { Palette } from '../theme/palettes';
 
 const dateKey = (date: Date) => {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
@@ -15,6 +17,8 @@ const roleName = (role: string) => (role === 'admin' ? 'Admin' : 'Operator');
 const attendanceName = (status?: string) => ({ hadir: 'Hadir', izin: 'Izin', sakit: 'Sakit', alpha: 'Alpa', cuti: 'Cuti' }[status ?? ''] ?? 'Belum dicatat');
 
 export function KaryawanScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
   const insets = useSafeAreaInsets();
   const [users, setUsers] = useState<User[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
@@ -137,7 +141,8 @@ export function KaryawanScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function buildStyles(colors: Palette) {
+  return StyleSheet.create({
   content: { padding: 16, gap: 12, flexGrow: 1, backgroundColor: colors.bg },
   heading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   eyebrow: { color: colors.brandDark, fontSize: 11, fontWeight: '800', letterSpacing: 1.3 },
@@ -182,4 +187,5 @@ const styles = StyleSheet.create({
   backRow: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.bg },
   backButton: { alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 8 },
   backText: { color: colors.brandDark, fontWeight: '800', fontSize: 14 },
-});
+  });
+}

@@ -1,10 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { VehicleType } from '../types';
-import { colors } from '../theme/colors';
+import { useStyles } from '../theme/useStyles';
+import type { Palette } from '../theme/palettes';
 
 type Props = { value: VehicleType; onChange: (value: VehicleType) => void };
 
 export function VehicleSelector({ value, onChange }: Props) {
+  const styles = useStyles(buildStyles);
   return (
     <View accessibilityRole="radiogroup" style={styles.row}>
       {(['motor', 'mobil'] as const).map((vehicle) => (
@@ -24,7 +26,8 @@ export function VehicleSelector({ value, onChange }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function buildStyles(colors: Palette) {
+  return StyleSheet.create({
   row: { flexDirection: 'row', gap: 10 },
   option: {
     flex: 1,
@@ -47,4 +50,5 @@ const styles = StyleSheet.create({
   selectedLabel: {
     color: colors.brandDark,
   },
-});
+  });
+}

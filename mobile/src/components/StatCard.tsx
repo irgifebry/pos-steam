@@ -1,13 +1,15 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
+import { useStyles } from '../theme/useStyles';
+import type { Palette } from '../theme/palettes';
 
 export function StatCard({
   title,
   value,
   subtitle,
   icon: Icon,
-  accentColor = colors.brand,
+  accentColor: accentColorProp,
 }: {
   title: string;
   value: string | number;
@@ -15,6 +17,9 @@ export function StatCard({
   icon: LucideIcon;
   accentColor?: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
+  const accentColor = accentColorProp ?? colors.brand;
   return (
     <View style={styles.card}>
       <View style={[styles.iconBox, { backgroundColor: `${accentColor}18` }]}>
@@ -29,7 +34,8 @@ export function StatCard({
   );
 }
 
-const styles = StyleSheet.create({
+function buildStyles(colors: Palette) {
+  return StyleSheet.create({
   card: {
     flex: 1,
     minWidth: 145,
@@ -51,4 +57,5 @@ const styles = StyleSheet.create({
   title: { color: colors.muted, fontSize: 12, fontWeight: '700' },
   value: { color: colors.ink, fontSize: 20, fontWeight: '800', fontVariant: ['tabular-nums'] },
   subtitle: { color: colors.lightMuted, fontSize: 11, fontWeight: '600' },
-});
+  });
+}

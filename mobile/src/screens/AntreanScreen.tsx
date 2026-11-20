@@ -16,7 +16,9 @@ import { QueueCard } from '../components/QueueCard';
 import { PaymentModal } from '../components/PaymentModal';
 import { api } from '../lib/api';
 import type { Bank, Order, OrderPaymentInput, OrderStatus, VehicleType } from '../types';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
+import { useStyles } from '../theme/useStyles';
+import type { Palette } from '../theme/palettes';
 
 const tabs: { label: string; status?: OrderStatus }[] = [
   { label: 'Semua' },
@@ -33,6 +35,8 @@ const vehicles: { label: string; type?: VehicleType }[] = [
 ];
 
 export function AntreanScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
   const insets = useSafeAreaInsets();
   const [orders, setOrders] = useState<Order[]>([]);
   const [counts, setCounts] = useState({ menunggu: 0, proses: 0 });
@@ -261,68 +265,70 @@ export function AntreanScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  listContent: { padding: 16, gap: 12, flexGrow: 1 },
-  header: { gap: 12, paddingBottom: 4 },
-  heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  eyebrow: { color: colors.brandDark, fontSize: 11, fontWeight: '800', letterSpacing: 1.4 },
-  title: { color: colors.ink, fontSize: 24, fontWeight: '800' },
-  refresh: { backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
-  refreshText: { color: colors.brandDark, fontWeight: '800', fontSize: 12 },
-  summary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 13,
-    padding: 12,
-  },
-  summaryValue: { color: colors.ink, fontSize: 19, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  summaryLabel: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: colors.lightMuted },
-  tabRow: { gap: 7 },
-  tab: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-  },
-  tabActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  tabText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
-  tabTextActive: { color: '#fff' },
-  vehicleRow: { gap: 7 },
-  vehicleTab: {
-    borderRadius: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  vehicleActive: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
-  vehicleText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
-  vehicleTextActive: { color: colors.brandDark },
-  errorBox: { backgroundColor: colors.dangerSoft, borderRadius: 10, padding: 11, gap: 5 },
-  errorText: { color: colors.dangerDark, fontSize: 13 },
-  retry: { color: colors.brandDark, fontWeight: '800' },
-  loading: { marginTop: 35 },
-  empty: { alignItems: 'center', padding: 28, gap: 6 },
-  emptyTitle: { color: colors.ink, fontWeight: '800', fontSize: 16 },
-  emptyText: { color: colors.muted, textAlign: 'center', fontSize: 13 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.52)', justifyContent: 'center', padding: 20 },
-  modalCard: { backgroundColor: colors.surface, borderRadius: 18, padding: 20, gap: 13, borderWidth: 1, borderColor: colors.line },
-  modalTitle: { color: colors.ink, fontSize: 20, fontWeight: '800' },
-  modalDescription: { color: colors.muted, lineHeight: 20 },
-  reasonInput: { minHeight: 88, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 11, padding: 12, textAlignVertical: 'top', color: colors.ink },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 9 },
-  modalSecondary: { justifyContent: 'center', paddingHorizontal: 13, minHeight: 44 },
-  modalSecondaryText: { color: colors.muted, fontWeight: '700' },
-  modalPrimary: { minHeight: 44, backgroundColor: colors.danger, borderRadius: 10, paddingHorizontal: 13, justifyContent: 'center', alignItems: 'center' },
-  modalPrimaryText: { color: '#fff', fontWeight: '800' },
-  disabled: { opacity: 0.55 },
-});
+function buildStyles(colors: Palette) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.bg },
+    listContent: { padding: 16, gap: 12, flexGrow: 1 },
+    header: { gap: 12, paddingBottom: 4 },
+    heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    eyebrow: { color: colors.brandDark, fontSize: 11, fontWeight: '800', letterSpacing: 1.4 },
+    title: { color: colors.ink, fontSize: 24, fontWeight: '800' },
+    refresh: { backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+    refreshText: { color: colors.brandDark, fontWeight: '800', fontSize: 12 },
+    summary: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.line,
+      borderRadius: 13,
+      padding: 12,
+    },
+    summaryValue: { color: colors.ink, fontSize: 19, fontWeight: '800', fontVariant: ['tabular-nums'] },
+    summaryLabel: { color: colors.muted, fontSize: 12, fontWeight: '600' },
+    dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: colors.lightMuted },
+    tabRow: { gap: 7 },
+    tab: {
+      borderWidth: 1,
+      borderColor: colors.line,
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      paddingHorizontal: 13,
+      paddingVertical: 7,
+    },
+    tabActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+    tabText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
+    tabTextActive: { color: '#fff' },
+    vehicleRow: { gap: 7 },
+    vehicleTab: {
+      borderRadius: 9,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.line,
+    },
+    vehicleActive: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
+    vehicleText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
+    vehicleTextActive: { color: colors.brandDark },
+    errorBox: { backgroundColor: colors.dangerSoft, borderRadius: 10, padding: 11, gap: 5 },
+    errorText: { color: colors.dangerDark, fontSize: 13 },
+    retry: { color: colors.brandDark, fontWeight: '800' },
+    loading: { marginTop: 35 },
+    empty: { alignItems: 'center', padding: 28, gap: 6 },
+    emptyTitle: { color: colors.ink, fontWeight: '800', fontSize: 16 },
+    emptyText: { color: colors.muted, textAlign: 'center', fontSize: 13 },
+    backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.52)', justifyContent: 'center', padding: 20 },
+    modalCard: { backgroundColor: colors.surface, borderRadius: 18, padding: 20, gap: 13, borderWidth: 1, borderColor: colors.line },
+    modalTitle: { color: colors.ink, fontSize: 20, fontWeight: '800' },
+    modalDescription: { color: colors.muted, lineHeight: 20 },
+    reasonInput: { minHeight: 88, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 11, padding: 12, textAlignVertical: 'top', color: colors.ink },
+    modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 9 },
+    modalSecondary: { justifyContent: 'center', paddingHorizontal: 13, minHeight: 44 },
+    modalSecondaryText: { color: colors.muted, fontWeight: '700' },
+    modalPrimary: { minHeight: 44, backgroundColor: colors.danger, borderRadius: 10, paddingHorizontal: 13, justifyContent: 'center', alignItems: 'center' },
+    modalPrimaryText: { color: '#fff', fontWeight: '800' },
+    disabled: { opacity: 0.55 },
+  });
+}

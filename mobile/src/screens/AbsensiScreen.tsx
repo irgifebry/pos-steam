@@ -2,14 +2,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api } from '../lib/api';
 import type { AttendanceStatus, AttendanceSave, User } from '../types';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
+import { useStyles } from '../theme/useStyles';
+import type { Palette } from '../theme/palettes';
 
-const statusOptions: Array<{ value: AttendanceStatus; label: string; color: string }> = [
-  { value: 'hadir', label: 'Hadir', color: colors.successDark },
-  { value: 'izin', label: 'Izin', color: colors.brandDark },
-  { value: 'sakit', label: 'Sakit', color: colors.warningDark },
-  { value: 'alpha', label: 'Alpa', color: colors.dangerDark },
-];
+function buildStatusOptions(colors: Palette): Array<{ value: AttendanceStatus; label: string; color: string }> {
+  return [
+    { value: 'hadir', label: 'Hadir', color: colors.successDark },
+    { value: 'izin', label: 'Izin', color: colors.brandDark },
+    { value: 'sakit', label: 'Sakit', color: colors.warningDark },
+    { value: 'alpha', label: 'Alpa', color: colors.dangerDark },
+  ];
+}
 const dateKey = (date: Date) => {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
   const part = (type: string) => parts.find((item) => item.type === type)?.value ?? '';
@@ -21,6 +25,9 @@ type Draft = { status: AttendanceStatus; note: string };
 type Summary = Awaited<ReturnType<typeof api.attendance.summary>>;
 
 export function AbsensiScreen({ users }: { users: User[] }) {
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
+  const statusOptions = buildStatusOptions(colors);
   const [date, setDate] = useState(() => dateKey(new Date()));
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [todayAttendance, setTodayAttendance] = useState<Awaited<ReturnType<typeof api.attendance.list>>>([]);
@@ -188,7 +195,8 @@ export function AbsensiScreen({ users }: { users: User[] }) {
   );
 }
 
-const styles = StyleSheet.create({
+function buildStyles(colors: Palette) {
+  return StyleSheet.create({
   content: { padding: 16, gap: 12, backgroundColor: colors.bg, flexGrow: 1 },
   heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   eyebrow: { color: colors.brandDark, fontSize: 11, fontWeight: '800', letterSpacing: 1.3 },
@@ -221,4 +229,5 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.55 },
   payrollCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: 14, padding: 14, gap: 11 },
   payrollRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.bg, paddingTop: 10 },
-});
+  });
+}

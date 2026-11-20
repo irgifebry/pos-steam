@@ -15,11 +15,13 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Pencil, Plus, X, KeyRound, UserX, UserCheck, Ban, CircleCheck } from 'lucide-react-native';
+import { Pencil, Plus, X, KeyRound, UserX, UserCheck, Ban, CircleCheck, Sun, Moon } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import type { Addon, Bank, Outlet, ServicePackage, User } from '../types';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
+import { useStyles } from '../theme/useStyles';
+import type { Palette } from '../theme/palettes';
 
 const rupiah = (amount: number) => `Rp ${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(amount)}`;
 const roleName = (role: string) => (role === 'admin' ? 'Admin' : 'Operator');
@@ -44,6 +46,8 @@ function CrudModal({
   error: string;
   children: React.ReactNode;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -77,6 +81,8 @@ function CrudModal({
 const emptyPaket = { name: '', vehicleType: 'motor' as 'motor' | 'mobil', price: '', durationMin: '', description: '', sortOrder: '0', active: true };
 
 function PaketSection() {
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
   const [items, setItems] = useState<ServicePackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -233,6 +239,8 @@ function PaketSection() {
 const emptyAddon = { name: '', price: '', unitLabel: 'pcs', vehicleTypes: ['motor', 'mobil'] as ('motor' | 'mobil')[], active: true };
 
 function AddonSection() {
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
   const [items, setItems] = useState<Addon[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -380,6 +388,8 @@ function AddonSection() {
 const emptyBank = { name: '', accountNumber: '', accountName: '', active: true };
 
 function BankSection() {
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
   const [items, setItems] = useState<Bank[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -501,6 +511,8 @@ function BankSection() {
 const emptyUser = { name: '', email: '', role: 'admin' as 'admin' | 'operator', phone: '', dailyRate: '', password: '' };
 
 function PenggunaSection() {
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
   const [items, setItems] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -683,6 +695,7 @@ function PenggunaSection() {
 // ─── Helper kecil ─────────────────────────────────────────────────────────────
 
 function Field({ label, children }: React.PropsWithChildren<{ label: string }>) {
+  const styles = useStyles(buildStyles);
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -694,6 +707,9 @@ function Field({ label, children }: React.PropsWithChildren<{ label: string }>) 
 // ─── Screen utama ─────────────────────────────────────────────────────────────
 
 export function PengaturanScreen() {
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
+  const { mode, setMode, colors: themeColors } = useTheme();
   const { user, activeOutlet, logout, updateActiveOutlet } = useAuth();
   const insets = useSafeAreaInsets();
   const [outlet, setOutlet] = useState<Outlet | null>(activeOutlet);
@@ -800,6 +816,29 @@ export function PengaturanScreen() {
           </View>
         )}
 
+        {/* Tampilan */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Tampilan</Text>
+          <View style={styles.themeRow}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setMode('light')}
+              style={[styles.themeOption, mode === 'light' && styles.themeOptionActive]}
+            >
+              <Sun size={16} color={mode === 'light' ? themeColors.brandDark : themeColors.muted} />
+              <Text style={[styles.themeOptionText, mode === 'light' && styles.themeOptionTextActive]}>Terang</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setMode('dark')}
+              style={[styles.themeOption, mode === 'dark' && styles.themeOptionActive]}
+            >
+              <Moon size={16} color={mode === 'dark' ? themeColors.brandDark : themeColors.muted} />
+              <Text style={[styles.themeOptionText, mode === 'dark' && styles.themeOptionTextActive]}>Gelap</Text>
+            </Pressable>
+          </View>
+        </View>
+
         {/* Profil outlet */}
         {loading && !outlet ? (
           <ActivityIndicator style={styles.loading} size="large" color={colors.brand} />
@@ -843,75 +882,83 @@ export function PengaturanScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: 16, gap: 13, flexGrow: 1 },
-  eyebrow: { color: colors.brandDark, fontSize: 11, fontWeight: '800', letterSpacing: 1.4 },
-  title: { color: colors.ink, fontSize: 24, fontWeight: '800' },
-  subtitle: { color: colors.muted, fontSize: 13, marginTop: -2 },
-  loading: { marginTop: 38 },
-  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: 16 },
-  avatar: { width: 46, height: 46, borderRadius: 15, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: colors.brandDark, fontSize: 19, fontWeight: '800' },
-  profileDetails: { flex: 1, gap: 3 },
-  profileName: { color: colors.ink, fontSize: 15, fontWeight: '800' },
-  profileEmail: { color: colors.muted, fontSize: 12 },
-  profileMeta: { color: colors.brandDark, fontSize: 11, fontWeight: '700' },
-  section: { gap: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: 16, padding: 16 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { color: colors.ink, fontSize: 15, fontWeight: '800' },
-  count: { color: colors.muted, fontSize: 12 },
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.brand, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-  addBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
-  field: { gap: 6 },
-  label: { color: colors.ink, fontSize: 12, fontWeight: '700' },
-  input: { minHeight: 46, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 10, paddingHorizontal: 12, color: colors.ink, backgroundColor: colors.surface, fontSize: 14 },
-  listRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 9, borderTopWidth: 1, borderTopColor: colors.bg, paddingTop: 10 },
-  rowDetails: { flex: 1, gap: 4 },
-  rowActions: { gap: 6 },
-  rowTitle: { color: colors.ink, fontSize: 13, fontWeight: '800' },
-  price: { color: colors.brandDark, fontSize: 12, fontWeight: '700' },
-  accountNumber: { color: colors.ink, fontSize: 13, fontWeight: '700' },
-  badgeGroup: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5 },
-  badge: { alignSelf: 'flex-start', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
-  activeBadge: { backgroundColor: colors.successSoft },
-  inactiveBadge: { backgroundColor: colors.bg },
-  badgeText: { fontSize: 10, fontWeight: '800' },
-  activeText: { color: colors.successDark },
-  inactiveText: { color: colors.muted },
-  vehicleBadge: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.line },
-  vehicleBadgeText: { color: colors.brandDark, fontSize: 10, fontWeight: '800' },
-  iconBtn: { width: 34, height: 34, borderRadius: 8, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  iconBtnDanger: { borderColor: colors.dangerSoft },
-  iconBtnSuccess: { borderColor: colors.successSoft },
-  rowActions2: { flexDirection: 'row', gap: 6 },
-  saveBtn: { minHeight: 46, backgroundColor: colors.brand, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
-  saveBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
-  disabled: { opacity: 0.55 },
-  logoutButton: { minHeight: 48, justifyContent: 'center', alignItems: 'center', borderRadius: 11, borderWidth: 1, borderColor: colors.dangerSoft, backgroundColor: colors.surface, paddingHorizontal: 14 },
-  logoutText: { color: colors.danger, fontWeight: '800' },
-  errorBox: { borderRadius: 10, padding: 11, backgroundColor: colors.dangerSoft },
-  errorText: { color: colors.dangerDark, fontSize: 13 },
-  successBox: { borderRadius: 10, padding: 11, backgroundColor: colors.successSoft },
-  successText: { color: colors.successDark, fontSize: 13, fontWeight: '700' },
-  retryText: { color: colors.brandDark, fontSize: 12, fontWeight: '800' },
-  // Modal styles
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.line },
-  modalTitle: { color: colors.ink, fontSize: 18, fontWeight: '800' },
-  modalClose: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  modalBody: { padding: 20, gap: 14 },
-  formError: { color: colors.dangerDark, backgroundColor: colors.dangerSoft, padding: 10, borderRadius: 8, fontSize: 13 },
-  // Segment control
-  segmentRow: { flexDirection: 'row', gap: 8 },
-  segment: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
-  segmentActive: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
-  segmentText: { color: colors.muted, fontWeight: '700', fontSize: 13 },
-  segmentTextActive: { color: colors.brandDark },
-  // Switch row
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 4 },
-  // 2-col row
-  row2: { flexDirection: 'row', gap: 10 },
-  muted: { color: colors.muted, fontSize: 12 },
-});
+function buildStyles(colors: Palette) {
+  return StyleSheet.create({
+    flex: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: 16, gap: 13, flexGrow: 1 },
+    eyebrow: { color: colors.brandDark, fontSize: 11, fontWeight: '800', letterSpacing: 1.4 },
+    title: { color: colors.ink, fontSize: 24, fontWeight: '800' },
+    subtitle: { color: colors.muted, fontSize: 13, marginTop: -2 },
+    loading: { marginTop: 38 },
+    profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: 16 },
+    avatar: { width: 46, height: 46, borderRadius: 15, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+    avatarText: { color: colors.brandDark, fontSize: 19, fontWeight: '800' },
+    profileDetails: { flex: 1, gap: 3 },
+    profileName: { color: colors.ink, fontSize: 15, fontWeight: '800' },
+    profileEmail: { color: colors.muted, fontSize: 12 },
+    profileMeta: { color: colors.brandDark, fontSize: 11, fontWeight: '700' },
+    section: { gap: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: 16, padding: 16 },
+    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    sectionTitle: { color: colors.ink, fontSize: 15, fontWeight: '800' },
+    count: { color: colors.muted, fontSize: 12 },
+    addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.brand, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+    addBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+    field: { gap: 6 },
+    label: { color: colors.ink, fontSize: 12, fontWeight: '700' },
+    input: { minHeight: 46, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 10, paddingHorizontal: 12, color: colors.ink, backgroundColor: colors.surface, fontSize: 14 },
+    listRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 9, borderTopWidth: 1, borderTopColor: colors.bg, paddingTop: 10 },
+    rowDetails: { flex: 1, gap: 4 },
+    rowActions: { gap: 6 },
+    rowTitle: { color: colors.ink, fontSize: 13, fontWeight: '800' },
+    price: { color: colors.brandDark, fontSize: 12, fontWeight: '700' },
+    accountNumber: { color: colors.ink, fontSize: 13, fontWeight: '700' },
+    badgeGroup: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5 },
+    badge: { alignSelf: 'flex-start', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+    activeBadge: { backgroundColor: colors.successSoft },
+    inactiveBadge: { backgroundColor: colors.bg },
+    badgeText: { fontSize: 10, fontWeight: '800' },
+    activeText: { color: colors.successDark },
+    inactiveText: { color: colors.muted },
+    vehicleBadge: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.line },
+    vehicleBadgeText: { color: colors.brandDark, fontSize: 10, fontWeight: '800' },
+    iconBtn: { width: 34, height: 34, borderRadius: 8, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+    iconBtnDanger: { borderColor: colors.dangerSoft },
+    iconBtnSuccess: { borderColor: colors.successSoft },
+    rowActions2: { flexDirection: 'row', gap: 6 },
+    saveBtn: { minHeight: 46, backgroundColor: colors.brand, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+    saveBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+    disabled: { opacity: 0.55 },
+    logoutButton: { minHeight: 48, justifyContent: 'center', alignItems: 'center', borderRadius: 11, borderWidth: 1, borderColor: colors.dangerSoft, backgroundColor: colors.surface, paddingHorizontal: 14 },
+    logoutText: { color: colors.danger, fontWeight: '800' },
+    errorBox: { borderRadius: 10, padding: 11, backgroundColor: colors.dangerSoft },
+    errorText: { color: colors.dangerDark, fontSize: 13 },
+    successBox: { borderRadius: 10, padding: 11, backgroundColor: colors.successSoft },
+    successText: { color: colors.successDark, fontSize: 13, fontWeight: '700' },
+    retryText: { color: colors.brandDark, fontSize: 12, fontWeight: '800' },
+    // Modal styles
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end' },
+    modalSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%' },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: colors.line },
+    modalTitle: { color: colors.ink, fontSize: 18, fontWeight: '800' },
+    modalClose: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+    modalBody: { padding: 20, gap: 14 },
+    formError: { color: colors.dangerDark, backgroundColor: colors.dangerSoft, padding: 10, borderRadius: 8, fontSize: 13 },
+    // Segment control
+    segmentRow: { flexDirection: 'row', gap: 8 },
+    segment: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+    segmentActive: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
+    segmentText: { color: colors.muted, fontWeight: '700', fontSize: 13 },
+    segmentTextActive: { color: colors.brandDark },
+    // Switch row
+    switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 4 },
+    // 2-col row
+    row2: { flexDirection: 'row', gap: 10 },
+    muted: { color: colors.muted, fontSize: 12 },
+    // Theme mode control
+    themeRow: { flexDirection: 'row', gap: 8 },
+    themeOption: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44, borderWidth: 1, borderColor: colors.line, borderRadius: 10, backgroundColor: colors.surface },
+    themeOptionActive: { borderColor: colors.brandDark, backgroundColor: colors.brandSoft },
+    themeOptionText: { color: colors.muted, fontSize: 13, fontWeight: '700' },
+    themeOptionTextActive: { color: colors.brandDark },
+  });
+}
