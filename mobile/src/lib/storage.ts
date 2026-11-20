@@ -27,6 +27,9 @@ export function getEmbeddedBaseUrl(): string {
 export const EMBEDDED_BASE_URL = getEmbeddedBaseUrl();
 
 export async function getBaseUrl(): Promise<string> {
+  // Di web preview, pakai localhost supaya cookie session SameSite=Lax ikut terkirim
+  // (host berbeda di HP/native sudah ditangani getEmbeddedBaseUrl).
+  if (Platform.OS === 'web') return 'http://localhost:3000';
   return getEmbeddedBaseUrl();
 }
 
