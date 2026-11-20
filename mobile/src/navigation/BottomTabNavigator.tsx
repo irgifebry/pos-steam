@@ -6,7 +6,7 @@ import { KaryawanScreen } from '../screens/KaryawanScreen';
 import { LaporanScreen } from '../screens/LaporanScreen';
 import { PengaturanScreen } from '../screens/PengaturanScreen';
 import { AppHeader } from '../components/AppHeader';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 const Tab = createBottomTabNavigator();
 
@@ -19,6 +19,7 @@ const tabIcons = {
 } as const;
 
 export function BottomTabNavigator() {
+  const { colors } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => {
@@ -26,7 +27,7 @@ export function BottomTabNavigator() {
         return {
           header: () => <AppHeader />,
           tabBarActiveTintColor: colors.brand,
-          tabBarInactiveTintColor: colors.muted,
+          tabBarInactiveTintColor: colors.lightMuted,
           tabBarLabelStyle: {
             fontSize: 11,
             fontWeight: '700',
@@ -36,7 +37,7 @@ export function BottomTabNavigator() {
             height: 62,
             paddingTop: 6,
             paddingBottom: 8,
-            backgroundColor: colors.surface,
+            backgroundColor: colors.tabBarBg,
             borderTopColor: colors.line,
             borderTopWidth: 1,
           },

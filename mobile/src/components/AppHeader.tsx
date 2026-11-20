@@ -2,11 +2,15 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LogOut } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
+import { useStyles } from '../theme/useStyles';
+import type { Palette } from '../theme/palettes';
 import { KyaneLogo } from './KyaneLogo';
 
 export function AppHeader() {
   const insets = useSafeAreaInsets();
+  const { mode, colors } = useTheme();
+  const styles = useStyles(buildStyles);
   const { user, activeOutlet, logout } = useAuth();
 
   function handleLogout() {
@@ -28,7 +32,15 @@ export function AppHeader() {
     <View style={[styles.headerWrapper, { paddingTop: Math.max(insets.top, 10) }]}>
       <View style={styles.content}>
         {/* Logo SVG KYANE di sisi kiri */}
-        <KyaneLogo width={100} height={36} style={styles.logo} />
+        <View style={styles.logoWrap}>
+          {mode === 'dark' ? (
+            <KyaneLogo variant="mono" width={84} height={42} />
+          ) : (
+            <KyaneLogo width={92} height={46} />
+          )}
+        </View>
+
+        <View style={styles.rule} />
 
         {/* Informasi Outlet & Operator */}
         <View style={styles.outletInfo}>
@@ -48,56 +60,68 @@ export function AppHeader() {
           hitSlop={8}
           style={({ pressed }) => [styles.logoutBtn, pressed && styles.logoutBtnPressed]}
         >
-          <LogOut size={18} color={colors.muted} />
+          <LogOut size={17} color={colors.ink} strokeWidth={2.2} />
         </Pressable>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+function buildStyles(colors: Palette) {
+  return StyleSheet.create({
   headerWrapper: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.headerBg,
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
   content: {
-    height: 56,
+    height: 64,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: 20,
+    gap: 14,
   },
-  logo: {
-    marginRight: 2,
+  logoWrap: {
+    width: 92,
+    height: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rule: {
+    width: 1,
+    height: 28,
+    backgroundColor: colors.line,
   },
   outletInfo: {
     flex: 1,
+    minWidth: 0,
     justifyContent: 'center',
+    gap: 3,
   },
   brandTitle: {
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '800',
     color: colors.ink,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   userMeta: {
-    fontSize: 12,
+    fontSize: 11.5,
+    fontWeight: '500',
     color: colors.muted,
-    marginTop: 1,
   },
   logoutBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: colors.bg,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoutBtnPressed: {
-    backgroundColor: colors.dangerSoft,
-    borderColor: colors.danger,
+    backgroundColor: colors.brandSoft,
+    borderColor: colors.brand,
   },
-});
+  });
+}
