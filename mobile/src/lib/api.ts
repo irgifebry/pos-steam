@@ -121,6 +121,10 @@ export const api = {
     update: (body: Record<string, unknown>) => request<Record<string, unknown>>('/api/settings', json('PATCH', body)),
   },
   outlets: {
+    list: async (): Promise<Outlet[]> => {
+      const result = await request<Outlet[] | { outlets?: Outlet[]; items?: Outlet[] }>('/api/outlets');
+      return Array.isArray(result) ? result : result.outlets ?? result.items ?? [];
+    },
     update: async (body: Partial<Outlet>) => {
       const result = await request<Outlet | { outlet?: Outlet }>('/api/outlets', json('PATCH', body));
       return 'outlet' in result && result.outlet ? result.outlet : result as Outlet;

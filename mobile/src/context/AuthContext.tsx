@@ -17,6 +17,20 @@ type AuthContextValue = {
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Respons sign-in/get-session tidak membawa data outlet. Ambil dari endpoint
+// /api/outlets supaya header dan perhitungan pajak Kasir tidak memakai default.
+async function resolveOutlet(result: AuthResponse): Promise<Outlet | null> {
+  const fromResponse = result.activeOutlet ?? result.outlet;
+  if (fromResponse) return fromResponse;
+  try {
+    const outlets = await api.outlets.list();
+    if (!outlets.length) return null;
+    return outlets.find((outlet) => outlet.id === result.user?.outletId) ?? outlets[0];
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: React.PropsWithChildren) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSessionState] = useState<Session | null>(null);
@@ -41,10 +55,11 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
         };
         await setSession(restored);
         await setActiveUser(result.user);
+        const outlet = await resolveOutlet(result);
         if (mounted) {
           setSessionState(restored);
           setUser(result.user);
-          setActiveOutlet(result.activeOutlet ?? result.outlet ?? null);
+          setActiveOutlet(outlet);
         }
       } catch (err: unknown) {
         // Hanya hapus auth storage jika server memberikan status 401 Unauthorized
@@ -71,9 +86,10 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
     if (!normalized.user) throw new Error('Data pengguna tidak ditemukan');
     await setSession(normalized);
     await setActiveUser(normalized.user);
+    const outlet = await resolveOutlet(result);
     setSessionState(normalized);
     setUser(normalized.user);
-    setActiveOutlet(result.activeOutlet ?? result.outlet ?? null);
+    setActiveOutlet(outlet);
   }, []);
 
   const logout = useCallback(async () => {
