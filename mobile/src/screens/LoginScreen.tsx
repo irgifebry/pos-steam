@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
+  Alert,
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -9,38 +13,125 @@ import {
   Text,
   TextInput,
   View,
+  type TextInputInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ShieldCheck } from 'lucide-react-native';
+import { StatusBar } from 'expo-status-bar';
+import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import {
+  ArrowRight,
+  CircleAlert,
+  Eye,
+  EyeOff,
+  LockKeyhole,
+  Mail,
+} from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { KyaneLogo } from '../components/KyaneLogo';
-import { colors } from '../theme/colors';
+import { useTheme, type ThemeMode } from '../theme/ThemeContext';
+import { useStyles } from '../theme/useStyles';
+import type { Palette } from '../theme/palettes';
+
+type FieldName = 'email' | 'pin';
 
 export function LoginScreen() {
+  const { mode, colors } = useTheme();
+  const styles = useStyles((palette) => buildStyles(palette, mode));
   const { login } = useAuth();
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState('admin@pos.test');
-  const [pin, setPin] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [pin, setPin] = useState('');
+  const [showPin, setShowPin] = useState(false);
+  const [focused, setFocused] = useState<FieldName | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const emailRef = useRef<TextInputInstance>(null);
+  const pinRef = useRef<TextInputInstance>(null);
+
+  const heroOpacity = useRef(new Animated.Value(0)).current;
+  const heroShift = useRef(new Animated.Value(12)).current;
+  const sheetShift = useRef(new Animated.Value(36)).current;
+
+  useEffect(() => {
+    let mounted = true;
+
+    const settle = () => {
+      heroOpacity.setValue(1);
+      heroShift.setValue(0);
+      sheetShift.setValue(0);
+    };
+
+    const reveal = () => {
+      Animated.parallel([
+        Animated.timing(heroOpacity, {
+          toValue: 1,
+          duration: 420,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(heroShift, {
+          toValue: 0,
+          duration: 520,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetShift, {
+          toValue: 0,
+          duration: 560,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    };
+
+    try {
+      const query = AccessibilityInfo.isReduceMotionEnabled();
+      if (query && typeof query.then === 'function') {
+        query
+          .then((reduced) => {
+            if (!mounted) return;
+            if (reduced) settle();
+            else reveal();
+          })
+          .catch(() => {
+            if (mounted) reveal();
+          });
+      } else {
+        reveal();
+      }
+    } catch {
+      reveal();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [heroOpacity, heroShift, sheetShift]);
+
   async function submitLogin() {
+    if (loading) return;
     setError('');
+
     const cleanEmail = email.trim();
     if (!cleanEmail) {
       setError('Email wajib diisi.');
+      emailRef.current?.focus();
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       setError('Format email tidak valid.');
+      emailRef.current?.focus();
       return;
     }
     if (!pin) {
       setError('PIN wajib diisi.');
+      pinRef.current?.focus();
       return;
     }
     if (pin.length < 6) {
       setError('PIN minimal 6 angka.');
+      pinRef.current?.focus();
       return;
     }
 
@@ -48,290 +139,468 @@ export function LoginScreen() {
     try {
       await login(cleanEmail, pin);
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : '';
-      if (/network|fetch|abort|timeout/i.test(msg)) {
-        setError('Gagal menghubungi server. Pastikan HP dan server backend terhubung di jaringan yang sama.');
+      const message = cause instanceof Error ? cause.message : '';
+      if (/network|fetch|abort|timeout/i.test(message)) {
+        setError(
+          'Gagal menghubungi server. Pastikan perangkat dan server berada di jaringan yang sama.',
+        );
       } else {
-        setError(msg || 'Email atau PIN salah. Silakan coba lagi.');
+        setError(message || 'Email atau PIN salah. Silakan coba lagi.');
       }
     } finally {
       setLoading(false);
     }
   }
 
+  function fillDemoAccount() {
+    setEmail('admin@pos.test');
+    setPin('123456');
+    setError('');
+  }
+
+  function showAccessHelp() {
+    Alert.alert(
+      'Butuh akses?',
+      'Hubungi admin outlet untuk reset PIN atau membuat akun baru.',
+    );
+  }
+
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          {
-            paddingTop: Math.max(insets.top, 20) + 16,
-            paddingBottom: Math.max(insets.bottom, 20) + 16,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
+    <View style={styles.root}>
+      <AuthBackdrop mode={mode} />
+      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.inner}>
-          {/* Brand Header with Center Logo */}
-          <View style={styles.header}>
-            <View style={styles.logoCenter}>
-              <KyaneLogo width={200} height={60} />
-            </View>
-            <Text style={styles.title}>Masuk ke panel admin</Text>
-            <Text style={styles.subtitle}>KYANE Protect &amp; Shine — POS outlet cuci steam motor &amp; mobil.</Text>
-          </View>
-
-          {/* Login Card */}
-          <View style={styles.card}>
-            {/* Quick Demo Fill Button */}
-            <Pressable
-              onPress={() => {
-                setEmail('admin@pos.test');
-                setPin('123456');
-                setError('');
-              }}
-              style={styles.demoBox}
-            >
-              <ShieldCheck size={18} color={colors.brandDark} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.demoTitle}>Akun Default Terpasang</Text>
-                <Text style={styles.demoSub}>admin@pos.test · PIN: 123456</Text>
-              </View>
-              <Text style={styles.demoAction}>Pakai</Text>
-            </Pressable>
-
-            {/* Email Field */}
-            <View style={styles.field}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                accessibilityLabel="Email"
-                autoCapitalize="none"
-                autoComplete="email"
-                keyboardType="email-address"
-                placeholder="nama@contoh.id"
-                placeholderTextColor={colors.lightMuted}
-                editable={!loading}
-                onChangeText={setEmail}
-                style={styles.input}
-                value={email}
-              />
-            </View>
-
-            {/* PIN Field */}
-            <View style={styles.field}>
-              <View style={styles.labelRow}>
-                <Text style={styles.label}>PIN</Text>
-                <Text style={styles.labelHint}>PIN yang diberikan admin</Text>
-              </View>
-              <TextInput
-                accessibilityLabel="PIN"
-                keyboardType="numeric"
-                secureTextEntry
-                maxLength={12}
-                placeholder="••••••"
-                placeholderTextColor={colors.lightMuted}
-                editable={!loading}
-                onChangeText={(val) => setPin(val.replace(/\D/g, ''))}
-                onSubmitEditing={() => void submitLogin()}
-                returnKeyType="go"
-                style={[styles.input, styles.pinInput]}
-                value={pin}
-              />
-            </View>
-
-            {/* Error Message */}
-            {!!error && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
-
-            {/* Submit Button */}
-            <Pressable
-              accessibilityRole="button"
-              disabled={loading}
-              onPress={() => void submitLogin()}
-              style={({ pressed }) => [
-                styles.submitBtn,
-                pressed && styles.submitBtnPressed,
-                loading && styles.dimmed,
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[styles.hero, { paddingTop: insets.top + 20 }]}>
+            <Animated.View
+              style={[
+                styles.heroInner,
+                { opacity: heroOpacity, transform: [{ translateY: heroShift }] },
               ]}
             >
-              {loading ? (
-                <View style={styles.loadingRow}>
-                  <ActivityIndicator color="#ffffff" size="small" />
-                  <Text style={styles.submitBtnText}>Memproses...</Text>
-                </View>
+              {mode === 'dark' ? (
+                <KyaneLogo variant="mono" width={200} height={100} />
               ) : (
-                <Text style={styles.submitBtnText}>Masuk</Text>
+                <KyaneLogo width={200} height={100} />
               )}
-            </Pressable>
-
-            <Text style={styles.footerNote}>Lupa PIN? Hubungi admin outlet untuk reset.</Text>
+              <SectionDivider style={styles.brandDivider} />
+              <Text accessibilityRole="header" style={styles.headline}>
+                Masuk ke{'\n'}panel admin.
+              </Text>
+              <Text style={styles.heroSub}>
+                Kasir, antrean, dan laporan outlet dalam satu tempat.
+              </Text>
+            </Animated.View>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+          <Animated.View
+            style={[
+              styles.panel,
+              {
+                paddingBottom: Math.max(insets.bottom, 20) + 20,
+                transform: [{ translateY: sheetShift }],
+              },
+            ]}
+          >
+            <SectionDivider style={styles.panelDivider} />
+            <Text accessibilityRole="header" style={styles.sheetTitle}>
+              Masuk
+            </Text>
+            <Text style={styles.sheetSub}>
+              Gunakan email dan PIN yang diberikan admin outlet.
+            </Text>
+
+            <View style={styles.form}>
+              <View style={styles.field}>
+                <Text style={styles.label}>Email</Text>
+                <View
+                  style={[
+                    styles.inputShell,
+                    focused === 'email' && styles.inputShellFocused,
+                  ]}
+                >
+                  <Mail
+                    size={18}
+                    color={focused === 'email' ? colors.brandDeep : colors.lightMuted}
+                  />
+                  <TextInput
+                    ref={emailRef}
+                    accessibilityLabel="Email"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect={false}
+                    editable={!loading}
+                    keyboardType="email-address"
+                    onBlur={() => setFocused(null)}
+                    onChangeText={setEmail}
+                    onFocus={() => setFocused('email')}
+                    onSubmitEditing={() => pinRef.current?.focus()}
+                    placeholder="nama@contoh.id"
+                    placeholderTextColor={colors.lightMuted}
+                    returnKeyType="next"
+                    style={styles.input}
+                    textContentType="emailAddress"
+                    value={email}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.field}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.label}>PIN</Text>
+                  <Text style={styles.labelHint}>6–12 angka</Text>
+                </View>
+                <View
+                  style={[
+                    styles.inputShell,
+                    focused === 'pin' && styles.inputShellFocused,
+                  ]}
+                >
+                  <LockKeyhole
+                    size={18}
+                    color={focused === 'pin' ? colors.brandDeep : colors.lightMuted}
+                  />
+                  <TextInput
+                    ref={pinRef}
+                    accessibilityLabel="PIN"
+                    accessibilityHint="Masukkan 6 sampai 12 angka"
+                    autoComplete="off"
+                    editable={!loading}
+                    keyboardType="number-pad"
+                    maxLength={12}
+                    onBlur={() => setFocused(null)}
+                    onChangeText={(value) => setPin(value.replace(/\D/g, ''))}
+                    onFocus={() => setFocused('pin')}
+                    onSubmitEditing={() => void submitLogin()}
+                    placeholder="••••••"
+                    placeholderTextColor={colors.lightMuted}
+                    returnKeyType="go"
+                    secureTextEntry={!showPin}
+                    style={[styles.input, styles.pinInput]}
+                    textContentType="password"
+                    value={pin}
+                  />
+                  <Pressable
+                    accessibilityLabel={showPin ? 'Sembunyikan PIN' : 'Tampilkan PIN'}
+                    accessibilityRole="button"
+                    hitSlop={10}
+                    onPress={() => setShowPin((current) => !current)}
+                    style={styles.eyeButton}
+                  >
+                    {showPin ? (
+                      <EyeOff size={18} color={colors.muted} />
+                    ) : (
+                      <Eye size={18} color={colors.muted} />
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+
+              {!!error && (
+                <View
+                  accessibilityLiveRegion="polite"
+                  accessibilityRole="alert"
+                  style={styles.errorBox}
+                >
+                  <CircleAlert size={16} color={colors.dangerDark} />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ busy: loading, disabled: loading }}
+                disabled={loading}
+                onPress={() => void submitLogin()}
+                style={({ pressed }) => [
+                  styles.submit,
+                  pressed && !loading && styles.submitPressed,
+                  loading && styles.submitLoading,
+                ]}
+              >
+                {loading ? (
+                  <>
+                    <ActivityIndicator color={mode === 'light' ? '#ffffff' : colors.night} size="small" />
+                    <Text style={styles.submitText}>Memproses…</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.submitText}>Masuk</Text>
+                    <ArrowRight
+                      size={18}
+                      color={mode === 'light' ? '#ffffff' : colors.brandDeep}
+                      strokeWidth={2.4}
+                    />
+                  </>
+                )}
+              </Pressable>
+
+              {__DEV__ && (
+                <Pressable
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={fillDemoAccount}
+                  style={styles.demoLink}
+                >
+                  <Text style={styles.demoText}>Isi akun demo</Text>
+                </Pressable>
+              )}
+
+              <SectionDivider />
+
+              <Pressable
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={showAccessHelp}
+                style={styles.footer}
+              >
+                <Text style={styles.footerText}>
+                  Butuh akses?{' '}
+                  <Text style={styles.footerAction}>Hubungi admin outlet</Text>
+                </Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+function SectionDivider({ style }: { style?: object }) {
+  const { mode } = useTheme();
+  const styles = useStyles((palette) => buildStyles(palette, mode));
+  return <View style={[styles.divider, style]} />;
+}
+
+function AuthBackdrop({ mode }: { mode: ThemeMode }) {
+  const { colors } = useTheme();
+  return (
+    <Svg
+      pointerEvents="none"
+      style={StyleSheet.absoluteFill}
+      viewBox="0 0 390 844"
+      preserveAspectRatio="xMidYMid slice"
+    >
+      <Defs>
+        <LinearGradient id="authGround" x1="0" y1="0" x2="0.45" y2="1">
+          <Stop offset="0" stopColor={mode === 'light' ? '#f0f9ff' : colors.night} />
+          <Stop offset="0.52" stopColor={mode === 'light' ? '#dbeafe' : colors.nightMid} />
+          <Stop offset="1" stopColor={mode === 'light' ? '#bae6fd' : colors.nightSoft} />
+        </LinearGradient>
+      </Defs>
+      <Rect x="0" y="0" width="390" height="844" fill="url(#authGround)" />
+      {[118, 168, 226, 292].map((radius, index) => (
+        <Circle
+          key={radius}
+          cx="113"
+          cy="118"
+          r={radius}
+          stroke={mode === 'light' ? colors.brandDark : '#ffffff'}
+          strokeOpacity={(mode === 'light' ? 0.1 : 0.07) - index * 0.016}
+          strokeWidth={1}
+          fill="none"
+        />
+      ))}
+    </Svg>
+  );
+}
+
+function buildStyles(colors: Palette, mode: ThemeMode) {
+  const isLight = mode === 'light';
+  return StyleSheet.create({
+  root: {
     flex: 1,
     backgroundColor: colors.bg,
   },
-  scroll: {
+  flex: {
+    flex: 1,
+  },
+  scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 20,
   },
-  inner: {
-    width: '100%',
-    maxWidth: 420,
-    alignSelf: 'center',
-    gap: 18,
+  hero: {
+    paddingHorizontal: 24,
+    paddingBottom: 20,
   },
-  header: {
-    gap: 8,
-    alignItems: 'center',
+  heroInner: {
+    alignItems: 'flex-start',
   },
-  logoCenter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    marginBottom: 6,
-  },
-  title: {
-    fontSize: 26,
+  headline: {
+    fontSize: 30,
+    lineHeight: 35,
     fontWeight: '800',
+    letterSpacing: -1.1,
     color: colors.ink,
-    letterSpacing: -0.5,
-    textAlign: 'center',
   },
-  subtitle: {
-    fontSize: 14,
+  heroSub: {
+    marginTop: 8,
+    maxWidth: 310,
+    fontSize: 13.5,
+    lineHeight: 19,
+    fontWeight: '500',
     color: colors.muted,
-    lineHeight: 20,
-    textAlign: 'center',
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: colors.line,
-    gap: 16,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 3,
+  panel: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 0,
   },
-  demoBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 12,
-    padding: 10,
-    gap: 10,
+  divider: {
+    height: 1,
+    backgroundColor: colors.line,
   },
-  demoTitle: {
-    fontSize: 12,
-    fontWeight: '700',
+  brandDivider: {
+    marginTop: 20,
+    marginBottom: 22,
+  },
+  panelDivider: {
+    marginBottom: 20,
+  },
+  sheetTitle: {
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: '800',
+    letterSpacing: -0.7,
     color: colors.ink,
   },
-  demoSub: {
-    fontSize: 11,
-    color: colors.brandDark,
-    fontWeight: '600',
+  sheetSub: {
+    marginTop: 6,
+    fontSize: 13.5,
+    lineHeight: 19,
+    color: colors.muted,
   },
-  demoAction: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.brandDark,
-    backgroundColor: colors.brandSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+  form: {
+    marginTop: 22,
+    gap: 14,
   },
   field: {
-    gap: 6,
+    gap: 7,
   },
   labelRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   label: {
-    fontSize: 13,
+    fontSize: 12.5,
+    lineHeight: 16,
     fontWeight: '700',
     color: colors.ink,
   },
   labelHint: {
-    fontSize: 12,
-    color: colors.muted,
+    fontSize: 11.5,
+    color: colors.lightMuted,
   },
-  input: {
-    height: 48,
-    backgroundColor: colors.surface,
+  inputShell: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.inputBorder,
-    borderRadius: 10,
-    paddingHorizontal: 14,
+    backgroundColor: colors.surface,
+  },
+  inputShellFocused: {
+    borderColor: colors.brand,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 0,
     fontSize: 15,
     color: colors.ink,
+    includeFontPadding: false,
   },
   pinInput: {
-    letterSpacing: 4,
-    fontWeight: '700',
+    letterSpacing: 2,
+    fontWeight: '600',
+  },
+  eyeButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -6,
   },
   errorBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
     backgroundColor: colors.dangerSoft,
     borderWidth: 1,
     borderColor: colors.danger,
-    borderRadius: 10,
-    padding: 12,
   },
   errorText: {
-    fontSize: 13,
-    color: colors.dangerDark,
+    flex: 1,
+    fontSize: 12.5,
     lineHeight: 18,
     fontWeight: '600',
+    color: colors.dangerDark,
   },
-  submitBtn: {
-    height: 48,
-    backgroundColor: colors.brand,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.brand,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  submitBtnPressed: {
-    backgroundColor: colors.brandDark,
-  },
-  submitBtnText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  loadingRow: {
+  submit: {
+    marginTop: 6,
+    height: 54,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
+    borderRadius: 16,
+    backgroundColor: isLight ? colors.brand : '#ffffff',
+    shadowColor: isLight ? colors.brand : '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: isLight ? 0.22 : 0.24,
+    shadowRadius: 14,
+    elevation: 6,
   },
-  dimmed: {
-    opacity: 0.65,
+  submitPressed: {
+    backgroundColor: isLight ? colors.brandDark : '#e0f2fe',
+    transform: [{ scale: 0.985 }],
   },
-  footerNote: {
-    textAlign: 'center',
-    fontSize: 12,
+  submitLoading: {
+    opacity: 0.72,
+  },
+  submitText: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    color: isLight ? '#ffffff' : colors.night,
+  },
+  demoLink: {
+    alignSelf: 'center',
+    paddingVertical: 4,
+  },
+  demoText: {
+    fontSize: 12.5,
     color: colors.muted,
-    marginTop: 2,
+    textDecorationLine: 'underline',
+    textDecorationColor: colors.line,
   },
-});
+  footer: {
+    alignSelf: 'center',
+    paddingVertical: 4,
+  },
+  footerText: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    textAlign: 'center',
+    color: colors.muted,
+  },
+  footerAction: {
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  });
+}
