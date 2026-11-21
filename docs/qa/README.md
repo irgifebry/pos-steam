@@ -28,7 +28,7 @@ Perbedaan yang perlu diingat saat menguji:
 
 - Mobile memakai **tema terang saja** (dark mode dihapus) dan hanya punya **4 tab**: Kasir, Antrean, Laporan, Pengaturan. Tab Karyawan/Absensi **tidak ada** di mobile; web tetap memiliki `/karyawan` dan halaman terkait.
 - Pengaturan mobile dipecah menjadi sub-halaman **Paket Layanan, Add-on, Rekening Bank, Pengguna**. Di mobile, data dihapus lewat **Hapus** (DELETE), bukan "Nonaktifkan"; daftar hanya memuat record aktif.
-- Role yang berlaku: **`admin`** dan **`karyawan`** (label lama `kasir`/`operator` dipadankan dengan `karyawan`).
+- Role yang berlaku: **hanya `admin`**. Peran `karyawan`/`kasir`/`operator` sudah dihapus; istilah lama pada test case historis dibaca sebagai `admin`.
 
 ## Status
 

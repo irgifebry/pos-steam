@@ -1,5 +1,5 @@
 export type VehicleType = 'motor' | 'mobil';
-export type Role = 'admin' | 'karyawan';
+export type Role = 'admin';
 export type OrderStatus = 'menunggu' | 'proses' | 'selesai' | 'paid' | 'dibatalkan';
 export type AttendanceStatus = 'hadir' | 'izin' | 'sakit' | 'alpha' | 'cuti';
 

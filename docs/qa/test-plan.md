@@ -33,7 +33,7 @@ Test plan ini menjawab:
 - Seluruh 7 fase di PRD §12: Fondasi, Kasir Inti, Papan Status, Laporan, Absensi & Gaji, Offline, Polish.
 - **Dua klien yang memakai backend dan kontrak API yang sama** (sukses `{ data: ... }`, error `{ error: { code, message } }`): klien web (Next.js di root) dan klien mobile (Expo/React Native di [`mobile/`](../../mobile), SDK ~58, React Navigation v7).
 - Khusus mobile: tema terang, 4 tab (Kasir, Antrean, Laporan, Pengaturan), alur kasir → antrean → pembayaran, aturan ROYALTY, dan manajemen master data lewat aksi **Hapus**.
-- Pengujian fungsional, validasi input, otorisasi per role (`admin`/`karyawan`), integritas data, regresi, kompatibilitas perangkat, PWA, dan performa dasar.
+- Pengujian fungsional, validasi input, otorisasi satu role (`admin`), integritas data, regresi, kompatibilitas perangkat, PWA, dan performa dasar.
 - Pengujian manual/exploratory oleh QA dan verifikasi test otomatis yang ditulis developer.
 - UAT dengan skenario operasional outlet (kasir sibuk, sinyal hilang, printer gagal).
 
@@ -134,14 +134,12 @@ Expo Web memerlukan **CORS proxy** yang sudah tersedia di [`src/proxy.ts`](../..
 | Akun | Role | PIN | Kegunaan |
 |---|---|---|---|
 | `admin@pos.test` | admin | `123456` | Akun seed; **wajib diganti di luar local** |
-| `qa.karyawan@pos.test` | karyawan | `123456` | Buat manual lewat Pengaturan → Pengguna saat setup test |
-| `qa.inactive@pos.test` | karyawan | `778899` | Buat manual lalu nonaktifkan; pengujian sesi mati |
+| `qa.inactive@pos.test` | admin | `778899` | Buat manual lalu nonaktifkan; pengujian sesi mati |
 
 > Seed hanya membuat akun `admin@pos.test`. Tidak ada akun karyawan, paket, add-on, bank, atau transaksi contoh — siapkan data uji lewat UI/API sebelum menjalankan skenario.
 
-> Role yang dikenal backend saat ini hanya `admin` dan `karyawan` (`roleSchema` di `src/lib/schemas.ts`). Tidak ada peran `kasir`/`operator`. PIN minimal 6 karakter; PRD §5.1/§9.3 masih menyebut PIN 4 angka — lihat §14 dan catatan implementasi di puncak `prd.md`.
+> Role yang dikenal backend saat ini **hanya `admin`** (`roleSchema` di `src/lib/schemas.ts`). Tidak ada peran `kasir`, `operator`, maupun `karyawan`. PIN minimal 6 karakter; PRD §5.1/§9.3 masih menyebut PIN 4 angka — lihat §14 dan catatan implementasi di puncak `prd.md`.
 
-> **Role terkini:** `admin` dan `karyawan`. Baris `kasir`/`operator` pada tabel di atas memakai label lama; padankan dengan `karyawan` saat menguji implementasi terkini di web maupun mobile.
 
 ### 5.2 Master Data Uji
 

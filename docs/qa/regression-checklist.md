@@ -8,7 +8,7 @@ Gunakan checklist ini untuk memastikan perubahan baru tidak merusak fitur yang s
 - **Regresi Mobile (Expo):** wajib jika perubahan menyentuh `mobile/` atau kontrak API yang dipakai mobile.
 - **Release checklist:** sebelum deploy ke production.
 
-> **Istilah role:** kontrak lama memakai `kasir`/`operator`; implementasi terkini memakai `admin` dan `karyawan`. Saat mengeksekusi butir lama, padankan `kasir`/`operator` dengan `karyawan`. Butir §1–§4 berlaku untuk web/backend; check mobile ada di §5.
+> **Role:** satu-satunya peran yang dikenal adalah `admin` (`roleSchema`). Istilah lama `kasir`/`operator`/`karyawan` pada butir historis dibaca sebagai `admin`. Butir §1–§4 berlaku untuk web/backend; check mobile ada di §5.
 
 ---
 
@@ -97,7 +97,7 @@ Jika salah satu gagal: **jangan merge**. Buat bug issue dan tandai PR sebagai bl
 
 ### 2.5 UI, Shell, PWA
 
-- [ ] Web: admin melihat 5 tab; karyawan tanpa Pengaturan. Mobile: 4 tab tanpa Karyawan (lihat §5)
+- [ ] Web: semua user (role `admin`) melihat 5 tab termasuk Pengaturan. Mobile: 4 tab tanpa Karyawan (lihat §5)
 - [ ] Navigasi dan active state benar
 - [ ] Header menampilkan outlet/user; logout bekerja
 - [ ] Login: validasi kosong, PIN <6, PIN salah, PIN valid
@@ -202,7 +202,7 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 - [ ] Bottom tab tepat **4**: Kasir, Antrean, Laporan, Pengaturan
 - [ ] **Tidak ada tab Karyawan/Absensi** di mobile; web `/karyawan` tetap terbuka dan berfungsi
 - [ ] Pengaturan terbuka sebagai menu yang mengarah ke 4 sub-halaman: **Paket Layanan, Add-on, Rekening Bank, Pengguna**; tombol kembali bekerja
-- [ ] Role `admin`/`karyawan` tampil konsisten (label Admin/Karyawan) di Pengaturan → Pengguna
+- [ ] Pengaturan → Pengguna **tidak menampilkan pilihan role**: semua user berperan `admin` (label "Admin")
 
 ### 5.3 Master Data Mobile
 

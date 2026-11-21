@@ -18,7 +18,7 @@ export function AppHeader() {
   const styles = useStyles(buildStyles);
   const { user } = useAuth();
 
-  const roleLabel = user?.role === 'admin' ? 'Admin' : 'Operator';
+  const roleLabel = 'Admin';
   const displayName = user?.name?.trim() || roleLabel;
 
   return (
