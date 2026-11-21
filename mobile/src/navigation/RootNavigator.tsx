@@ -5,6 +5,11 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
 import { AbsensiScreen } from '../screens/AbsensiScreen';
+import { TampilanSettingsScreen } from '../screens/settings/TampilanSettingsScreen';
+import { PaketSettingsScreen } from '../screens/settings/PaketSettingsScreen';
+import { AddonSettingsScreen } from '../screens/settings/AddonSettingsScreen';
+import { BankSettingsScreen } from '../screens/settings/BankSettingsScreen';
+import { PenggunaSettingsScreen } from '../screens/settings/PenggunaSettingsScreen';
 import { useTheme } from '../theme/ThemeContext';
 import { useStyles } from '../theme/useStyles';
 import type { Palette } from '../theme/palettes';
@@ -59,6 +64,11 @@ export function RootNavigator() {
             headerBackTitle: 'Kembali',
           }}
         />
+        <Stack.Screen name="Tampilan" component={TampilanSettingsScreen} options={{ headerShown: true, title: 'Tampilan' }} />
+        <Stack.Screen name="Paket" component={PaketSettingsScreen} options={{ headerShown: true, title: 'Paket Layanan' }} />
+        <Stack.Screen name="Addon" component={AddonSettingsScreen} options={{ headerShown: true, title: 'Add-on' }} />
+        <Stack.Screen name="Bank" component={BankSettingsScreen} options={{ headerShown: true, title: 'Rekening Bank' }} />
+        <Stack.Screen name="Pengguna" component={PenggunaSettingsScreen} options={{ headerShown: true, title: 'Pengguna' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
