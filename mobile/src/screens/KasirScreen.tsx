@@ -99,9 +99,27 @@ export function KasirScreen() {
 
     <View style={[styles.floatBar, { paddingBottom: Math.max(insets.bottom, 12) + 12 }]}>
       <View style={styles.floatTotals}>
-        <View style={styles.summaryLine}><Text style={styles.summaryLabel}>Subtotal</Text><Text style={styles.summaryValue}>{formatIDR(subtotal)}</Text></View>
-        {tax > 0 && <View style={styles.summaryLine}><Text style={styles.summaryLabel}>Pajak ({activeOutlet?.taxPercent ?? 0}%)</Text><Text style={styles.summaryValue}>{formatIDR(tax)}</Text></View>}
-        <View style={[styles.summaryLine, styles.totalLine]}><Text style={styles.totalLabel}>Total</Text><Text style={styles.totalValue}>{formatIDR(total)}</Text></View>
+        {tax > 0 ? (
+          <>
+            <View style={styles.summaryLine}>
+              <Text style={styles.summaryLabel}>Subtotal</Text>
+              <Text style={styles.summaryValue}>{formatIDR(subtotal)}</Text>
+            </View>
+            <View style={styles.summaryLine}>
+              <Text style={styles.summaryLabel}>Pajak ({activeOutlet?.taxPercent ?? 0}%)</Text>
+              <Text style={styles.summaryValue}>{formatIDR(tax)}</Text>
+            </View>
+            <View style={[styles.summaryLine, styles.totalLine]}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalValue}>{formatIDR(total)}</Text>
+            </View>
+          </>
+        ) : (
+          <View style={styles.summaryLine}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>{formatIDR(total)}</Text>
+          </View>
+        )}
       </View>
       <Pressable accessibilityRole="button" disabled={!canSubmit} onPress={() => { setError(''); setPaymentOpen(true); }} style={[styles.submit, !canSubmit && styles.disabled]}>{submitting ? <ActivityIndicator color={colors.night} /> : <Text style={styles.submitText}>Simpan & bayar</Text>}</Pressable>
     </View>
