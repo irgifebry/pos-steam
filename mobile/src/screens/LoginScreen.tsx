@@ -28,15 +28,15 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { KyaneLogo } from '../components/KyaneLogo';
-import { useTheme, type ThemeMode } from '../theme/ThemeContext';
+import { useTheme } from '../theme/ThemeContext';
 import { useStyles } from '../theme/useStyles';
 import type { Palette } from '../theme/palettes';
 
 type FieldName = 'email' | 'pin';
 
 export function LoginScreen() {
-  const { mode, colors } = useTheme();
-  const styles = useStyles((palette) => buildStyles(palette, mode));
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
   const { login } = useAuth();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
@@ -167,8 +167,8 @@ export function LoginScreen() {
 
   return (
     <View style={styles.root}>
-      <AuthBackdrop mode={mode} />
-      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <AuthBackdrop />
+      <StatusBar style="dark" />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -186,11 +186,7 @@ export function LoginScreen() {
                 { opacity: heroOpacity, transform: [{ translateY: heroShift }] },
               ]}
             >
-              {mode === 'dark' ? (
-                <KyaneLogo variant="mono" width={200} height={100} />
-              ) : (
-                <KyaneLogo width={200} height={100} />
-              )}
+              <KyaneLogo width={200} height={100} />
               <SectionDivider style={styles.brandDivider} />
               <Text accessibilityRole="header" style={styles.headline}>
                 Masuk ke{'\n'}panel admin.
@@ -328,17 +324,13 @@ export function LoginScreen() {
               >
                 {loading ? (
                   <>
-                    <ActivityIndicator color={mode === 'light' ? '#ffffff' : colors.night} size="small" />
+                    <ActivityIndicator color="#ffffff" size="small" />
                     <Text style={styles.submitText}>Memproses…</Text>
                   </>
                 ) : (
                   <>
                     <Text style={styles.submitText}>Masuk</Text>
-                    <ArrowRight
-                      size={18}
-                      color={mode === 'light' ? '#ffffff' : colors.brandDeep}
-                      strokeWidth={2.4}
-                    />
+                    <ArrowRight size={18} color="#ffffff" strokeWidth={2.4} />
                   </>
                 )}
               </Pressable>
@@ -376,12 +368,11 @@ export function LoginScreen() {
 }
 
 function SectionDivider({ style }: { style?: object }) {
-  const { mode } = useTheme();
-  const styles = useStyles((palette) => buildStyles(palette, mode));
+  const styles = useStyles(buildStyles);
   return <View style={[styles.divider, style]} />;
 }
 
-function AuthBackdrop({ mode }: { mode: ThemeMode }) {
+function AuthBackdrop() {
   const { colors } = useTheme();
   return (
     <Svg
@@ -392,9 +383,9 @@ function AuthBackdrop({ mode }: { mode: ThemeMode }) {
     >
       <Defs>
         <LinearGradient id="authGround" x1="0" y1="0" x2="0.45" y2="1">
-          <Stop offset="0" stopColor={mode === 'light' ? '#f0f9ff' : colors.night} />
-          <Stop offset="0.52" stopColor={mode === 'light' ? '#dbeafe' : colors.nightMid} />
-          <Stop offset="1" stopColor={mode === 'light' ? '#bae6fd' : colors.nightSoft} />
+          <Stop offset="0" stopColor="#f0f9ff" />
+          <Stop offset="0.52" stopColor="#dbeafe" />
+          <Stop offset="1" stopColor="#bae6fd" />
         </LinearGradient>
       </Defs>
       <Rect x="0" y="0" width="390" height="844" fill="url(#authGround)" />
@@ -404,8 +395,8 @@ function AuthBackdrop({ mode }: { mode: ThemeMode }) {
           cx="113"
           cy="118"
           r={radius}
-          stroke={mode === 'light' ? colors.brandDark : '#ffffff'}
-          strokeOpacity={(mode === 'light' ? 0.1 : 0.07) - index * 0.016}
+          stroke={colors.brandDark}
+          strokeOpacity={0.1 - index * 0.016}
           strokeWidth={1}
           fill="none"
         />
@@ -414,8 +405,7 @@ function AuthBackdrop({ mode }: { mode: ThemeMode }) {
   );
 }
 
-function buildStyles(colors: Palette, mode: ThemeMode) {
-  const isLight = mode === 'light';
+function buildStyles(colors: Palette) {
   return StyleSheet.create({
   root: {
     flex: 1,
@@ -558,15 +548,15 @@ function buildStyles(colors: Palette, mode: ThemeMode) {
     justifyContent: 'center',
     gap: 8,
     borderRadius: 16,
-    backgroundColor: isLight ? colors.brand : '#ffffff',
-    shadowColor: isLight ? colors.brand : '#000000',
+    backgroundColor: colors.brand,
+    shadowColor: colors.brand,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: isLight ? 0.22 : 0.24,
+    shadowOpacity: 0.22,
     shadowRadius: 14,
     elevation: 6,
   },
   submitPressed: {
-    backgroundColor: isLight ? colors.brandDark : '#e0f2fe',
+    backgroundColor: colors.brandDark,
     transform: [{ scale: 0.985 }],
   },
   submitLoading: {
@@ -576,7 +566,7 @@ function buildStyles(colors: Palette, mode: ThemeMode) {
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.2,
-    color: isLight ? '#ffffff' : colors.night,
+    color: '#ffffff',
   },
   demoLink: {
     alignSelf: 'center',

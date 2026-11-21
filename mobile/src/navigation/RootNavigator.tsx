@@ -1,11 +1,10 @@
-import { DefaultTheme, DarkTheme, NavigationContainer } from '@react-navigation/native';
+import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator, type NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
 import { AbsensiScreen } from '../screens/AbsensiScreen';
-import { TampilanSettingsScreen } from '../screens/settings/TampilanSettingsScreen';
 import { PaketSettingsScreen } from '../screens/settings/PaketSettingsScreen';
 import { AddonSettingsScreen } from '../screens/settings/AddonSettingsScreen';
 import { BankSettingsScreen } from '../screens/settings/BankSettingsScreen';
@@ -24,9 +23,8 @@ function AbsensiRoute({ route }: NativeStackScreenProps<RootStackParamList, 'Abs
 
 export function RootNavigator() {
   const { isAuthenticated, isLoading } = useAuth();
-  const { mode, colors } = useTheme();
+  const { colors } = useTheme();
   const styles = useStyles(buildStyles);
-  const navTheme = mode === 'dark' ? DarkTheme : DefaultTheme;
 
   if (isLoading) {
     return (
@@ -40,9 +38,9 @@ export function RootNavigator() {
   return (
     <NavigationContainer
       theme={{
-        ...navTheme,
+        ...DefaultTheme,
         colors: {
-          ...navTheme.colors,
+          ...DefaultTheme.colors,
           primary: colors.brand,
           background: colors.bg,
           card: colors.headerBg,
@@ -52,19 +50,14 @@ export function RootNavigator() {
         },
       }}
     >
-      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style="dark" />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Main" component={BottomTabNavigator} />
         <Stack.Screen
           name="Absensi"
           component={AbsensiRoute}
-          options={{
-            headerShown: true,
-            title: 'Absensi Harian',
-            headerBackTitle: 'Kembali',
-          }}
+          options={{ headerShown: true, title: 'Absensi Harian', headerBackTitle: 'Kembali' }}
         />
-        <Stack.Screen name="Tampilan" component={TampilanSettingsScreen} options={{ headerShown: true, title: 'Tampilan' }} />
         <Stack.Screen name="Paket" component={PaketSettingsScreen} options={{ headerShown: true, title: 'Paket Layanan' }} />
         <Stack.Screen name="Addon" component={AddonSettingsScreen} options={{ headerShown: true, title: 'Add-on' }} />
         <Stack.Screen name="Bank" component={BankSettingsScreen} options={{ headerShown: true, title: 'Rekening Bank' }} />

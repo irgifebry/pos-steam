@@ -8,7 +8,7 @@ import { KyaneLogo } from './KyaneLogo';
 
 export function AppHeader() {
   const insets = useSafeAreaInsets();
-  const { mode, colors } = useTheme();
+  const { colors } = useTheme();
   const styles = useStyles(buildStyles);
   const { user, activeOutlet } = useAuth();
 
@@ -17,11 +17,7 @@ export function AppHeader() {
       <View style={styles.content}>
         {/* Logo SVG KYANE di sisi kiri */}
         <View style={styles.logoWrap}>
-          {mode === 'dark' ? (
-            <KyaneLogo variant="mono" width={84} height={42} />
-          ) : (
-            <KyaneLogo width={92} height={46} />
-          )}
+          <KyaneLogo width={92} height={46} />
         </View>
 
         <View style={styles.rule} />

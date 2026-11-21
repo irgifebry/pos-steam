@@ -15,8 +15,8 @@ import type { Addon, Bank, Order, OrderPaymentInput, ServicePackage, VehicleType
 const newClientId = () => `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 
 export function KasirScreen() {
-  const { mode, colors } = useTheme();
-  const styles = useStyles((palette) => buildStyles(palette, mode));
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
   const { user, activeOutlet } = useAuth();
   const insets = useSafeAreaInsets();
   const [vehicleType, setVehicleType] = useState<VehicleType>('motor');
@@ -133,8 +133,7 @@ export function KasirScreen() {
     </Modal>
   </KeyboardAvoidingView>;
 }
-function buildStyles(colors: Palette, mode: 'light' | 'dark') {
-  const isLight = mode === 'light';
+function buildStyles(colors: Palette) {
   return StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
   screen: { flex: 1 },
@@ -171,8 +170,8 @@ function buildStyles(colors: Palette, mode: 'light' | 'dark') {
   totalLine: { borderTopWidth: 1, borderColor: colors.line, paddingTop: 12 },
   totalLabel: { color: colors.ink, fontSize: 16, fontWeight: '800' },
   totalValue: { color: colors.brand, fontSize: 20, fontWeight: '800' },
-  submit: { minHeight: 48, borderRadius: 10, backgroundColor: isLight ? colors.brand : '#ffffff', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 },
-  submitText: { color: isLight ? '#ffffff' : colors.night, fontWeight: '800', fontSize: 15, textAlign: 'center' },
+  submit: { minHeight: 48, borderRadius: 10, backgroundColor: colors.brand, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 },
+  submitText: { color: '#ffffff', fontWeight: '800', fontSize: 15, textAlign: 'center' },
   disabled: { opacity: 0.55 },
   notice: { gap: 10 },
   error: { color: colors.dangerDark, backgroundColor: colors.dangerSoft, padding: 10, borderRadius: 9, fontSize: 13 },

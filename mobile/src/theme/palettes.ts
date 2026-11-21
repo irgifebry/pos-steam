@@ -1,4 +1,4 @@
-export const lightPalette = {
+export const palette = {
   bg: '#f0f9ff',
   surface: '#ffffff',
   surfaceSoft: '#e0f2fe',
@@ -31,37 +31,6 @@ export const lightPalette = {
   tabBarBg: '#ffffff',
 } as const;
 
-export const darkPalette: Palette = {
-  bg: '#04182b',
-  surface: 'rgba(255, 255, 255, 0.07)',
-  surfaceSoft: 'rgba(255, 255, 255, 0.12)',
-  line: 'rgba(255, 255, 255, 0.18)',
-  lineMuted: 'rgba(255, 255, 255, 0.12)',
-  inputBorder: 'rgba(255, 255, 255, 0.3)',
-  brand: '#38bdf8',
-  brandDark: '#22d3ee',
-  accent: '#22d3ee',
-  brandSoft: 'rgba(56, 189, 248, 0.16)',
-  ink: '#ffffff',
-  muted: 'rgba(255, 255, 255, 0.74)',
-  lightMuted: 'rgba(255, 255, 255, 0.52)',
-  danger: '#f87171',
-  dangerSoft: 'rgba(248, 113, 113, 0.16)',
-  dangerDark: '#fca5a5',
-  success: '#4ade80',
-  successSoft: 'rgba(74, 222, 128, 0.16)',
-  successDark: '#86efac',
-  warning: '#fbbf24',
-  warningSoft: 'rgba(251, 191, 36, 0.16)',
-  warningDark: '#fcd34d',
-  night: '#04182b',
-  nightMid: '#0a3a61',
-  nightSoft: '#0e5c8f',
-  brandDeep: '#0369a1',
-  brandPressed: '#075985',
-  field: '#f8fafc',
-  headerBg: '#0a3a61',
-  tabBarBg: '#0a3a61',
-};
+export type Palette = { [K in keyof typeof palette]: string };
 
-export type Palette = { [K in keyof typeof lightPalette]: string };
+export const lightPalette = palette;

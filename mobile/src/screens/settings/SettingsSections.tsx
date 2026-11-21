@@ -781,11 +781,5 @@ function buildStyles(colors: Palette) {
     // 2-col row
     row2: { flexDirection: 'row', gap: 10 },
     muted: { color: colors.muted, fontSize: 12 },
-    // Theme mode control
-    themeRow: { flexDirection: 'row', gap: 8 },
-    themeOption: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44, borderWidth: 1, borderColor: colors.line, borderRadius: 10, backgroundColor: colors.surface },
-    themeOptionActive: { borderColor: colors.brandDark, backgroundColor: colors.brandSoft },
-    themeOptionText: { color: colors.muted, fontSize: 13, fontWeight: '700' },
-    themeOptionTextActive: { color: colors.brandDark },
   });
 }
