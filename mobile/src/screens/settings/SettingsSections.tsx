@@ -73,6 +73,38 @@ function CrudModal({
   );
 }
 
+// ─── Tab kendaraan ────────────────────────────────────────────────────────────
+
+function VehicleTabs({
+  value,
+  onChange,
+  motorCount,
+  mobilCount,
+}: {
+  value: 'motor' | 'mobil';
+  onChange: (value: 'motor' | 'mobil') => void;
+  motorCount: number;
+  mobilCount: number;
+}) {
+  const styles = useStyles(buildStyles);
+  return (
+    <View style={styles.vehicleTabs}>
+      {(['motor', 'mobil'] as const).map((type) => (
+        <Pressable
+          key={type}
+          accessibilityRole="button"
+          onPress={() => onChange(type)}
+          style={[styles.vehicleTab, value === type && styles.vehicleTabActive]}
+        >
+          <Text style={[styles.vehicleTabText, value === type && styles.vehicleTabTextActive]}>
+            {type === 'motor' ? 'Motor' : 'Mobil'} · {type === 'motor' ? motorCount : mobilCount}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 // ─── Paket Layanan ────────────────────────────────────────────────────────────
 
 const emptyPaket = { name: '', vehicleType: 'motor' as 'motor' | 'mobil', price: '', durationMin: '', description: '', sortOrder: '0', active: true };
@@ -87,6 +119,7 @@ export function PaketSection() {
   const [form, setForm] = useState(emptyPaket);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [vehicleTab, setVehicleTab] = useState<'motor' | 'mobil'>('motor');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -140,23 +173,6 @@ export function PaketSection() {
     finally { setSaving(false); }
   }
 
-  async function toggleActive(item: ServicePackage) {
-    Alert.alert(item.active ? 'Nonaktifkan paket?' : 'Aktifkan paket?', item.name, [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: item.active ? 'Nonaktifkan' : 'Aktifkan',
-        style: item.active ? 'destructive' : 'default',
-        onPress: async () => {
-          try {
-            if (item.active) await api.packages.delete(item.id);
-            else await api.packages.update(item.id, { active: true });
-            await load();
-          } catch (e) { Alert.alert('Gagal', e instanceof Error ? e.message : 'Silakan coba lagi.'); }
-        },
-      },
-    ]);
-  }
-
   const renderRow = (item: ServicePackage) => (
     <View key={item.id} style={styles.listRow}>
       <View style={styles.rowDetails}>
@@ -172,19 +188,9 @@ export function PaketSection() {
         <Pressable accessibilityRole="button" onPress={() => openEdit(item)} style={[styles.textBtn, styles.textBtnPrimary]}>
           <Text style={styles.textBtnText}>Ubah</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => void toggleActive(item)} style={[styles.textBtn, item.active ? styles.textBtnDanger : styles.textBtnSuccess]}>
-          <Text style={[styles.textBtnText, item.active ? styles.textBtnTextDanger : styles.textBtnTextSuccess]}>
-            {item.active ? 'Nonaktifkan' : 'Aktifkan'}
-          </Text>
-        </Pressable>
       </View>
     </View>
   );
-
-  const groups = [
-    { label: 'Motor', rows: items.filter((item) => item.vehicleType === 'motor') },
-    { label: 'Mobil', rows: items.filter((item) => item.vehicleType === 'mobil') },
-  ];
 
   return (
     <View style={styles.section}>
@@ -198,15 +204,17 @@ export function PaketSection() {
       {loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: 8 }} /> : items.length === 0 ? (
         <Text style={styles.muted}>Belum ada paket layanan.</Text>
       ) : (
-        groups.map((group) => group.rows.length > 0 && (
-          <View key={group.label} style={styles.groupBlock}>
-            <View style={styles.groupHeader}>
-              <Text style={styles.groupTitle}>{group.label}</Text>
-              <Text style={styles.groupCount}>{group.rows.length} paket</Text>
-            </View>
-            {group.rows.map(renderRow)}
+        <>
+          <VehicleTabs
+            value={vehicleTab}
+            onChange={setVehicleTab}
+            motorCount={items.filter((item) => item.vehicleType === 'motor').length}
+            mobilCount={items.filter((item) => item.vehicleType === 'mobil').length}
+          />
+          <View style={styles.tabRows}>
+            {items.filter((item) => item.vehicleType === vehicleTab).map(renderRow)}
           </View>
-        ))
+        </>
       )}
       <CrudModal visible={modalVisible} title={editing ? 'Edit Paket' : 'Tambah Paket'} onClose={() => setModalVisible(false)} onSave={() => void handleSave()} saving={saving} error={formError}>
         <Field label="Nama Paket">
@@ -261,6 +269,7 @@ export function AddonSection() {
   const [form, setForm] = useState(emptyAddon);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [vehicleTab, setVehicleTab] = useState<'motor' | 'mobil'>('motor');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -317,29 +326,43 @@ export function AddonSection() {
       </View>
       {loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: 8 }} /> : items.length === 0 ? (
         <Text style={styles.muted}>Belum ada add-on.</Text>
-      ) : items.map((item) => (
-        <View key={item.id} style={styles.listRow}>
-          <View style={styles.rowDetails}>
-            <Text style={styles.rowTitle}>{item.name}</Text>
-            <View style={styles.badgeGroup}>
-              <View style={[styles.badge, item.active ? styles.activeBadge : styles.inactiveBadge]}>
-                <Text style={[styles.badgeText, item.active ? styles.activeText : styles.inactiveText]}>{item.active ? 'Aktif' : 'Nonaktif'}</Text>
-              </View>
-              {(item.vehicleTypes ?? []).map((vt) => (
-                <View key={vt} style={styles.vehicleBadge}>
-                  <Text style={styles.vehicleBadgeText}>{vehicleLabel(vt)}</Text>
+      ) : (
+        <>
+          <VehicleTabs
+            value={vehicleTab}
+            onChange={setVehicleTab}
+            motorCount={items.filter((item) => (item.vehicleTypes ?? []).includes('motor')).length}
+            mobilCount={items.filter((item) => (item.vehicleTypes ?? []).includes('mobil')).length}
+          />
+          <View style={styles.tabRows}>
+            {items
+              .filter((item) => (item.vehicleTypes ?? []).includes(vehicleTab))
+              .map((item) => (
+                <View key={item.id} style={styles.listRow}>
+                  <View style={styles.rowDetails}>
+                    <Text style={styles.rowTitle}>{item.name}</Text>
+                    <View style={styles.badgeGroup}>
+                      <View style={[styles.badge, item.active ? styles.activeBadge : styles.inactiveBadge]}>
+                        <Text style={[styles.badgeText, item.active ? styles.activeText : styles.inactiveText]}>{item.active ? 'Aktif' : 'Nonaktif'}</Text>
+                      </View>
+                      {(item.vehicleTypes ?? []).map((vt) => (
+                        <View key={vt} style={styles.vehicleBadge}>
+                          <Text style={styles.vehicleBadgeText}>{vehicleLabel(vt)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    <Text style={styles.price}>{rupiah(item.price)}{item.unitLabel ? ` / ${item.unitLabel}` : ''}</Text>
+                  </View>
+                  <View style={styles.rowActions}>
+                    <Pressable accessibilityRole="button" onPress={() => openEdit(item)} style={[styles.textBtn, styles.textBtnPrimary]}>
+                      <Text style={styles.textBtnText}>Ubah</Text>
+                    </Pressable>
+                  </View>
                 </View>
               ))}
-            </View>
-            <Text style={styles.price}>{rupiah(item.price)}{item.unitLabel ? ` / ${item.unitLabel}` : ''}</Text>
           </View>
-          <View style={styles.rowActions}>
-            <Pressable accessibilityRole="button" onPress={() => openEdit(item)} style={[styles.textBtn, styles.textBtnPrimary]}>
-              <Text style={styles.textBtnText}>Ubah</Text>
-            </Pressable>
-          </View>
-        </View>
-      ))}
+        </>
+      )}
       <CrudModal visible={modalVisible} title={editing ? 'Edit Add-on' : 'Tambah Add-on'} onClose={() => setModalVisible(false)} onSave={() => void handleSave()} saving={saving} error={formError}>
         <Field label="Nama Add-on">
           <TextInput value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} style={styles.input} placeholder="Wax Premium" />
@@ -719,17 +742,21 @@ function buildStyles(colors: Palette) {
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     sectionTitle: { color: colors.ink, fontSize: 15, fontWeight: '800' },
     count: { color: colors.muted, fontSize: 12 },
-    groupBlock: { gap: 8, marginTop: 8 },
-    groupHeader: {
-      flexDirection: 'row',
+    vehicleTabs: { flexDirection: 'row', gap: 8, marginTop: 10 },
+    vehicleTab: {
+      flex: 1,
+      minHeight: 42,
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingBottom: 7,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.line,
+      justifyContent: 'center',
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.line,
+      backgroundColor: colors.surface,
     },
-    groupTitle: { color: colors.brandDark, fontSize: 12, fontWeight: '800', letterSpacing: 0.6 },
-    groupCount: { color: colors.muted, fontSize: 11 },
+    vehicleTabActive: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
+    vehicleTabText: { color: colors.muted, fontSize: 12.5, fontWeight: '800' },
+    vehicleTabTextActive: { color: colors.brandDark },
+    tabRows: { gap: 8, marginTop: 10 },
     addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.brand, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
     addBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
     field: { gap: 6 },
