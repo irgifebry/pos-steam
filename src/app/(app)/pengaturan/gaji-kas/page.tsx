@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Banknote, Clock3, Wallet } from "lucide-react";
+import { Clock3, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
@@ -39,10 +39,7 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
-export default function GajiKasPage() {
-  const [dailyRate, setDailyRate] = useState("");
-  const [loadingSettings, setLoadingSettings] = useState(true);
-
+export default function KasHarianPage() {
   const [openingAmount, setOpeningAmount] = useState("");
   const [closingAmount, setClosingAmount] = useState("");
   const [note, setNote] = useState("");
@@ -50,18 +47,6 @@ export default function GajiKasPage() {
   const [cashLoading, setCashLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast, showToast, dismiss } = useToast();
-
-
-  const loadSettings = useCallback(async () => {
-    try {
-      const res = await apiFetch<{ data: { defaultDailyRate: number } | null }>("/api/settings");
-      setDailyRate(String(res?.data?.defaultDailyRate ?? ""));
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : "Gagal memuat pengaturan gaji", "error");
-    } finally {
-      setLoadingSettings(false);
-    }
-  }, [showToast]);
 
   const loadCash = useCallback(async () => {
     try {
@@ -75,36 +60,8 @@ export default function GajiKasPage() {
   }, [showToast]);
 
   useEffect(() => {
-    void loadSettings();
     void loadCash();
-  }, [loadSettings, loadCash]);
-
-
-  async function saveDailyRate(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (saving) return;
-    if (dailyRate.trim() === "") {
-      showToast("Gaji harian wajib diisi", "error");
-      return;
-    }
-    const amount = Number(dailyRate);
-    if (!Number.isSafeInteger(amount) || amount < 0) {
-      showToast("Masukkan gaji harian berupa angka bulat, minimal Rp0.", "error");
-      return;
-    }
-    setSaving(true);
-    try {
-      await apiFetch("/api/settings", {
-        method: "PATCH",
-        body: JSON.stringify({ defaultDailyRate: amount }),
-      });
-      showToast("Gaji harian default tersimpan.", "success");
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : "Gagal menyimpan gaji harian", "error");
-    } finally {
-      setSaving(false);
-    }
-  }
+  }, [loadCash]);
 
   async function openCash(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -157,12 +114,12 @@ export default function GajiKasPage() {
     }
   }
 
-  if (loadingSettings || cashLoading) {
+  if (cashLoading) {
     return (
       <div className="flex flex-col gap-6 pb-36">
         <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Gaji & Kas</h1>
-          <p className="mt-1 text-muted">Atur acuan gaji harian dan catat pergantian kas.</p>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Kas Harian</h1>
+          <p className="mt-1 text-muted">Catat pergantian kas dan saldo outlet.</p>
         </div>
         <div className="flex justify-center py-10">
           <Spinner className="text-brand" />
@@ -174,23 +131,9 @@ export default function GajiKasPage() {
   return (
     <div className="flex flex-col gap-6 pb-36">
       <div>
-        <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Gaji & Kas</h1>
-        <p className="mt-1 text-muted">Atur acuan gaji harian dan catat pergantian kas.</p>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-ink">Kas Harian</h1>
+        <p className="mt-1 text-muted">Catat pergantian kas dan saldo outlet.</p>
       </div>
-
-      <Card>
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-soft text-brand"><Banknote className="h-5 w-5" /></div>
-          <div><CardTitle>Pengaturan gaji</CardTitle><p className="text-sm text-muted">Acuan gaji harian untuk karyawan baru.</p></div>
-        </div>
-        <form className="flex flex-col gap-4" onSubmit={saveDailyRate}>
-          <Field label="Gaji harian default (Rp)" htmlFor="daily-rate">
-            <Input id="daily-rate" type="number" min="0" step="1" inputMode="numeric" value={dailyRate} onChange={(event) => { setDailyRate(event.target.value); }} placeholder="Masukkan nominal" />
-          </Field>
-          <p className="text-sm text-muted">Tarif gaji tiap karyawan tetap diatur pada data karyawan.</p>
-          <Button variant="primary" type="submit" fullWidth disabled={saving} aria-disabled={saving}>Simpan gaji harian</Button>
-        </form>
-      </Card>
 
       {cash ? (
         <>

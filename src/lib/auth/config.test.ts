@@ -28,7 +28,6 @@ describe("Better Auth", () => {
     });
     expect(result.user.role).toBe("admin");
     expect(result.user.active).toBe(true);
-    expect(result.user.dailyRate).toBe(0);
   });
 
   it("menolak password yang lebih pendek dari 6 karakter", async () => {

@@ -4,7 +4,7 @@ Dokumen ini khusus untuk **backend**: apa yang sudah dibangun, kontrak API, cara
 
 | | |
 |---|---|
-| **Fase** | F1–F2 — Fondasi backend + sinkronisasi transaksi (kasir, antrean, laporan, karyawan, gaji kas, struk publik) + dukungan klien mobile (harga ROYALTY, CORS Expo Web) |
+| **Fase** | F1–F2 — Fondasi backend + sinkronisasi transaksi (kasir, antrean, laporan, kas, struk publik) + dukungan klien mobile (harga ROYALTY, CORS Expo Web) |
 | **Status** | Selesai dan terverifikasi |
 | **PIC Backend** | [Najwan48](https://github.com/Najwan48) |
 | **Branch** | `main` |
@@ -21,13 +21,13 @@ Backend F1 menyediakan fondasi aplikasi full-stack Next.js 16:
 - Otorisasi berbasis sesi di Route Handler. Satu-satunya peran: `admin` (`roleSchema = z.enum(["admin"])`).
 - API master data: paket, add-on, outlet, bank, settings.
 - API manajemen pengguna: tambah, ubah, reset PIN, aktif/nonaktif.
-- API transaksi & operasional: order, antrean, pembayaran, pembatalan, struk publik, absensi, payroll, shift kas, laporan.
+- API transaksi & operasional: order, antrean, pembayaran, pembatalan, struk publik, shift kas, laporan.
 - Harga ROYALTY per paket (`service_packages.royalty_price`) dengan aturan khusus di `services/orders.ts`.
 - Dukungan klien mobile Expo: base URL otomatis dan proxy CORS untuk Expo Web (`src/proxy.ts`).
 - Validasi Zod sebagai sumber tunggal (`src/lib/schemas.ts`).
 - Format error konsisten `{ error: { code, message } }`.
 - Audit log untuk perubahan pengguna.
-- Seed sengaja **minimal**: satu outlet kosong dan satu akun demo admin. Tidak ada data contoh paket, add-on, bank, maupun karyawan.
+- Seed sengaja **minimal**: satu outlet kosong dan satu akun demo admin. Tidak ada data contoh paket, add-on, maupun bank.
 - Test backend dengan **PGlite** tanpa database eksternal.
 
 **Hasil verifikasi terakhir:**
@@ -41,7 +41,7 @@ Backend F1 menyediakan fondasi aplikasi full-stack Next.js 16:
 | `npx expo-doctor` (mobile) | **20/20** |
 | `npx tsc --noEmit` (mobile) | Bersih |
 
-> Semua frontend (`/kasir`, `/antrean`, `/laporan`, `/karyawan`, `/pengaturan/*`, `r/[token]`) sudah tersambung ke API nyata. Mode demo, dummy data, dan fallback localStorage telah dihapus.
+> Semua frontend (`/kasir`, `/antrean`, `/laporan`, `/pengaturan/*`, `r/[token]`) sudah tersambung ke API nyata. Mode demo, dummy data, dan fallback localStorage telah dihapus.
 
 ---
 
@@ -136,7 +136,7 @@ Route Handler  ->  Service  ->  Drizzle  ->  PostgreSQL
 | Auth | `user`, `session`, `account`, `verification` | Dipakai |
 | Outlet & master data | `outlets`, `service_packages`, `addons`, `banks` | Dipakai API F1 |
 | Transaksi | `customers`, `vehicles`, `orders`, `order_items`, `payments` | **Ada endpoint F2** |
-| Operasional | `attendance`, `payroll_runs`, `payroll_items`, `cash_shifts` | **Ada endpoint F2** |
+| Operasional | `cash_shifts` | **Ada endpoint F2** |
 | Audit | `audit_logs` | Dipakai untuk perubahan pengguna dan transaksi |
 
 `service_packages` memiliki kolom `royalty_price` (integer, nullable) untuk harga khusus ROYALTY per paket; ditambahkan lewat migrasi `0003`.
@@ -178,7 +178,7 @@ Daftar migrasi saat ini:
 |---|---|
 | `0000_optimal_morlun.sql` | Skema awal |
 | `0001_secret_grim_reaper.sql` | Menambah tabel `banks` |
-| `0002_rare_mathemanic.sql` | `orders.business_date`, `outlets.default_daily_rate`, komponen payroll, dan constraint unik |
+| `0002_rare_mathemanic.sql` | `orders.business_date` dan constraint unik |
 | `0003_volatile_maelstrom.sql` | Menambah `service_packages.royalty_price` (integer nullable) dan menetapkan default `user.role` = `'admin'` |
 
 ### 4.4 Tabel `banks`
@@ -203,7 +203,7 @@ Konfigurasi ada di `src/lib/auth/config.ts`:
 
 - `emailAndPassword.enabled = true`, `minPasswordLength = 6`.
 - Sesi berlaku **7 hari**, diperbarui setiap **1 hari**.
-- Field tambahan user: `role`, `phone`, `outletId`, `dailyRate`, `active`.
+- Field tambahan user: `role`, `phone`, `outletId`, `active`.
 - `role` hanya bertipe `admin` (`roleSchema = z.enum(["admin"])`); default `admin` di `userInputSchema` dan di kolom database.
 - Semua field tambahan memakai `input: false`, sehingga tidak bisa diisi dari body sign-up publik.
 - `trustedOrigins` diambil dari `WEB_ORIGIN`.
@@ -427,36 +427,6 @@ Aturan order:
 - `paid` dan `dibatalkan` tidak dapat diubah/dibatalkan lagi.
 - UUID order dipakai sebagai token struk publik; tidak ada kolom receipt token terpisah.
 
-#### Absensi
-
-| Method | Path | Akses | Keterangan |
-|---|---|---|---|
-| GET | `/api/attendance?date=YYYY-MM-DD` | admin | Daftar absensi outlet pada tanggal |
-| POST | `/api/attendance` | admin | Upsert absensi karyawan (tanggal + user unik) |
-| GET | `/api/attendance/summary?period=YYYY-MM` | admin | Ringkasan bulanan per karyawan |
-
-#### Payroll
-
-| Method | Path | Akses | Keterangan |
-|---|---|---|---|
-| GET | `/api/payroll?period=YYYY-MM` | admin | Ambil payroll (draft atau final) dengan item per karyawan |
-| POST | `/api/payroll` | admin | Simpan draft atau finalisasi payroll periode |
-
-Body POST `/api/payroll`:
-
-```json
-{
-  "period": "2026-10",
-  "adjustments": {
-    "uuid-user": { "tunjangan": 20000, "lembur": 15000, "potongan": 10000 }
-  },
-  "finalize": false
-}
-```
-
-- `tunjangan` → kolom `allowance`, `lembur` → `overtimePay`, `potongan` → `deductions`.
-- Payroll final dikunci; tidak bisa disimpan ulang setelah `final`.
-
 #### Shift kas
 
 | Method | Path | Akses | Keterangan |
@@ -477,10 +447,9 @@ Body POST `/api/payroll`:
 | GET | `/api/reports/paket?from=...&to=...` | admin | Agregasi per paket (jumlah & total) |
 | GET | `/api/reports/addon?from=...&to=...` | admin | Agregasi per add-on (qty, jumlah, total) |
 | GET | `/api/reports/payment-method?from=...&to=...` | admin | Agregasi per metode pembayaran (jumlah & total) |
-| GET | `/api/reports/employee?from=...&to=...` | admin | Agregasi per karyawan (jumlah & total) |
 | GET | `/api/reports/cash?date=YYYY-MM-DD` | admin | Rekonsiliasi kas harian & shift |
-| GET | `/api/reports/export.csv?from=...&to=...&type=...` | admin | Ekspor CSV (`transactions`, `paket`, `addon`, `payment-method`, `employee`) |
-| GET | `/api/reports/export.xlsx?from=...&to=...&type=...` | admin | Ekspor Excel `.xlsx` (7 sheet: Ringkasan, Transaksi, Paket, Add-on, Metode Pembayaran, Karyawan, Kas). Sheet aktif mengikuti `type` |
+| GET | `/api/reports/export.csv?from=...&to=...&type=...` | admin | Ekspor CSV (`transactions`, `paket`, `addon`, `payment-method`) |
+| GET | `/api/reports/export.xlsx?from=...&to=...&type=...` | admin | Ekspor Excel `.xlsx` (6 sheet: Ringkasan, Transaksi, Paket, Add-on, Metode Pembayaran, Kas). Sheet aktif mengikuti `type` |
 
 > **Format Excel:** generator ada di `src/lib/services/report-export.ts` (exceljs). Font Arial, header biru brand, baris bergaris, filter, freeze header, lebar kolom diatur, dan format mata uang Rupiah. Setiap sheet memakai header di baris 6, data mulai baris 7, serta baris **TOTAL** berupa formula `SUM(...)` (bukan nilai statis). Sheet **Ringkasan** memakai formula lintas sheet (`COUNT`, `SUM`, `IF`). Catatan asumsi ditaruh di bawah tabel dan sebagai catatan sel.
 
@@ -502,12 +471,12 @@ Body POST `/api/payroll`:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| PATCH | `/api/settings` | admin | Ubah `defaultDailyRate` |
+| PATCH | `/api/settings` | admin | Ubah pengaturan outlet |
 
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/settings` | admin | Gabungan outlet + bank aktif + `defaultDailyRate` |
+| GET | `/api/settings` | admin | Gabungan outlet + bank aktif |
 
 Contoh response:
 
@@ -515,22 +484,19 @@ Contoh response:
 {
   "data": {
     "outlet": { "id": "...", "name": "Cuci Steam Bersama", "taxPercent": 0 },
-    "banks": [{ "id": "...", "name": "BCA", "accountNumber": "..." }],
-    "defaultDailyRate": 50000
+    "banks": [{ "id": "...", "name": "BCA", "accountNumber": "..." }]
   }
 }
 ```
-
-`defaultDailyRate` adalah kolom eksplisit di tabel `outlets` (migrasi `0002`).
 
 #### Pengguna
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/users` | admin | Daftar lengkap termasuk nonaktif, termasuk `dailyRate` dan `email` |
+| GET | `/api/users` | admin | Daftar lengkap termasuk nonaktif, termasuk `email` |
 | GET | `/api/users?light=1` | admin | Ringkasan `{ id, name, role }` untuk switcher pengguna |
 | POST | `/api/users` | admin | Buat pengguna + PIN |
-| PATCH | `/api/users/:id` | admin | Ubah nama/email/role/telepon/gaji/aktif |
+| PATCH | `/api/users/:id` | admin | Ubah nama/email/telepon/aktif |
 | POST | `/api/users/:id/pin` | admin | Reset PIN |
 | POST | `/api/users/:id/active` | admin | Aktif/nonaktifkan pengguna |
 
@@ -543,7 +509,6 @@ Body POST:
   "password": "112233",
   "role": "admin",
   "phone": "08123456789",
-  "dailyRate": 50000,
   "active": true
 }
 ```
@@ -562,7 +527,7 @@ Body aktif/nonaktif:
 
 Aturan:
 
-- `GET /api/users` hanya untuk user aktif; mengembalikan data lengkap termasuk `email` dan `dailyRate` (tidak ada pembatasan berdasarkan peran).
+- `GET /api/users` hanya untuk user aktif; mengembalikan data lengkap termasuk `email` (tidak ada pembatasan berdasarkan peran).
 - `?light=1` hanya mengembalikan `id`, `name`, `role` dan hanya untuk outlet yang sama.
 - Role yang diterima: hanya `admin`. Menonaktifkan admin terakhir -> `409 LAST_ADMIN`.
 - Menonaktifkan user menghapus semua sesinya.
@@ -578,11 +543,9 @@ Aturan:
 | `services/addons.ts` | `listAddons`, `createAddon`, `updateAddon`, `deactivateAddon` | CRUD add-on, filter tipe kendaraan, duplikat, soft-delete |
 | `services/outlets.ts` | `listOutlets`, `getOutlet`, `updateOutlet` | Data outlet, konversi pajak numerik ke number |
 | `services/banks.ts` | `listBanks`, `createBank`, `updateBank` | Bank aktif per outlet |
-| `services/settings.ts` | `getSettings`, `updateSettings` | Gabungan outlet + bank + tarif harian default |
+| `services/settings.ts` | `getSettings`, `updateSettings` | Gabungan outlet + bank |
 | `services/users.ts` | `listUsers`, `listUserSummaries`, `createUser`, `updateUser`, `resetPin`, `setUserActive` | Manajemen pengguna, proteksi admin terakhir, audit log |
 | `services/orders.ts` | `createOrder`, `listOrders`, `getOrder`, `getReceipt`, `updateOrderStatus`, `addOrderPayment`, `cancelOrder` | Order, antrean, invoice, pembayaran, pembatalan, struk publik |
-| `services/attendance.ts` | `listAttendance`, `saveAttendance`, `attendanceSummary` | Absensi harian dan ringkasan bulanan |
-| `services/payroll.ts` | `getPayroll`, `savePayroll` | Draft/final payroll, komponen gaji, kunci final |
 | `services/cash-shifts.ts` | `getCashShiftState`, `openCashShift`, `closeCashShift` | Buka/tutup shift kas, hitung kas seharusnya |
 | `services/reports.ts` | `listReportTransactions` | Transaksi yang sudah dibayar, detail add-on |
 
@@ -602,10 +565,8 @@ Sumber tunggal: `src/lib/schemas.ts`.
 | `bankInputSchema` / `bankUpdateSchema` | Bank |
 | `userInputSchema` / `userUpdateSchema` / `userCreateSchema` | Pengguna |
 | `pinSchema` | PIN/reset PIN |
-| `roleSchema`, `vehicleTypeSchema`, `attendanceStatusSchema` | Enum domain |
+| `roleSchema`, `vehicleTypeSchema` | Enum domain |
 | `orderCreateSchema`, `orderStatusSchema`, `orderCancelSchema`, `orderPaymentInputSchema` | Order |
-| `attendanceSaveSchema`, `attendanceSummaryQuerySchema` | Absensi |
-| `payrollSaveSchema`, `payrollAdjustmentSchema` | Payroll |
 | `cashShiftOpenSchema`, `cashShiftCloseSchema` | Shift kas |
 | `settingsUpdateSchema` | Pengaturan |
 | `reportRangeSchema` | Laporan |
@@ -636,9 +597,6 @@ Aksi yang sudah dicatat:
 - `order.status`
 - `order.payment`
 - `order.cancel`
-- `attendance.save`
-- `payroll.save`
-- `payroll.finalize`
 - `cash_shift.open`
 - `cash_shift.close`
 
@@ -698,8 +656,6 @@ Cakupan saat ini:
 | Settings | `src/lib/services/settings.test.ts` |
 | Pengguna (service + route) | `src/lib/services/users.test.ts`, `src/app/api/users/route.test.ts` |
 | Order (service) | `src/lib/services/orders.test.ts` |
-| Absensi (service) | `src/lib/services/attendance.test.ts` |
-| Payroll (service) | `src/lib/services/payroll.test.ts` |
 | Shift kas (service) | `src/lib/services/cash-shifts.test.ts` |
 | Laporan (service) | `src/lib/services/reports.test.ts` |
 | Auth & session | `src/lib/auth/config.test.ts`, `src/lib/auth/session.test.ts` |
@@ -774,7 +730,7 @@ Hal-hal berikut **belum** dikerjakan dan perlu diketahui tim:
 | 5 | `GET /api/outlets` mengembalikan semua outlet ke semua role | F2 bila multi-outlet |
 | 6 | Belum ada rate limiting login/PIN | F7 |
 | 7 | Belum ada observability/log terstruktur | F7 |
-| 8 | Harga seed masih placeholder dan PIN admin/karyawan masih `123456` | Sebelum produksi |
+| 8 | PIN admin masih `123456` | Sebelum produksi |
 | 9 | UI dan PWA sudah tersambung API; mode demo dihapus | Sudah dilakukan |
 | 10 | Endpoint settings, dashboard hari ini, dan sync offline | Selesai |
 | 11 | Fallback base URL mobile `http://192.168.101.4:3000` di `mobile/src/lib/storage.ts` sudah usang | Ganti/konfigurasikan sebelum build native |
@@ -848,8 +804,7 @@ Catatan klien mobile (Expo): `mobile/app.json` memakai `android.package` dan `io
 | **F1 — Fondasi** | Schema + migrasi, auth, API master data, API pengguna, seed, test | Selesai |
 | **F2 — Kasir Inti** | API pelanggan/kendaraan, order + invoice + nomor antrean atomik, `price_snapshot`, pembayaran tunai/transfer, buka/tutup kas, pembatalan + audit, token struk digital, idempotensi `client_id` | Selesai |
 | **F3 — Papan Status** | Query board hari ini, filter tipe/status, update status dengan aturan transisi, data timer/estimasi, dukungan polling/real-time | Selesai |
-| **F4 — Laporan** | Query agregasi harian/mingguan/bulanan, per paket/add-on/metode bayar/karyawan/kasir, export CSV, pembatasan role | Selesai |
-| **F5 — Absensi & Gaji** | API absensi, rekap bulanan, payroll run, kalkulasi gaji, finalisasi + audit, data slip PDF | Selesai |
+| **F4 — Laporan** | Query agregasi harian/mingguan/bulanan, per paket/add-on/metode bayar/kas, export CSV, pembatasan role | Selesai |
 | **F6 — Offline** | Sinkronisasi batch/idempotent, penanganan konflik, versi data, endpoint cache master data | Belum |
 | **F7 — Polish** | Audit penuh, rate limiting, observability, hardening keamanan, runbook backup/migrasi | Belum |
 

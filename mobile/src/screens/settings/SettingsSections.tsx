@@ -529,7 +529,7 @@ export function BankSection() {
 
 // ─── Pengguna ─────────────────────────────────────────────────────────────────
 
-const emptyUser = { name: '', email: '', role: 'admin' as const, phone: '', dailyRate: '', password: '' };
+const emptyUser = { name: '', email: '', role: 'admin' as const, phone: '', password: '' };
 
 export function PenggunaSection() {
   const { colors } = useTheme();
@@ -564,7 +564,7 @@ export function PenggunaSection() {
 
   function openEdit(item: User) {
     setEditing(item);
-    setForm({ name: item.name, email: item.email, role: 'admin', phone: item.phone ?? '', dailyRate: String(item.dailyRate ?? 0), password: '' });
+    setForm({ name: item.name, email: item.email, role: 'admin', phone: item.phone ?? '', password: '' });
     setFormError('');
     setModalVisible(true);
   }
@@ -573,15 +573,13 @@ export function PenggunaSection() {
     setFormError('');
     if (!form.name.trim()) { setFormError('Nama wajib diisi'); return; }
     if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) { setFormError('Email tidak valid'); return; }
-    const dailyRate = Number(form.dailyRate);
-    if (!Number.isFinite(dailyRate) || dailyRate < 0) { setFormError('Gaji harian tidak valid'); return; }
     if (!editing && form.password.length < 6) { setFormError('PIN minimal 6 karakter'); return; }
     setSaving(true);
     try {
       if (editing) {
-        await api.users.update(editing.id, { name: form.name.trim(), email: form.email.trim(), role: form.role, phone: form.phone.trim(), dailyRate });
+        await api.users.update(editing.id, { name: form.name.trim(), email: form.email.trim(), role: form.role, phone: form.phone.trim() });
       } else {
-        await api.users.create({ name: form.name.trim(), email: form.email.trim(), role: form.role, phone: form.phone.trim(), dailyRate, password: form.password, active: true });
+        await api.users.create({ name: form.name.trim(), email: form.email.trim(), role: form.role, phone: form.phone.trim(), password: form.password, active: true });
       }
       setModalVisible(false);
       await load();
@@ -625,7 +623,6 @@ export function PenggunaSection() {
             </View>
             <Text selectable style={styles.muted}>{item.email}</Text>
             {!!item.phone && <Text style={styles.muted}>{item.phone}</Text>}
-            <Text style={styles.muted}>Gaji harian: {rupiah(item.dailyRate ?? 0)}</Text>
           </View>
           <View style={styles.rowActions}>
             <Pressable accessibilityRole="button" onPress={() => openEdit(item)} style={[styles.textBtn, styles.textBtnPrimary]}>
@@ -647,9 +644,6 @@ export function PenggunaSection() {
         </Field>
         <Field label="Telepon">
           <TextInput value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v })} style={styles.input} keyboardType="phone-pad" />
-        </Field>
-        <Field label="Gaji Harian (Rp)">
-          <TextInput value={form.dailyRate} onChangeText={(v) => setForm({ ...form, dailyRate: v.replace(/\D/g, '') })} style={styles.input} keyboardType="number-pad" />
         </Field>
         {!editing && (
           <Field label="PIN (min. 6 karakter)">

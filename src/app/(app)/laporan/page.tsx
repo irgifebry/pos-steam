@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Banknote, Calendar, CreditCard, Download, FileSpreadsheet, Package, Printer, TrendingUp, Users, Wrench } from "lucide-react";
+import { BarChart3, Banknote, Calendar, CreditCard, Download, FileSpreadsheet, Package, Printer, TrendingUp, Wrench } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/useToast";
 import { Toast } from "@/components/ui/Toast";
 
 type PaymentMethod = "Tunai" | "Transfer";
-type Tab = "omzet" | "paket" | "addon" | "pembayaran" | "karyawan" | "kas";
+type Tab = "omzet" | "paket" | "addon" | "pembayaran" | "kas";
 
 type ReportTx = {
   id: string;
@@ -28,7 +28,7 @@ type ReportTx = {
   paymentMethod: PaymentMethod;
   packageName: string;
   addons: { name: string; price: number; qty: number; subtotal: number }[];
-  employee: string;
+  admin: string;
   total: number;
   customerName: string;
   plate: string;
@@ -37,7 +37,6 @@ type ReportTx = {
 type PaketRow = { packageName: string; count: number; total: number };
 type AddonRow = { addonName: string; count: number; total: number };
 type PaymentRow = { paymentMethod: string; count: number; total: number };
-type EmployeeRow = { employee: string; count: number; total: number };
 type CashShiftView = {
   openingCash: number;
   closingCash: number | null;
@@ -61,7 +60,6 @@ const ENDPOINT: Record<Tab, string> = {
   paket: "paket",
   addon: "addon",
   pembayaran: "payment-method",
-  karyawan: "employee",
   kas: "cash",
 };
 
@@ -70,7 +68,6 @@ const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: "paket", label: "Rekap Paket", icon: Package },
   { key: "addon", label: "Rekap Add-on", icon: Wrench },
   { key: "pembayaran", label: "Metode Pembayaran", icon: CreditCard },
-  { key: "karyawan", label: "Rekap Karyawan", icon: Users },
   { key: "kas", label: "Rekap Kas Harian", icon: Banknote },
 ];
 
@@ -102,17 +99,16 @@ function initialData(): ReportData {
     paket: [],
     addon: [],
     pembayaran: [],
-    karyawan: [],
     kas: null,
   };
 }
 
 function initialLoading(): Record<Tab, boolean> {
-  return { omzet: true, paket: true, addon: true, pembayaran: true, karyawan: true, kas: true };
+  return { omzet: true, paket: true, addon: true, pembayaran: true, kas: true };
 }
 
 function initialError(): Record<Tab, string> {
-  return { omzet: "", paket: "", addon: "", pembayaran: "", karyawan: "", kas: "" };
+  return { omzet: "", paket: "", addon: "", pembayaran: "", kas: "" };
 }
 
 export default function LaporanPage() {
@@ -170,7 +166,7 @@ export default function LaporanPage() {
   useEffect(() => {
     cancelled.current = false;
     if (invalidRange) {
-      setLoading({ omzet: false, paket: false, addon: false, pembayaran: false, karyawan: false, kas: false });
+      setLoading({ omzet: false, paket: false, addon: false, pembayaran: false, kas: false });
       setData(initialData());
       return () => {
         cancelled.current = true;
@@ -185,7 +181,7 @@ export default function LaporanPage() {
       setLoading(initialLoading());
       setError(initialError());
 
-      const periodTabs: Tab[] = ["omzet", "paket", "addon", "pembayaran", "karyawan"];
+      const periodTabs: Tab[] = ["omzet", "paket", "addon", "pembayaran"];
       await Promise.all(periodTabs.map((x) => fetchTab(x, f, t)));
       if (cancelled.current) return;
       if (mode === "single") {
@@ -210,7 +206,6 @@ export default function LaporanPage() {
   const paketRows = useMemo(() => (Array.isArray(data.paket) ? (data.paket as PaketRow[]) : []), [data.paket]);
   const addonRows = useMemo(() => (Array.isArray(data.addon) ? (data.addon as AddonRow[]) : []), [data.addon]);
   const paymentRows = useMemo(() => (Array.isArray(data.pembayaran) ? (data.pembayaran as PaymentRow[]) : []), [data.pembayaran]);
-  const employeeRows = useMemo(() => (Array.isArray(data.karyawan) ? (data.karyawan as EmployeeRow[]) : []), [data.karyawan]);
   const cash = (data.kas as CashReport | null) ?? null;
 
   const omzetHari = txs.reduce((s, t) => s + (t.total ?? 0), 0);
@@ -497,7 +492,7 @@ export default function LaporanPage() {
                       <th scope="col" className="py-2 px-2">Kendaraan</th>
                       <th scope="col" className="py-2 px-2">Paket</th>
                       <th scope="col" className="py-2 px-2">Add-on</th>
-                      <th scope="col" className="py-2 px-2">Karyawan</th>
+                      <th scope="col" className="py-2 px-2">Admin</th>
                       <th scope="col" className="py-2 px-2">Metode</th>
                       <th scope="col" className="py-2 pl-2 text-right">Total</th>
                     </tr>
@@ -513,7 +508,7 @@ export default function LaporanPage() {
                         <td className="py-2 px-2 text-sm text-muted truncate">
                           {(Array.isArray(t.addons) ? t.addons : []).map((a) => `${a.name} x${a.qty}`).join(", ") || "—"}
                         </td>
-                        <td className="py-2 px-2 text-sm text-ink">{t.employee}</td>
+                        <td className="py-2 px-2 text-sm text-ink">{t.admin}</td>
                         <td className="py-2 px-2 text-sm text-ink"><Badge tone={t.paymentMethod === "Tunai" ? "success" : "info"}>{t.paymentMethod}</Badge></td>
                         <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(t.total)}</td>
                       </tr>
@@ -716,73 +711,6 @@ export default function LaporanPage() {
                       <td className="py-2 pr-2 text-sm text-ink">Total</td>
                       <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(paymentRows.reduce((s, r) => s + (r.count ?? 0), 0))}</td>
                       <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(paymentRows.reduce((s, r) => s + (r.total ?? 0), 0))}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-        )}
-
-        {tab === "karyawan" && (
-          <Card className="flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-brand" />
-                <span className="font-display font-bold text-ink">Rekap Karyawan</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="primary" size="sm" onClick={() => downloadCsv("karyawan")} disabled={invalidRange || loading.karyawan || employeeRows.length === 0}>
-                  <Download className="h-4 w-4" /> CSV
-                </Button>
-                <Button variant="secondary" size="sm" onClick={() => downloadExcel("employee")} disabled={invalidRange || loading.karyawan || employeeRows.length === 0}>
-                  <FileSpreadsheet className="h-4 w-4" /> Excel
-                </Button>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <Card className="p-4 flex flex-col gap-1">
-                <p className="text-xs text-muted">Karyawan aktif</p>
-                <p className="font-bold tabular-nums text-ink">{formatAngka(employeeRows.length)}</p>
-              </Card>
-              <Card className="p-4 flex flex-col gap-1">
-                <p className="text-xs text-muted">Total transaksi</p>
-                <p className="font-bold tabular-nums text-ink">{formatAngka(employeeRows.reduce((s, r) => s + (r.count ?? 0), 0))}</p>
-              </Card>
-              <Card className="p-4 flex flex-col gap-1">
-                <p className="text-xs text-muted">Omzet karyawan</p>
-                <p className="font-bold tabular-nums text-ink">{rupiah(employeeRows.reduce((s, r) => s + (r.total ?? 0), 0))}</p>
-              </Card>
-            </div>
-            {loading.karyawan && (
-              <div className="flex items-center justify-center py-12"><Spinner className="text-brand" /></div>
-            )}
-            {error.karyawan && <div className="rounded-xl border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">{error.karyawan}</div>}
-            {!loading.karyawan && !error.karyawan && employeeRows.length === 0 && (
-              <p className="text-sm text-muted text-center py-8">Tidak ada data karyawan pada periode ini.</p>
-            )}
-            {!loading.karyawan && !error.karyawan && employeeRows.length > 0 && (
-              <div className="overflow-x-auto -mx-1">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs font-bold text-muted uppercase">
-                      <th scope="col" className="py-2 pr-2">Karyawan</th>
-                      <th scope="col" className="py-2 px-2 text-right">Jumlah transaksi</th>
-                      <th scope="col" className="py-2 pl-2 text-right">Total omzet</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {employeeRows.map((r) => (
-                      <tr key={r.employee} className="border-t border-line">
-                        <td className="py-2 pr-2 text-sm font-semibold text-ink truncate">{r.employee}</td>
-                        <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(r.count)}</td>
-                        <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(r.total)}</td>
-                      </tr>
-                    ))}
-                    <tr className="border-t border-line font-bold">
-                      <td className="py-2 pr-2 text-sm text-ink">Total</td>
-                      <td className="py-2 px-2 text-sm text-right text-ink">{formatAngka(employeeRows.reduce((s, r) => s + (r.count ?? 0), 0))}</td>
-                      <td className="py-2 pl-2 text-sm text-right font-semibold tabular-nums text-ink">{rupiah(employeeRows.reduce((s, r) => s + (r.total ?? 0), 0))}</td>
                     </tr>
                   </tbody>
                 </table>

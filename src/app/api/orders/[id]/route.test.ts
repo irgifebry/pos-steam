@@ -77,7 +77,6 @@ describe("/api/orders/[id]", () => {
         role: "admin",
         outletId,
         phone: "",
-        dailyRate: 0,
         active: true,
       },
       {

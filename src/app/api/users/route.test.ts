@@ -52,7 +52,6 @@ describe("/api/users", () => {
       password: "123456",
       role: "admin",
       phone: "",
-      dailyRate: 0,
       active: true,
       outletId: outlet.id,
     });
@@ -62,7 +61,6 @@ describe("/api/users", () => {
       password: "123456",
       role: "admin",
       phone: "",
-      dailyRate: 50000,
       active: true,
       outletId: outlet.id,
     });
@@ -92,7 +90,6 @@ describe("/api/users", () => {
     const response = await GET(new Request("http://localhost/api/users"));
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.data.some((row: { dailyRate: number }) => row.dailyRate === 50000)).toBe(true);
   });
 
   it("membuat pengguna baru lewat admin", async () => {
@@ -106,7 +103,6 @@ describe("/api/users", () => {
           email: "karyawan-baru@contoh.id",
           password: "654321",
           role: "admin",
-          dailyRate: 45000,
         }),
       }),
     );
@@ -114,7 +110,6 @@ describe("/api/users", () => {
     expect(response.status).toBe(201);
     const body = await response.json();
     expect(body.data.email).toBe("karyawan-baru@contoh.id");
-    expect(body.data.dailyRate).toBe(45000);
   });
 
   it("menolak PIN yang kurang dari 6 karakter", async () => {

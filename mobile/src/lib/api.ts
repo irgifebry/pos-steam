@@ -1,5 +1,5 @@
 import { clearAuthStorage, getBaseUrl, getSession, setActiveUser, setSession } from './storage';
-import type { Addon, Attendance, AttendanceSave, Bank, CashShift, Order, OrderCancel, OrderCreate, OrderPaymentInput, OrderStatus, Outlet, Payroll, Reports, ServicePackage, Session, User } from '../types';
+import type { Addon, Bank, CashShift, Order, OrderCancel, OrderCreate, OrderPaymentInput, OrderStatus, Outlet, Reports, ServicePackage, Session, User } from '../types';
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) { super(message); this.name = 'ApiError'; }
@@ -96,20 +96,11 @@ export const api = {
     pay: (id: string, body: OrderPaymentInput) => request<Order>(`/api/orders/${encodeURIComponent(id)}/payments`, json('POST', body)),
   },
   board: () => request<{ orders: Order[]; summary: { menunggu: number; proses: number; selesai: number; total: number; cancelled: number } }>('/api/board'),
-  attendance: {
-    list: (date: string) => request<Attendance[]>(`/api/attendance${query({ date })}`),
-    save: (body: AttendanceSave) => request<Attendance[]>('/api/attendance', json('POST', body)),
-    summary: (period: string) => request<Array<{ userId: string; name: string; role: string; dailyRate: number; hadir: number; izin: number; sakit: number; alpha: number; cuti: number; totalHours: number }>>(`/api/attendance/summary${query({ period })}`),
-  },
   reports: {
     omzet: (from: string, to: string) => request<Reports>(`/api/reports/omzet${query({ from, to })}`),
     transactions: (from: string, to: string) => request<Reports>(`/api/reports/transactions${query({ from, to })}`),
     cash: (date: string) => request<Reports>(`/api/reports/cash${query({ date })}`),
     today: () => request<Reports>('/api/dashboard/today'),
-  },
-  payroll: {
-    get: (period: string) => request<Payroll>(`/api/payroll${query({ period })}`),
-    save: (body: unknown) => request<Payroll>('/api/payroll', json('POST', body)),
   },
   cashShifts: {
     current: () => request<CashShift>('/api/cash-shifts'),
@@ -141,9 +132,9 @@ export const api = {
   },
   users: {
     list: (includeInactive = false) => request<User[]>(`/api/users?includeInactive=${includeInactive}`),
-    create: (body: { name: string; email: string; role: string; phone: string; dailyRate: number; password: string; active: boolean }) =>
+    create: (body: { name: string; email: string; role: string; phone: string; password: string; active: boolean }) =>
       request<User>('/api/users', json('POST', body)),
-    update: (id: string, body: { name?: string; email?: string; role?: string; phone?: string; dailyRate?: number }) =>
+    update: (id: string, body: { name?: string; email?: string; role?: string; phone?: string }) =>
       request<User>(`/api/users/${encodeURIComponent(id)}`, json('PATCH', body)),
     setActive: (id: string, active: boolean) =>
       request<User>(`/api/users/${encodeURIComponent(id)}/active`, json('POST', { active })),

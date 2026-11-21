@@ -16,10 +16,8 @@ Sistem **Point of Sale** untuk outlet cuci steam (motor & mobil). Operasional di
 
 | Klien | Lokasi | Catatan |
 |---|---|---|
-| **Web** | `src/app` | Next.js 16 App Router. Halaman: `/kasir`, `/antrean`, `/laporan`, `/karyawan`, `/pengaturan/*`, struk publik `/r/[token]` |
+| **Web** | `src/app` | Next.js 16 App Router. Halaman: `/kasir`, `/antrean`, `/laporan`, `/pengaturan/*`, struk publik `/r/[token]` |
 | **Mobile** | [`mobile/`](./mobile/) | Expo SDK ~58 + React Navigation v7. Empat tab: **Kasir, Antrean, Laporan, Pengaturan** |
-
-> Tab **Karyawan/Absensi** sengaja **tidak ada di mobile** — pengelolaan karyawan dilakukan lewat web dan/atau Pengaturan → Pengguna di mobile.
 
 Keduanya memanggil API yang sama. Untuk web preview mobile (`localhost:8081` → `localhost:3000`), backend memasang header CORS lewat [`src/proxy.ts`](./src/proxy.ts) (Next.js 16 Proxy, pengganti `middleware.ts`).
 
@@ -34,16 +32,15 @@ Keduanya memanggil API yang sama. Untuk web preview mobile (`localhost:8081` →
 | 3 | **Papan Status Antrean** | Kartu kendaraan hari ini, filter status & jenis kendaraan, statistik Menunggu/Diproses/Selesai/Total, tombol Mulai & Selesai |
 | 4 | **Laporan Omzet** | Dashboard harian, laporan omzet, metode pembayaran, paket terlaris, export **CSV & Excel (.xlsx)** |
 | 5 | **Pengaturan** | Sub-halaman: Paket Layanan, Add-on, Rekening Bank, Pengguna. Data dihapus dengan tombol **Hapus**, bukan "Nonaktifkan" |
-| 6 | **Karyawan & Gaji (web)** | Absensi harian, rekap bulanan, hitung gaji, slip gaji |
-| 7 | **Struk digital** | Halaman struk publik `/r/[token]` dan bagikan via WhatsApp dari mobile |
+| 6 | **Struk digital** | Halaman struk publik `/r/[token]` dan bagikan via WhatsApp dari mobile |
 
 ### Peran pengguna
 
 | Peran | Kemampuan |
 |---|---|
-| **`admin`** | Akses penuh: kasir, antrean, laporan, pengaturan, pengguna, gaji |
+| **`admin`** | Akses penuh: kasir, antrean, laporan, pengaturan, pengguna, kas |
 
-Seed hanya membuat **satu akun demo**: `admin@pos.test` / `123456` dengan nama tampilan **`testing`** (status belum rilis), beserta satu outlet kosong. Tidak ada paket, add-on, rekening, karyawan, atau transaksi contoh — semuanya diisi admin lewat menu Pengaturan. Nama outlet bisa diatur lewat env `SEED_OUTLET_NAME` (default `KYANE POS`).
+Seed hanya membuat **satu akun demo**: `admin@pos.test` / `123456` dengan nama tampilan **`testing`** (status belum rilis), beserta satu outlet kosong. Tidak ada paket, add-on, rekening, atau transaksi contoh — semuanya diisi admin lewat menu Pengaturan. Nama outlet bisa diatur lewat env `SEED_OUTLET_NAME` (default `KYANE POS`).
 
 ---
 

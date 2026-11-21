@@ -22,7 +22,6 @@ const actor: SessionUser = {
   role: "admin",
   outletId,
   phone: "",
-  dailyRate: 0,
   active: true,
 };
 
@@ -134,7 +133,7 @@ describe("reports service", () => {
     expect(paidRow.addons[0].qty).toBe(2);
     expect(paidRow.addons[0].subtotal).toBe(10000);
     expect(paidRow.total).toBe(paid.grandTotal);
-    expect(paidRow.employee).toBe("Kasir Laporan");
+    expect(paidRow.admin).toBe("Kasir Laporan");
     expect(paidRow.plate).toBe("B 1111 AAA");
   });
 

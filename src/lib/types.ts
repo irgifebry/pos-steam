@@ -2,9 +2,6 @@ import type { z } from "zod";
 import type {
   addonInputSchema,
   addonUpdateSchema,
-  attendanceRecordSchema,
-  attendanceSaveSchema,
-  attendanceStatusSchema,
   bankInputSchema,
   bankUpdateSchema,
   cashShiftCloseSchema,
@@ -16,8 +13,6 @@ import type {
   orderUpdateSchema,
   outletInputSchema,
   outletUpdateSchema,
-  payrollAdjustmentSchema,
-  payrollSaveSchema,
   reportRangeSchema,
   roleSchema,
   servicePackageInputSchema,
@@ -33,7 +28,6 @@ import type {
 
 export type VehicleType = z.infer<typeof vehicleTypeSchema>;
 export type Role = z.infer<typeof roleSchema>;
-export type AttendanceStatus = z.infer<typeof attendanceStatusSchema>;
 export type ServicePackageInput = z.infer<typeof servicePackageInputSchema>;
 export type ServicePackageUpdate = z.infer<typeof servicePackageUpdateSchema>;
 export type AddonInput = z.infer<typeof addonInputSchema>;
@@ -50,10 +44,6 @@ export type OrderUpdate = z.infer<typeof orderUpdateSchema>;
 export type OrderStatusUpdate = z.infer<typeof orderStatusSchema>;
 export type OrderCancel = z.infer<typeof orderCancelSchema>;
 export type OrderPaymentInput = z.infer<typeof orderPaymentInputSchema>;
-export type AttendanceRecordInput = z.infer<typeof attendanceRecordSchema>;
-export type AttendanceSave = z.infer<typeof attendanceSaveSchema>;
-export type PayrollAdjustment = z.infer<typeof payrollAdjustmentSchema>;
-export type PayrollSave = z.infer<typeof payrollSaveSchema>;
 export type CashShiftOpen = z.infer<typeof cashShiftOpenSchema>;
 export type CashShiftClose = z.infer<typeof cashShiftCloseSchema>;
 export type SettingsUpdate = z.infer<typeof settingsUpdateSchema>;

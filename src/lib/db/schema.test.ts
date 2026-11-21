@@ -14,7 +14,7 @@ describe("migrasi skema", () => {
     await (db as unknown as { $client: { close: () => Promise<void> } }).$client.close();
   });
 
-  it("membuat seluruh 18 tabel yang diharapkan", async () => {
+  it("membuat seluruh 15 tabel yang diharapkan", async () => {
     const result = await db.execute<{ table_name: string }>(
       sql`select table_name from information_schema.tables where table_schema = 'public'`,
     );
@@ -23,7 +23,6 @@ describe("migrasi skema", () => {
       [
         "account",
         "addons",
-        "attendance",
         "audit_logs",
         "banks",
         "cash_shifts",
@@ -31,8 +30,6 @@ describe("migrasi skema", () => {
         "order_items",
         "orders",
         "outlets",
-        "payroll_items",
-        "payroll_runs",
         "payments",
         "service_packages",
         "session",

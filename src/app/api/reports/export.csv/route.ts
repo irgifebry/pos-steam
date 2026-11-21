@@ -5,7 +5,7 @@ import { reportRangeSchema } from "@/lib/schemas";
 import { listReportTransactions } from "@/lib/services/reports";
 import { initializeServer } from "@/lib/server-init";
 
-type ExportType = "transactions" | "paket" | "addon" | "payment-method" | "employee";
+type ExportType = "transactions" | "paket" | "addon" | "payment-method";
 
 function escapeCsv(value: unknown): string {
   const text = String(value ?? "");
@@ -29,7 +29,7 @@ function buildCsv(type: ExportType, transactions: Awaited<ReturnType<typeof list
         "paymentMethod",
         "packageName",
         "addons",
-        "employee",
+        "admin",
         "total",
         "customerName",
         "plate",
@@ -44,7 +44,7 @@ function buildCsv(type: ExportType, transactions: Awaited<ReturnType<typeof list
           t.paymentMethod,
           t.packageName,
           t.addons.map((a) => `${a.name} (x${a.qty})`).join("; "),
-          t.employee,
+          t.admin,
           t.total,
           t.customerName,
           t.plate,
@@ -96,20 +96,6 @@ function buildCsv(type: ExportType, transactions: Awaited<ReturnType<typeof list
       }
       break;
     }
-    case "employee": {
-      rows.push(["employee", "count", "total"]);
-      const byEmployee = new Map<string, { count: number; total: number }>();
-      for (const t of transactions) {
-        const row = byEmployee.get(t.employee) ?? { count: 0, total: 0 };
-        row.count += 1;
-        row.total += t.total;
-        byEmployee.set(t.employee, row);
-      }
-      for (const [employee, row] of byEmployee) {
-        rows.push([employee, row.count, row.total]);
-      }
-      break;
-    }
   }
 
   return "\uFEFF" + rows.map((row) => row.map(escapeCsv).join(",")).join("\n");
@@ -137,8 +123,7 @@ export async function GET(request: Request) {
       type !== "transactions" &&
       type !== "paket" &&
       type !== "addon" &&
-      type !== "payment-method" &&
-      type !== "employee"
+      type !== "payment-method"
     ) {
       throw new HttpError(400, "VALIDATION_ERROR", "Tipe ekspor tidak valid");
     }

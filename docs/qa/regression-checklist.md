@@ -8,7 +8,7 @@ Gunakan checklist ini untuk memastikan perubahan baru tidak merusak fitur yang s
 - **Regresi Mobile (Expo):** wajib jika perubahan menyentuh `mobile/` atau kontrak API yang dipakai mobile.
 - **Release checklist:** sebelum deploy ke production.
 
-> **Role:** satu-satunya peran yang dikenal adalah `admin` (`roleSchema`). Istilah lama `kasir`/`operator`/`karyawan` pada butir historis dibaca sebagai `admin`. Butir §1–§4 berlaku untuk web/backend; check mobile ada di §5.
+> **Role:** satu-satunya peran yang dikenal adalah `admin` (`roleSchema`). Istilah lama `kasir`/`operator` pada butir historis dibaca sebagai `admin`. Butir §1–§4 berlaku untuk web/backend; check mobile ada di §5.
 
 ---
 
@@ -49,18 +49,17 @@ Jika salah satu gagal: **jangan merge**. Buat bug issue dan tandai PR sebagai bl
 - [ ] Unique constraint `(outlet_id, vehicle_type, name)` pada `service_packages`
 - [ ] Unique `(outlet_id, name)` pada `addons`
 - [ ] Unique `client_id` dan `(outlet_id, invoice_no)` pada `orders`
-- [ ] Unique `(outlet_id, period)` pada `payroll_runs`
 - [ ] Harga 0/negatif/desimal ditolak
 - [ ] Durasi 0/negatif/>600 ditolak
 - [ ] Add-on dengan `vehicleTypes` kosong ditolak
-- [ ] Email invalid dan `dailyRate` negatif ditolak
+- [ ] Email invalid ditolak
 - [ ] Pajak outlet 0–100, default 0
 - [ ] Default field sesuai schema
 
 ### 2.3 Auth, Session, RBAC
 
-- [ ] Signup default `kasir`, `active=true`, `dailyRate=0`
-- [ ] Signup tidak bisa mengisi `role`/`active`/`dailyRate`
+- [ ] Signup default `admin`, `active=true`
+- [ ] Signup tidak bisa mengisi `role`/`active`
 - [ ] PIN <6 ditolak, 6 diterima
 - [ ] Login email + PIN valid/salah
 - [ ] Login Google (jika OAuth tersedia)
@@ -70,7 +69,7 @@ Jika salah satu gagal: **jangan merge**. Buat bug issue dan tandai PR sebagai bl
 - [ ] Reset PIN bekerja; PIN lama gagal
 - [ ] Admin terakhir tidak bisa di-demote/deactivate
 - [ ] Cookie `httpOnly`, tidak ada token di `localStorage`
-- [ ] `GET /api/users?light=1` tidak membocorkan email/gaji
+- [ ] `GET /api/users?light=1` hanya mengembalikan `id`, `name`, `role`
 - [ ] Matriks RBAC semua endpoint
 - [ ] Isolasi data per outlet
 - [ ] Envelope error konsisten dan Bahasa Indonesia
@@ -97,7 +96,7 @@ Jika salah satu gagal: **jangan merge**. Buat bug issue dan tandai PR sebagai bl
 
 ### 2.5 UI, Shell, PWA
 
-- [ ] Web: semua user (role `admin`) melihat 5 tab termasuk Pengaturan. Mobile: 4 tab tanpa Karyawan (lihat §5)
+- [ ] Web: semua user (role `admin`) melihat 5 tab termasuk Pengaturan. Mobile: tepat 4 tab (lihat §5)
 - [ ] Navigasi dan active state benar
 - [ ] Header menampilkan outlet/user; logout bekerja
 - [ ] Login: validasi kosong, PIN <6, PIN salah, PIN valid
@@ -133,11 +132,11 @@ Aturan ini berasal dari PRD dan Global Constraints Rencana 01. Jangan menunggu f
 
 - [ ] **Harga integer Rupiah** — tidak ada float/sen di tabel transaksi.
 - [ ] **Price snapshot** — harga transaksi lama tidak berubah saat master berubah.
-- [ ] **Tidak ada hardcoded business value** — paket, add-on, pajak, bank, gaji dari database.
+- [ ] **Tidak ada hardcoded business value** — paket, add-on, pajak, bank dari database.
 - [ ] **Otorisasi di Route Handler** — UI bukan pengganti pengecekan server.
 - [ ] **Service role key hanya di server** — tidak pernah di client bundle.
 - [ ] **Akses DB hanya lewat server** — browser tidak bicara langsung ke Supabase.
-- [ ] **Audit log** — void, ubah harga, ubah absensi, finalize gaji, edit user tercatat.
+- [ ] **Audit log** — void, ubah harga, edit user tercatat.
 - [ ] **Idempotensi `client_id`** — pengiriman ulang tidak menggandakan order (F2+).
 - [ ] **Offline tidak kehilangan/menggandakan data** — uji airplane mode (F6).
 - [ ] **Nomor invoice unik** — `S-YYYYMMDD-NNN`, tidak dipakai ulang.
@@ -200,7 +199,7 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 - [ ] Login email + PIN berhasil di mobile; sesi tersimpan dan tetap ada setelah reload
 - [ ] Seluruh layar memakai **tema terang** (light mode only): tidak ada toggle/halaman dark mode, tidak ada warna gelap yang tertinggal
 - [ ] Bottom tab tepat **4**: Kasir, Antrean, Laporan, Pengaturan
-- [ ] **Tidak ada tab Karyawan/Absensi** di mobile; web `/karyawan` tetap terbuka dan berfungsi
+- [ ] Tidak ada tab atau halaman tambahan di luar keempat tab di mobile; manajemen pengguna ada di Pengaturan → Pengguna
 - [ ] Pengaturan terbuka sebagai menu yang mengarah ke 4 sub-halaman: **Paket Layanan, Add-on, Rekening Bank, Pengguna**; tombol kembali bekerja
 - [ ] Pengaturan → Pengguna **tidak menampilkan pilihan role**: semua user berperan `admin` (label "Admin")
 
@@ -242,7 +241,6 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 | F2 |  | Dimas |  |  |
 | F3 |  | Dimas |  |  |
 | F4 |  | Dimas |  |  |
-| F5 |  | Dimas |  |  |
 | F6 |  | Dimas |  |  |
 | F7 |  | Dimas |  |  |
 | Mobile (Expo) |  | Dimas |  |  |

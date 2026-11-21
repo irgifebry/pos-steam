@@ -56,7 +56,7 @@ export async function seed(db: AppDatabase, auth: Auth): Promise<void> {
 
     await db
       .update(userTable)
-      .set({ name: "testing", role: "admin", outletId: OUTLET_ID, active: true, dailyRate: 0 })
+      .set({ name: "testing", role: "admin", outletId: OUTLET_ID, active: true })
       .where(eq(userTable.id, created.id));
   } else {
     const ctx = await auth.$context;
@@ -70,7 +70,7 @@ export async function seed(db: AppDatabase, auth: Auth): Promise<void> {
 
     await db
       .update(userTable)
-      .set({ name: "testing", role: "admin", outletId: OUTLET_ID, active: true, dailyRate: 0 })
+      .set({ name: "testing", role: "admin", outletId: OUTLET_ID, active: true })
       .where(eq(userTable.id, existingAdmin.id));
   }
 }

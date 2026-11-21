@@ -11,7 +11,7 @@ export type ReportTransaction = {
   paymentMethod: "Tunai" | "Transfer";
   packageName: string;
   addons: { name: string; price: number; qty: number; subtotal: number }[];
-  employee: string;
+  admin: string;
   total: number;
   customerName: string;
   plate: string;
@@ -77,7 +77,7 @@ export async function listReportTransactions(
           qty: addon.qty,
           subtotal: addon.subtotal,
         })),
-        employee: order.createdByName,
+        admin: order.createdByName,
         total: order.grandTotal,
         customerName: order.customerName,
         plate: order.plate,

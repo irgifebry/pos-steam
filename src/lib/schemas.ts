@@ -2,7 +2,6 @@ import { z } from "zod";
 
 export const vehicleTypeSchema = z.enum(["motor", "mobil"]);
 export const roleSchema = z.enum(["admin"]);
-export const attendanceStatusSchema = z.enum(["hadir", "izin", "sakit", "alpha", "cuti"]);
 
 export const servicePackageInputSchema = z.object({
   name: z.string().trim().min(1, "Nama paket wajib diisi").max(60),
@@ -32,7 +31,6 @@ export const outletInputSchema = z.object({
   phone: z.string().trim().max(30).default(""),
   receiptFooter: z.string().trim().max(200).default(""),
   taxPercent: z.number().min(0).max(100).default(0),
-  defaultDailyRate: z.number().int().nonnegative().default(0),
 });
 
 export const bankInputSchema = z.object({
@@ -47,7 +45,6 @@ export const userInputSchema = z.object({
   email: z.string().email("Format email tidak valid").max(160),
   role: roleSchema.default("admin"),
   phone: z.string().trim().max(30).default(""),
-  dailyRate: z.number().int().nonnegative("Gaji harian tidak boleh negatif").default(0),
   active: z.boolean().default(true),
 });
 
@@ -76,7 +73,6 @@ export const outletUpdateSchema = z.object({
   phone: z.string().trim().max(30).optional(),
   receiptFooter: z.string().trim().max(200).optional(),
   taxPercent: z.number().min(0).max(100).optional(),
-  defaultDailyRate: z.number().int().nonnegative().optional(),
 });
 
 export const bankUpdateSchema = z.object({
@@ -91,7 +87,6 @@ export const userUpdateSchema = z.object({
   email: z.string().email("Format email tidak valid").max(160).optional(),
   role: roleSchema.optional(),
   phone: z.string().trim().max(30).optional(),
-  dailyRate: z.number().int().nonnegative("Gaji harian tidak boleh negatif").optional(),
   active: z.boolean().optional(),
 });
 
@@ -108,14 +103,6 @@ export const userActiveSchema = z.object({
 const isoDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal tidak valid");
-
-const periodSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}$/, "Format periode tidak valid");
-
-const clockSchema = z
-  .string()
-  .regex(/^\d{2}:\d{2}$/, "Format jam tidak valid");
 
 export const orderAddonSchema = z.object({
   addonId: z.string().min(1, "Add-on tidak valid"),
@@ -159,34 +146,6 @@ export const orderCancelSchema = z.object({
   reason: z.string().trim().min(3, "Alasan pembatalan wajib diisi").max(300),
 });
 
-export const attendanceRecordSchema = z.object({
-  status: attendanceStatusSchema,
-  checkIn: clockSchema.optional(),
-  checkOut: clockSchema.optional(),
-  note: z.string().trim().max(200).optional(),
-});
-
-export const attendanceSaveSchema = z.object({
-  date: isoDateSchema,
-  records: z.record(z.string(), attendanceRecordSchema),
-});
-
-export const attendanceSummaryQuerySchema = z.object({
-  period: periodSchema,
-});
-
-export const payrollAdjustmentSchema = z.object({
-  tunjangan: z.number().int().nonnegative().default(0),
-  lembur: z.number().int().nonnegative().default(0),
-  potongan: z.number().int().nonnegative().default(0),
-});
-
-export const payrollSaveSchema = z.object({
-  period: periodSchema,
-  adjustments: z.record(z.string(), payrollAdjustmentSchema).default({}),
-  finalize: z.boolean().default(false),
-});
-
 export const cashShiftOpenSchema = z.object({
   openingCash: z.number().int().nonnegative("Saldo awal tidak boleh negatif"),
   note: z.string().trim().max(200).default(""),
@@ -196,9 +155,9 @@ export const cashShiftCloseSchema = z.object({
   closingCash: z.number().int().nonnegative("Kas akhir tidak boleh negatif"),
 });
 
-export const settingsUpdateSchema = z.object({
-  defaultDailyRate: z.number().int().nonnegative("Gaji harian tidak boleh negatif"),
-});
+// Tidak ada pengaturan gaji lagi; skema ini sengaja kosong agar endpoint
+// PATCH settings tetap menerima body tanpa field yang sudah dihapus.
+export const settingsUpdateSchema = z.object({});
 
 export const reportRangeSchema = z.object({
   from: isoDateSchema,

@@ -63,12 +63,10 @@ describe("users", () => {
       password: "112233",
       role: "admin",
       phone: "",
-      dailyRate: 50000,
       active: true,
     });
 
     expect(user.role).toBe("admin");
-    expect(user.dailyRate).toBe(50000);
 
     const row = await db.select().from(userTable).where(eq(userTable.email, "siti@contoh.id"));
     expect(JSON.stringify(row)).not.toContain("112233");
@@ -84,7 +82,6 @@ describe("users", () => {
       password: "445566",
       role: "admin",
       phone: "",
-      dailyRate: 0,
       active: true,
     });
     expect(user.role).toBe("admin");
@@ -98,7 +95,6 @@ describe("users", () => {
         password: "778899",
         role: "admin",
         phone: "",
-        dailyRate: 0,
         active: true,
       }),
     ).rejects.toMatchObject({ status: 409, code: "DUPLICATE" });
@@ -148,9 +144,8 @@ describe("users", () => {
       .from(userTable)
       .where(eq(userTable.email, "siti@contoh.id"));
 
-    const updated = await updateUser(db, row.id, { phone: "08123456789", dailyRate: 60000 });
+    const updated = await updateUser(db, row.id, { phone: "08123456789" });
     expect(updated.phone).toBe("08123456789");
-    expect(updated.dailyRate).toBe(60000);
 
     const logs = await db.select().from(auditLogs).where(eq(auditLogs.action, "user.update"));
     expect(logs.length).toBeGreaterThan(0);

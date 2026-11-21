@@ -111,7 +111,7 @@ Aturan ini berasal dari `Global Constraints` pada [Rencana 01](./docs/superpower
 | 1 | Bahasa UI dan pesan error: **Bahasa Indonesia**. Nama variabel dan kode: **English**. |
 | 2 | Format angka: Rupiah tanpa desimal (`Rp 65.000`). Tanggal: `dd/MM/yyyy`. |
 | 3 | **Harga adalah integer Rupiah** — bukan float, bukan sen. Tidak ada nilai desimal di tabel transaksi. |
-| 4 | **Tidak ada hardcoding nilai bisnis di kode.** Paket, add-on, pajak, bank, gaji harian, dan aturan lain dibaca dari database lewat Pengaturan. |
+| 4 | **Tidak ada hardcoding nilai bisnis di kode.** Paket, add-on, pajak, bank, dan aturan lain dibaca dari database lewat Pengaturan. |
 | 5 | Akses database **hanya lewat server** (Route Handler atau server component). `SUPABASE_SERVICE_ROLE_KEY` tidak boleh muncul di kode client. |
 | 6 | Nama tabel Postgres **snake_case**; nama properti Drizzle **camelCase**. |
 | 7 | Satu sumber kebenaran untuk skema: `src/lib/db/schema.ts`. Migrasi lewat `drizzle-kit generate` ke folder `drizzle/`. |
@@ -155,7 +155,7 @@ Dua aturan pokok: **halaman tidak boleh berisi logika bisnis**, dan **service ti
 
 Kontribusi ditolak atau diminta revisi bila:
 
-- Ada nilai bisnis yang di-hardcode (harga paket, pajak, tarif gaji).
+- Ada nilai bisnis yang di-hardcode (harga paket, pajak).
 - `SUPABASE_SERVICE_ROLE_KEY` atau kredensial lain bocor ke kode client atau ke commit.
 - Test bergantung pada database eksternal.
 - Skema diubah langsung di file SQL hasil migrasi, bukan lewat `drizzle-kit generate`.

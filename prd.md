@@ -15,7 +15,7 @@
 
 | Aspek | Spesifikasi Awal | Implementasi Saat Ini |
 |---|---|---|
-| **Peran** | Satu peran `admin` untuk semua operasional; RBAC dihapus. | Tetap **satu peran `admin`** (role `karyawan` sudah dihapus). Seed hanya membuat satu akun demo admin. Tab **Karyawan/Absensi** di mobile dihapus; web tetap mempertahankan halaman data karyawan `/karyawan`. |
+| **Peran** | Satu peran `admin` untuk semua operasional; RBAC dihapus. | Tetap **satu peran `admin`** (role `karyawan` sudah dihapus). Seed hanya membuat satu akun demo admin. Halaman **Karyawan/Absensi**, payroll/gaji, dan rekap karyawan sudah dihapus dari web maupun mobile; yang tersisa adalah manajemen akun admin dan kas harian. |
 | **Klien mobile** | PWA mobile-first (tanpa aplikasi native). | Klien Expo ada di `mobile/` (Expo SDK 58, React Navigation v7): 4 tab — Kasir, Antrean, Laporan, Pengaturan. **Light mode saja**; Pengaturan dipecah ke sub-halaman; native bottom tabs dibatalkan (*reverted*). |
 | **Waktu pembayaran** | Pembayaran saat membuat order di Kasir. | Pembayaran terjadi saat menekan **"Mulai Cuci"** di tab Antrean, bukan saat order dibuat di Kasir. |
 | **Royalty** | Diskon tetap 50%. | `Reguler` gratis; paket lain memakai `royaltyPrice` yang diatur admin; add-on selalu berbayar. Dicatat sebagai diskon/piutang — **bukan flat 50%**. |
@@ -24,6 +24,7 @@
 | **Hapus data** | Nonaktifkan data. | "**Hapus**" = *soft delete* (`active=false`); tidak ada UI "Nonaktifkan" di mobile. |
 | **Backend & DB** | — | `src/proxy.ts` menangani CORS untuk Expo Web; migrasi `0003` menambah `service_packages.royalty_price`. |
 | **Verifikasi** | — | 116 test lolos, `tsc` bersih, `expo-doctor` 20/20. |
+| **Absensi, Payroll & Gaji** | Modul absensi, payroll, dan rekap karyawan pada spesifikasi asli (§5.4, §6, §10, §12). | **Dihapus** — tidak ada lagi absensi, payroll, gaji/`dailyRate`, atau rekap karyawan, termasuk endpoint `/api/attendance`, `/api/payroll`, dan `/api/reports/employee`. Pengelolaan pengguna admin tetap tersedia di Pengaturan → Pengguna. |
 
 ---
 

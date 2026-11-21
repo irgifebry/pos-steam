@@ -50,8 +50,8 @@ const menus = [
   },
   {
     href: "/pengaturan/gaji-kas",
-    title: "Gaji & Kas",
-    desc: "Gaji harian & kas outlet",
+    title: "Kas Harian",
+    desc: "Buka/tutup kas dan saldo outlet",
     icon: Wallet,
     tone: "bg-accent-soft text-amber-800",
   },

@@ -11,7 +11,6 @@ export type SessionUser = {
   role: Role;
   outletId: string | null;
   phone: string;
-  dailyRate: number;
   active: boolean;
 };
 
@@ -31,7 +30,6 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     role: role.data,
     outletId: (user.outletId as string | null | undefined) ?? null,
     phone: String(user.phone ?? ""),
-    dailyRate: Number(user.dailyRate ?? 0),
     active: true,
   };
 }

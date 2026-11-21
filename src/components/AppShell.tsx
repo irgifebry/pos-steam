@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BarChart3, ListChecks, LogOut, RefreshCw, Settings, ShoppingCart, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, ListChecks, LogOut, RefreshCw, Settings, ShoppingCart } from "lucide-react";
 import { useAppSession } from "./SessionProvider";
 import { BottomNav } from "./BottomNav";
 import { OperatorSwitcher } from "./OperatorSwitcher";
@@ -52,7 +52,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             { href: "/kasir", label: "Kasir", icon: ShoppingCart },
             { href: "/antrean", label: "Antrean", icon: ListChecks },
             { href: "/laporan", label: "Laporan", icon: BarChart3 },
-            { href: "/karyawan", label: "Karyawan", icon: Users },
             { href: "/pengaturan", label: "Pengaturan", icon: Settings },
           ].map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);

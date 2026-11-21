@@ -14,7 +14,6 @@ const TYPES: ReportExportType[] = [
   "paket",
   "addon",
   "payment-method",
-  "employee",
   "cash",
 ];
 

@@ -28,7 +28,6 @@ const actor: SessionUser = {
   role: "admin",
   outletId,
   phone: "",
-  dailyRate: 0,
   active: true,
 };
 

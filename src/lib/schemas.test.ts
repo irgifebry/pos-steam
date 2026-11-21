@@ -87,7 +87,6 @@ describe("userInputSchema", () => {
   it("default role adalah admin", () => {
     const result = userInputSchema.parse({ name: "Siti", email: "siti@contoh.id" });
     expect(result.role).toBe("admin");
-    expect(result.dailyRate).toBe(0);
     expect(result.active).toBe(true);
   });
 

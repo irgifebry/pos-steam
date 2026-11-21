@@ -28,7 +28,7 @@ Run lint and typecheck before declaring any task done.
 - This app uses **React Navigation v7**, not Expo Router. `expo-router` is intentionally NOT installed.
 - Navigators live in `src/navigation/`: `RootNavigator.tsx` (native stack) and `BottomTabNavigator.tsx` (bottom tabs). Route param types are in `src/navigation/types.ts`.
 - Screens live in `src/screens/`; settings sub-screens are under `src/screens/settings/`. Reusable components in `src/components/`, shared theme in `src/theme/`.
-- There are 4 tabs: **Kasir, Antrean, Laporan, Pengaturan**. The Karyawan/Absensi tab was removed from mobile.
+- There are 4 tabs: **Kasir, Antrean, Laporan, Pengaturan**. Admin user management lives in the Pengaturan tab.
 - Use `useNavigation<NativeStackNavigationProp<RootStackParamList>>()` and `navigation.navigate(...)` for screen transitions. Native stack headers provide platform back buttons.
 - Theme: **light mode only**. Use `useTheme()` / `useStyles()` from `src/theme/`; do not reintroduce a dark palette or a mode toggle.
 - Docs (React Navigation): https://reactnavigation.org/docs/getting-started

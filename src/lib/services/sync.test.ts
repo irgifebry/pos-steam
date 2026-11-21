@@ -17,7 +17,6 @@ describe("sync service", () => {
     role: "admin",
     outletId,
     phone: "",
-    dailyRate: 0,
     active: true,
   };
 

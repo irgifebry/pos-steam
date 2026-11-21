@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { useAppSession } from "@/components/SessionProvider";
 import { apiFetch, ApiError } from "@/lib/api-client";
-import { rupiah } from "@/lib/format";
 import type { Role } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -29,7 +28,6 @@ interface User {
   email: string;
   role: Role;
   phone: string;
-  dailyRate: number;
   active: boolean;
 }
 
@@ -38,7 +36,6 @@ const emptyForm = {
   email: "",
   role: "admin" as Role,
   phone: "",
-  dailyRate: "",
   password: "",
 };
 
@@ -115,7 +112,6 @@ export default function PenggunaPage() {
       email: item.email,
       role: item.role,
       phone: item.phone,
-      dailyRate: String(item.dailyRate),
       password: "",
     });
     setFormError("");
@@ -138,19 +134,6 @@ export default function PenggunaPage() {
       setFormError("Format email tidak valid");
       return;
     }
-    if (form.dailyRate.trim() === "") {
-      setFormError("Gaji harian wajib diisi");
-      return;
-    }
-    const dailyRate = Number(form.dailyRate);
-    if (
-      !Number.isFinite(dailyRate) ||
-      !Number.isSafeInteger(dailyRate) ||
-      dailyRate < 0
-    ) {
-      setFormError("Gaji harian harus angka bulat, minimal 0");
-      return;
-    }
     setSaving(true);
     try {
       if (editing) {
@@ -161,7 +144,6 @@ export default function PenggunaPage() {
             email: form.email.trim(),
             role: form.role,
             phone: form.phone.trim(),
-            dailyRate,
           }),
         });
       } else {
@@ -177,7 +159,6 @@ export default function PenggunaPage() {
             email: form.email.trim(),
             role: form.role,
             phone: form.phone.trim(),
-            dailyRate,
             password: form.password,
             active: true,
           }),
@@ -278,9 +259,6 @@ export default function PenggunaPage() {
               </div>
               <p className="text-sm text-muted mt-1">{it.email}</p>
               {it.phone && <p className="text-sm text-muted">{it.phone}</p>}
-              <p className="text-sm text-muted">
-                Gaji harian: {rupiah(it.dailyRate)}
-              </p>
             </div>
             <div className="flex flex-col gap-1">
               <button
@@ -359,17 +337,6 @@ export default function PenggunaPage() {
                 id="user-phone"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              />
-            </Field>
-            <Field label="Gaji Harian (Rp)" htmlFor="user-daily-rate">
-              <Input
-                id="user-daily-rate"
-                type="number"
-                min="0"
-                step="1"
-                inputMode="numeric"
-                value={form.dailyRate}
-                onChange={(e) => setForm({ ...form, dailyRate: e.target.value })}
               />
             </Field>
             {!editing && (

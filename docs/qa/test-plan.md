@@ -30,7 +30,7 @@ Test plan ini menjawab:
 
 ### 2.1 Termasuk (In Scope)
 
-- Seluruh 7 fase di PRD §12: Fondasi, Kasir Inti, Papan Status, Laporan, Absensi & Gaji, Offline, Polish.
+- Fase di PRD §12 yang masih berlaku: Fondasi, Kasir Inti, Papan Status, Laporan, Offline, Polish.
 - **Dua klien yang memakai backend dan kontrak API yang sama** (sukses `{ data: ... }`, error `{ error: { code, message } }`): klien web (Next.js di root) dan klien mobile (Expo/React Native di [`mobile/`](../../mobile), SDK ~58, React Navigation v7).
 - Khusus mobile: tema terang, 4 tab (Kasir, Antrean, Laporan, Pengaturan), alur kasir → antrean → pembayaran, aturan ROYALTY, dan manajemen master data lewat aksi **Hapus**.
 - Pengujian fungsional, validasi input, otorisasi satu role (`admin`), integritas data, regresi, kompatibilitas perangkat, PWA, dan performa dasar.
@@ -58,7 +58,7 @@ Sesuai PRD §4.2, dengan penyesuaian karena klien mobile kini masuk ruang lingku
 | **Integration test API** | Vitest + PGlite + MSW | Developer, direview QA | Route Handler, otorisasi, constraint DB, idempotensi |
 | **Component test UI** | Vitest + Testing Library | Developer, direview QA | BottomNav, form login, halaman master data |
 | **Contract/manual API** | curl/Postman/Thunder Client | QA | Status code, envelope `{ data }` / `{ error: { code, message } }`, RBAC, validasi |
-| **E2E manual web** | Browser + HP fisik | QA | Alur nyata dari login sampai transaksi di web (termasuk `/karyawan`) |
+| **E2E manual web** | Browser + HP fisik | QA | Alur nyata dari login sampai transaksi di web |
 | **E2E mobile** | Expo Web `localhost:8081`, emulator/HP dengan Expo Go atau dev build | QA | 4 tab, tema terang, Kasir → Antrean → pembayaran, ROYALTY, Hapus pada master data |
 | **Exploratory** | Charter berbasis risiko | QA | Celah di luar acceptance criteria |
 | **UAT** | Skenario outlet | QA + pemilik/kasir | Kesiapan operasional |
@@ -136,9 +136,9 @@ Expo Web memerlukan **CORS proxy** yang sudah tersedia di [`src/proxy.ts`](../..
 | `admin@pos.test` | admin | `123456` | Akun seed; **wajib diganti di luar local** |
 | `qa.inactive@pos.test` | admin | `778899` | Buat manual lalu nonaktifkan; pengujian sesi mati |
 
-> Seed hanya membuat akun `admin@pos.test`. Tidak ada akun karyawan, paket, add-on, bank, atau transaksi contoh — siapkan data uji lewat UI/API sebelum menjalankan skenario.
+> Seed hanya membuat akun `admin@pos.test`. Tidak ada akun lain, paket, add-on, bank, atau transaksi contoh — siapkan data uji lewat UI/API sebelum menjalankan skenario.
 
-> Role yang dikenal backend saat ini **hanya `admin`** (`roleSchema` di `src/lib/schemas.ts`). Tidak ada peran `kasir`, `operator`, maupun `karyawan`. PIN minimal 6 karakter; PRD §5.1/§9.3 masih menyebut PIN 4 angka — lihat §14 dan catatan implementasi di puncak `prd.md`.
+> Role yang dikenal backend saat ini **hanya `admin`** (`roleSchema` di `src/lib/schemas.ts`). Tidak ada peran lain. PIN minimal 6 karakter; PRD §5.1/§9.3 masih menyebut PIN 4 angka — lihat §14 dan catatan implementasi di puncak `prd.md`.
 
 
 ### 5.2 Master Data Uji
@@ -193,7 +193,7 @@ Expo Web memerlukan **CORS proxy** yang sudah tersedia di [`src/proxy.ts`](../..
 
 | Prioritas | Area mobile | Alasan |
 |---|---|---|
-| **P0** | Login, tema terang, dan 4 tab (Kasir, Antrean, Laporan, Pengaturan); tidak ada tab Karyawan | Fondasi navigasi; salah satu saja gagal menghentikan operasi kasir |
+| **P0** | Login, tema terang, dan tepat 4 tab (Kasir, Antrean, Laporan, Pengaturan) | Fondasi navigasi; salah satu saja gagal menghentikan operasi kasir |
 | **P0** | Pembayaran saat **Mulai Cuci** → status `proses`; order total 0 langsung `proses`; Kasir hanya "Buat antrean" | Alur inti dan titik serah terima Antrean; risiko order tanpa pembayaran |
 | **P0** | Aturan ROYALTY: Reguler gratis, paket lain `royaltyPrice`, add-on tetap bayar, `discount` tercatat sebagai piutang | Salah harga berdampak langsung ke kas/piutang |
 | **P1** | Aksi **Hapus** pada master data; daftar hanya record aktif; tab Motor/Mobil/Semua; form paket tanpa durasi | Konsistensi data master antar klien web dan mobile |
@@ -236,7 +236,7 @@ Mengacu pada Verifikasi Akhir Rencana 01:
 - [ ] `npm run lint` tanpa error.
 - [ ] `npm run build` sukses; `public/sw.js` terbentuk.
 - [ ] Login `admin@pos.test` / `admin123` berhasil setelah seed.
-- [ ] Web: `/kasir`, `/antrean`, `/laporan`, `/karyawan` terbuka; tab Pengaturan hanya admin. Mobile: 4 tab tanpa Karyawan.
+- [ ] Web: `/kasir`, `/antrean`, `/laporan` terbuka; tab Pengaturan hanya admin. Mobile: tepat 4 tab.
 - [ ] 5 halaman master data berfungsi: tambah, edit, nonaktifkan tersimpan di database (web); di mobile memakai aksi **Hapus** (lihat regresi mobile §5).
 - [ ] Review Focus 1–5 Rencana 01 terbukti (lihat test case F1).
 
@@ -302,7 +302,6 @@ Sebuah PR/fitur dianggap selesai dari sisi QA jika:
 | **F2 — Kasir Inti** | Transaksi ≤ 30 detik, nomor antrean/invoice, pembayaran tunai/transfer, struk, buka/tutup kas | Invoice ganda, kembalian salah, price snapshot berubah, verifikasi transfer |
 | **F3 — Papan Status** | Timer, transisi status, filter, polling | Timer reset, status tidak sinkron, order lunas masih tampil |
 | **F4 — Laporan** | Rekonsiliasi omzet, filter periode, export CSV, cetak | Omzet tidak cocok, timezone, CSV rusak di Excel |
-| **F5 — Absensi & Gaji** | Absensi harian, rekap bulanan, hitung gaji, slip PDF, finalize | Salah hitung lembur, slip finalized bisa diedit, audit tidak lengkap |
 | **F6 — Offline** | Airplane mode, antrean sync, idempotensi, indikator pending | Duplikasi transaksi, konflik nomor invoice, data master basi |
 | **F7 — Polish** | Audit log, error handling, empty state, PDF, validasi akhir | Aksi sensitif tanpa audit, error membocorkan detail internal |
 
@@ -318,7 +317,7 @@ Sebuah PR/fitur dianggap selesai dari sisi QA jika:
 | **Price snapshot** | Omzet/laporan kacau | Edit harga master, cek transaksi lama |
 | **RBAC** | Kasir/operator bisa ubah data sensitif | Matriks role di setiap endpoint, bukan hanya UI |
 | **Nomor invoice & antrean** | Struk ambigu, antrean bentrok | Unik per outlet/tanggal/tipe, reset harian |
-| **Audit log** | Tidak ada jejak pertanggungjawaban | Void, ubah harga, absensi, gaji, user |
+| **Audit log** | Tidak ada jejak pertanggungjawaban | Void, ubah harga, user |
 | **Timezone & reset harian** | Nomor/antrean salah hari | Uji sekitar tengah malam Asia/Jakarta |
 | **Mobile: pembayaran** | Order `menunggu` tanpa pembayaran, kasir bingung kapan bayar | Bayar di **Mulai Cuci**, status `proses`, order total 0 langsung `proses` |
 | **Mobile: ROYALTY** | Harga/potongan salah | Reguler gratis, `royaltyPrice`, add-on bayar, `discount` sebagai piutang |
@@ -328,7 +327,6 @@ Sebuah PR/fitur dianggap selesai dari sisi QA jika:
 | **Supabase cold start** | Query pertama lambat | Ukur warm vs cold; cache master data |
 | **HP bersama & PIN** | Salah identitas/audit | Ganti operator, sesi berganti, PIN reset |
 | **CSV export** | Tidak terbuka di Excel | UTF-8, separator, angka Rupiah |
-| **Batas bulan gaji** | Gaji salah | Absensi akhir/awal bulan, lembur, finalize |
 
 ---
 
@@ -374,7 +372,7 @@ Temuan dokumentasi/kontrak yang perlu dikonfirmasi sebelum atau selama F1–F2. 
 |---|---|---|---|---|
 | 1 | **Panjang PIN berbeda**: PRD §5.1 dan §9.3 menyebut PIN 4 angka; README dan Rencana 01 mengunci minimal 6 karakter | Login/UX dan test case bisa salah | Konfirmasi ke PO; test mengikuti 6 sampai ada keputusan baru | Perlu keputusan |
 | 2 | **Casing status berbeda**: PRD memakai `MENUNGGU/PROSES/SELESAI/DIBATALKAN`; schema Rencana 01 memakai default `'menunggu'` huruf kecil | Filter/laporan/status bisa tidak cocok di F2 | Kunci satu format (disarankan uppercase di API/DB) sebelum F2 | Perlu keputusan |
-| 3 | **Akses `/api/settings`**: PRD §8 menyebut Pengaturan hanya Admin; Rencana 01 Task 8 membuka GET untuk semua peran dan mengembalikan tarif gaji default | Potensi kebocoran data gaji ke kasir | Filter field sensitif; atau batasi endpoint ke admin | Perlu keputusan |
+| 3 | **Cakupan endpoint `/api/settings`**: PRD §8 menyebut Pengaturan hanya Admin; Rencana 01 Task 8 membuka GET untuk semua peran | Kontrak endpoint kurang jelas | Pastikan hanya mengembalikan data outlet dan bank | Perlu keputusan |
 | 4 | **`GET /api/users?light=1`** tidak ada di kontrak API PRD §10 | Kontrak tidak lengkap; risiko field bocor | Dokumentasikan di PRD; pastikan hanya `id,name,role` | Perlu dokumentasi |
 | 5 | **Cakupan audit log**: Global Constraints mewajibkan semua endpoint sensitif; Rencana 01 hanya eksplisit untuk user | Perubahan harga/pajak/bank bisa tanpa jejak | Tentukan daftar aksi yang diaudit di F1/F2 | Perlu keputusan |
 | 6 | **Password admin seed** `admin123` | Risiko keamanan jika dipakai di production | Wajib ganti setelah seed di environment non-local | Mitigasi |

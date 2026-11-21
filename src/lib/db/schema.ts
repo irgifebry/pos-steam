@@ -37,7 +37,6 @@ export const outlets = pgTable("outlets", {
   phone: text("phone"),
   receiptFooter: text("receipt_footer"),
   taxPercent: numeric("tax_percent", { precision: 5, scale: 2 }).notNull().default("0"),
-  defaultDailyRate: integer("default_daily_rate").notNull().default(0),
   ...timestamps(),
 });
 
@@ -50,7 +49,6 @@ export const user = pgTable("user", {
   role: text("role").notNull().default("admin"),
   phone: text("phone"),
   outletId: text("outlet_id").references(() => outlets.id, { onDelete: "set null" }),
-  dailyRate: integer("daily_rate").notNull().default(0),
   active: boolean("active").notNull().default(true),
   ...timestamps(),
 });
@@ -247,64 +245,6 @@ export const payments = pgTable("payments", {
 }, (table) => [
   unique("payments_order_unique").on(table.orderId),
 ]);
-
-export const attendance = pgTable("attendance", {
-  id: id(),
-  outletId: text("outlet_id")
-    .notNull()
-    .references(() => outlets.id, { onDelete: "cascade" }),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  date: date("date").notNull(),
-  status: text("status").notNull(),
-  checkIn: timestamp("check_in", { withTimezone: true }),
-  checkOut: timestamp("check_out", { withTimezone: true }),
-  note: text("note"),
-  recordedBy: text("recorded_by")
-    .notNull()
-    .references(() => user.id),
-  ...timestamps(),
-}, (table) => [
-  unique("attendance_outlet_user_date_unique").on(table.outletId, table.userId, table.date),
-]);
-
-export const payrollRuns = pgTable(
-  "payroll_runs",
-  {
-    id: id(),
-    outletId: text("outlet_id")
-      .notNull()
-      .references(() => outlets.id, { onDelete: "cascade" }),
-    period: text("period").notNull(),
-    status: text("status").notNull().default("draft"),
-    generatedBy: text("generated_by").references(() => user.id, { onDelete: "set null" }),
-    finalizedAt: timestamp("finalized_at", { withTimezone: true }),
-    ...timestamps(),
-  },
-  (table) => [
-    unique("payroll_runs_outlet_period_unique").on(table.outletId, table.period),
-  ],
-);
-
-export const payrollItems = pgTable("payroll_items", {
-  id: id(),
-  payrollRunId: text("payroll_run_id")
-    .notNull()
-    .references(() => payrollRuns.id, { onDelete: "cascade" }),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  daysPresent: integer("days_present").notNull().default(0),
-  dailyRate: integer("daily_rate").notNull().default(0),
-  allowance: integer("allowance").notNull().default(0),
-  overtimePay: integer("overtime_pay").notNull().default(0),
-  overtimeHours: numeric("overtime_hours", { precision: 6, scale: 2 }).notNull().default("0"),
-  gross: integer("gross").notNull().default(0),
-  deductions: integer("deductions").notNull().default(0),
-  net: integer("net").notNull().default(0),
-  ...timestamps(),
-});
 
 export const cashShifts = pgTable("cash_shifts", {
   id: id(),

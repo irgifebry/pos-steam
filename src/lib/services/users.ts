@@ -20,7 +20,6 @@ export type AppUser = {
   role: Role;
   phone: string;
   outletId: string | null;
-  dailyRate: number;
   active: boolean;
   createdAt: Date;
 };
@@ -42,7 +41,6 @@ function toDomain(row: UserRow): AppUser {
     role: role.success ? role.data : "admin",
     phone: row.phone ?? "",
     outletId: row.outletId,
-    dailyRate: row.dailyRate,
     active: row.active,
     createdAt: row.createdAt,
   };
@@ -149,7 +147,6 @@ export async function createUser(
       role: data.role,
       phone: data.phone,
       outletId: input.outletId ?? null,
-      dailyRate: data.dailyRate,
       active: data.active,
     })
     .where(eq(userTable.id, created.id))
@@ -195,7 +192,6 @@ export async function updateUser(
   if (data.email !== undefined) values.email = data.email.toLowerCase();
   if (data.role !== undefined) values.role = data.role;
   if (data.phone !== undefined) values.phone = data.phone;
-  if (data.dailyRate !== undefined) values.dailyRate = data.dailyRate;
   if (data.active !== undefined) values.active = data.active;
 
   let row;
@@ -227,14 +223,12 @@ export async function updateUser(
       name: existing.name,
       role: existing.role,
       phone: existing.phone,
-      dailyRate: existing.dailyRate,
       active: existing.active,
     },
     after: {
       name: user.name,
       role: user.role,
       phone: user.phone,
-      dailyRate: user.dailyRate,
       active: user.active,
     },
   });

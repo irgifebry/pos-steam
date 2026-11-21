@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, ListChecks, ShoppingCart, Settings, Users } from "lucide-react";
+import { BarChart3, ListChecks, ShoppingCart, Settings } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 
@@ -10,7 +10,6 @@ const tabs: { href: string; label: string; icon: typeof ShoppingCart }[] = [
   { href: "/kasir", label: "Kasir", icon: ShoppingCart },
   { href: "/antrean", label: "Antrean", icon: ListChecks },
   { href: "/laporan", label: "Laporan", icon: BarChart3 },
-  { href: "/karyawan", label: "Karyawan", icon: Users },
   { href: "/pengaturan", label: "Pengaturan", icon: Settings },
 ];
 

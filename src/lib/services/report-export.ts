@@ -9,7 +9,6 @@ export type ReportExportType =
   | "paket"
   | "addon"
   | "payment-method"
-  | "employee"
   | "cash";
 
 export type ReportExportInput = {
@@ -284,7 +283,6 @@ export async function buildReportWorkbook(input: ReportExportInput): Promise<Exc
     { header: "Metode", key: "paymentMethod", width: 12 },
     { header: "Paket", key: "packageName", width: 26 },
     { header: "Add-on", key: "addons", width: 30 },
-    { header: "Karyawan", key: "employee", width: 20 },
     { header: "Total (Rp)", key: "total", width: 18, total: true, money: true },
     { header: "Pelanggan", key: "customerName", width: 22 },
     { header: "Plat", key: "plate", width: 14 },
@@ -300,7 +298,6 @@ export async function buildReportWorkbook(input: ReportExportInput): Promise<Exc
       paymentMethod: tx.paymentMethod,
       packageName: tx.packageName,
       addons: tx.addons.map((a) => `${a.name} x${a.qty}`).join(", ") || "-",
-      employee: tx.employee || "-",
       total: tx.total,
       customerName: tx.customerName || "-",
       plate: tx.plate || "-",
@@ -368,22 +365,6 @@ export async function buildReportWorkbook(input: ReportExportInput): Promise<Exc
   );
   sheets.push({ name: "Metode Pembayaran", active: input.type === "payment-method" });
 
-  const employeeSheet = workbook.addWorksheet("Karyawan", {
-    properties: { tabColor: { argb: COLOR.brand } },
-  });
-  addTable(
-    employeeSheet,
-    [
-      { header: "Karyawan", key: "name", width: 30 },
-      { header: "Jumlah Transaksi", key: "count", width: 18, total: true },
-      { header: "Omzet (Rp)", key: "total", width: 20, total: true, money: true },
-    ],
-    groupBy(input.transactions, (tx) => tx.employee),
-    input,
-    "REKAP KARYAWAN",
-  );
-  sheets.push({ name: "Karyawan", active: input.type === "employee" });
-
   const cashSheet = workbook.addWorksheet("Kas", { properties: { tabColor: { argb: COLOR.brand } } });
   const cashRows = input.cash
     .filter((shift) => shift.date >= input.from && shift.date <= input.to)
@@ -431,7 +412,7 @@ export async function buildReportWorkbook(input: ReportExportInput): Promise<Exc
       label: "Total Omzet",
       value:
         input.transactions.length > 0
-          ? { formula: `SUM(Transaksi!I7:I${txLast})` } as unknown as string
+          ? { formula: `SUM(Transaksi!H7:H${txLast})` } as unknown as string
           : 0,
       money: true,
       note: "Dari kolom Total (Rp) pada sheet Transaksi.",
