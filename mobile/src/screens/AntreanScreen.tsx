@@ -49,6 +49,7 @@ export function AntreanScreen() {
   const [cancelReason, setCancelReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [payTarget, setPayTarget] = useState<Order | null>(null);
+  const [startAfterPay, setStartAfterPay] = useState(false);
   const [banks, setBanks] = useState<Bank[]>([]);
 
   const loadOrders = useCallback(async (background = false) => {
@@ -127,11 +128,26 @@ export function AntreanScreen() {
     }
   };
 
+  const handleStart = (order: Order) => {
+    if (order.grandTotal <= 0) {
+      void runStatus(order, 'proses');
+      return;
+    }
+    setStartAfterPay(true);
+    setPayTarget(order);
+  };
+
   const payOrder = async (payment: OrderPaymentInput) => {
     if (!payTarget) return;
-    await api.orders.pay(payTarget.id, payment);
-    setPayTarget(null);
-    await loadOrders(true);
+    try {
+      await api.orders.pay(payTarget.id, payment);
+      if (startAfterPay) await api.orders.setStatus(payTarget.id, 'proses');
+      setPayTarget(null);
+      setStartAfterPay(false);
+      await loadOrders(true);
+    } catch (cause) {
+      Alert.alert('Pembayaran gagal', cause instanceof Error ? cause.message : 'Silakan coba lagi.');
+    }
   };
 
   return (
@@ -143,7 +159,7 @@ export function AntreanScreen() {
         renderItem={({ item }) => (
           <QueueCard
             order={item}
-            onStart={(order) => void runStatus(order, 'proses')}
+            onStart={handleStart}
             onFinish={(order) => void runStatus(order, 'selesai')}
             onCancel={(order) => {
               setCancelTarget(order);
@@ -278,7 +294,7 @@ export function AntreanScreen() {
         visible={Boolean(payTarget)}
         total={payTarget ? (payTarget.grandTotal ?? payTarget.total ?? 0) : 0}
         banks={banks}
-        onClose={() => setPayTarget(null)}
+        onClose={() => { setPayTarget(null); setStartAfterPay(false); }}
         onSubmit={payOrder}
       />
     </View>

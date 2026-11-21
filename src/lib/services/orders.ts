@@ -202,9 +202,11 @@ async function saveCustomerAndVehicle(
   vehicleId: string | null;
   customerName: string;
   customerPhone: string;
+  vehicleName: string;
   plate: string;
 }> {
   const plate = normalizePlate(input.plate);
+  const vehicleName = input.vehicleName?.trim() ?? "";
   let customerName = input.customerName.trim();
   let customerPhone = input.customerPhone.trim();
   let customerId: string | null = null;
@@ -246,10 +248,10 @@ async function saveCustomerAndVehicle(
         }
       }
 
-      if (vehicle.vehicleType !== input.vehicleType) {
+      if (vehicle.vehicleType !== input.vehicleType || (vehicleName && vehicle.brand !== vehicleName)) {
         await tx
           .update(vehicles)
-          .set({ vehicleType: input.vehicleType })
+          .set({ vehicleType: input.vehicleType, ...(vehicleName ? { brand: vehicleName } : {}) })
           .where(eq(vehicles.id, vehicle.id));
       }
     } else {
@@ -266,6 +268,7 @@ async function saveCustomerAndVehicle(
           customerId,
           plate,
           vehicleType: input.vehicleType,
+          ...(vehicleName ? { brand: vehicleName } : {}),
         })
         .returning();
       vehicleId = createdVehicle.id;
@@ -283,6 +286,7 @@ async function saveCustomerAndVehicle(
     vehicleId,
     customerName: customerName || "Pelanggan",
     customerPhone,
+    vehicleName,
     plate,
   };
 }
@@ -552,7 +556,8 @@ export async function createOrder(
         }, 0);
         const subtotal = pkg.price + addonSubtotal;
         const tax = Math.round((subtotal * Number(outlet.taxPercent)) / 100);
-        const grandTotal = subtotal + tax;
+        const discount = Math.min(data.discount ?? 0, subtotal + tax);
+        const grandTotal = subtotal + tax - discount;
 
         const payment = data.payment
           ? await resolvePayment(tx, outletId, grandTotal, data.payment, actor.id)
@@ -576,6 +581,7 @@ export async function createOrder(
             plate: customer.plate,
             total: subtotal,
             tax,
+            discount,
             grandTotal,
             createdBy: actor.id,
           })

@@ -47,6 +47,7 @@ export async function seed(db: AppDatabase, auth: Auth): Promise<void> {
     { name: "Cuci Steam Reguler", vehicleType: "mobil", durationMin: 20, sortOrder: 1 },
     { name: "Cuci Steam Komplit", vehicleType: "mobil", durationMin: 40, sortOrder: 2 },
     { name: "Cuci Steam Premium", vehicleType: "mobil", durationMin: 60, sortOrder: 3 },
+    { name: "Cuci OJOL", vehicleType: "motor", durationMin: 20, sortOrder: 4 },
   ];
 
   for (const paket of packages) {
@@ -82,6 +83,7 @@ export async function seed(db: AppDatabase, auth: Auth): Promise<void> {
     { name: "Ojek Ban", unitLabel: "ban", vehicleTypes: ["motor"] as const },
     { name: "Semprot Interior", unitLabel: "pcs", vehicleTypes: ["mobil"] as const },
     { name: "Poles Kaca", unitLabel: "pcs", vehicleTypes: ["motor", "mobil"] as const },
+    { name: "Formula", unitLabel: "pcs", vehicleTypes: ["motor", "mobil"] as const },
   ];
 
   for (const addon of addonRows) {

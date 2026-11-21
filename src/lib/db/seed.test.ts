@@ -34,10 +34,10 @@ describe("seed", () => {
     expect(outletRows).toHaveLength(1);
 
     const packageRows = await db.select().from(servicePackages);
-    expect(packageRows).toHaveLength(6);
+    expect(packageRows).toHaveLength(7);
 
     const addonRows = await db.select().from(addons);
-    expect(addonRows).toHaveLength(4);
+    expect(addonRows).toHaveLength(5);
 
     const bankRows = await db.select().from(banks);
     expect(bankRows).toHaveLength(3);

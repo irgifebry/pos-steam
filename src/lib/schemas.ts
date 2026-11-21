@@ -134,7 +134,9 @@ export const orderCreateSchema = z.object({
   addons: z.array(orderAddonSchema).default([]),
   customerName: z.string().trim().max(80).default(""),
   customerPhone: z.string().trim().max(30).default(""),
+  vehicleName: z.string().trim().max(80).optional(),
   plate: z.string().trim().max(20).default(""),
+  discount: z.number().int().nonnegative().optional(),
   payment: orderPaymentInputSchema.optional(),
 });
 
