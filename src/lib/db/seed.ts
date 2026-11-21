@@ -45,7 +45,7 @@ export async function seed(db: AppDatabase, auth: Auth): Promise<void> {
 
   if (!existingAdmin) {
     const result = await auth.api.signUpEmail({
-      body: { name: "Admin", email: ADMIN_EMAIL, password: ADMIN_PIN },
+      body: { name: "testing", email: ADMIN_EMAIL, password: ADMIN_PIN },
       returnHeaders: true,
     });
 
@@ -56,7 +56,7 @@ export async function seed(db: AppDatabase, auth: Auth): Promise<void> {
 
     await db
       .update(userTable)
-      .set({ role: "admin", outletId: OUTLET_ID, active: true, dailyRate: 0 })
+      .set({ name: "testing", role: "admin", outletId: OUTLET_ID, active: true, dailyRate: 0 })
       .where(eq(userTable.id, created.id));
   } else {
     const ctx = await auth.$context;
@@ -70,7 +70,7 @@ export async function seed(db: AppDatabase, auth: Auth): Promise<void> {
 
     await db
       .update(userTable)
-      .set({ role: "admin", outletId: OUTLET_ID, active: true, dailyRate: 0 })
+      .set({ name: "testing", role: "admin", outletId: OUTLET_ID, active: true, dailyRate: 0 })
       .where(eq(userTable.id, existingAdmin.id));
   }
 }

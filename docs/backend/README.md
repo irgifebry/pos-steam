@@ -654,7 +654,7 @@ npm run db:seed
 | Data | Jumlah | Keterangan |
 |---|---|---|
 | Outlet | 1 | Outlet kosong: nama dari `SEED_OUTLET_NAME` (default `KYANE POS`), alamat/telepon/footer kosong, pajak 0% |
-| Admin | 1 | `admin@pos.test` / `123456` (nama: Admin) — **satu-satunya akun demo** |
+| Admin | 1 | `admin@pos.test` / `123456` (nama: `testing`) — **satu-satunya akun demo** |
 | Paket | 0 | Diisi admin lewat Pengaturan → Paket Layanan |
 | Add-on | 0 | Diisi admin lewat Pengaturan → Add-on |
 | Bank | 0 | Diisi admin lewat Pengaturan → Rekening Bank |

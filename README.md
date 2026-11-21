@@ -44,7 +44,7 @@ Keduanya memanggil API yang sama. Untuk web preview mobile (`localhost:8081` →
 | **`admin`** | Akses penuh: kasir, antrean, laporan, pengaturan, pengguna, gaji |
 | **`karyawan`** | Peran data karyawan (dipakai untuk absensi & penggajian di web) |
 
-Seed hanya membuat **satu akun demo**: `admin@pos.test` / `123456`, beserta satu outlet kosong. Tidak ada paket, add-on, rekening, karyawan, atau transaksi contoh — semuanya diisi admin lewat menu Pengaturan. Nama outlet bisa diatur lewat env `SEED_OUTLET_NAME` (default `KYANE POS`).
+Seed hanya membuat **satu akun demo**: `admin@pos.test` / `123456` dengan nama tampilan **`testing`** (status belum rilis), beserta satu outlet kosong. Tidak ada paket, add-on, rekening, karyawan, atau transaksi contoh — semuanya diisi admin lewat menu Pengaturan. Nama outlet bisa diatur lewat env `SEED_OUTLET_NAME` (default `KYANE POS`).
 
 ---
 
