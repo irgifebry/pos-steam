@@ -15,8 +15,8 @@ import type { Addon, Bank, Order, OrderPaymentInput, ServicePackage, VehicleType
 const newClientId = () => `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 
 export function KasirScreen() {
-  const { colors } = useTheme();
-  const styles = useStyles(buildStyles);
+  const { mode, colors } = useTheme();
+  const styles = useStyles((palette) => buildStyles(palette, mode));
   const { user, activeOutlet } = useAuth();
   const insets = useSafeAreaInsets();
   const [vehicleType, setVehicleType] = useState<VehicleType>('motor');
@@ -82,7 +82,8 @@ export function KasirScreen() {
   }
 
   return <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingTop: 14, paddingBottom: Math.max(insets.bottom, 20) + 20 }]}>
+    <View style={styles.screen}>
+    <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingTop: 14, paddingBottom: 24 }]}>
       <View style={styles.header}><View><Text style={styles.eyebrow}>KASIR</Text><Text style={styles.title}>Transaksi baru</Text></View><View style={styles.operator}><Text style={styles.operatorName}>{user?.name ?? 'Operator'}</Text><Text style={styles.outlet}>{activeOutlet?.name ?? 'Outlet'}</Text></View></View>
       <View style={styles.section}><Text style={styles.sectionTitle}>Jenis kendaraan</Text><VehicleSelector value={vehicleType} onChange={setVehicleType} /></View>
       <View style={styles.section}><Text style={styles.sectionTitle}>Data kendaraan & pelanggan</Text>
@@ -94,14 +95,17 @@ export function KasirScreen() {
         {loading ? <ActivityIndicator color={colors.brand} /> : error && !packages.length ? <View style={styles.notice}><Text accessibilityRole="alert" style={styles.error}>{error}</Text><Pressable onPress={() => void loadMasterData()} style={styles.retry}><Text style={styles.retryText}>Coba lagi</Text></Pressable></View> : <PackageList vehicleType={vehicleType} packages={packages} addons={addons} packageId={packageId} addonIds={addonIds} onPackageChange={setPackageId} onAddonToggle={(id) => setAddonIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id])} />}
       </View>
       {!!error && packages.length > 0 && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-      <View style={styles.dividerSection} />
-      <View style={styles.summary}>
+    </ScrollView>
+
+    <View style={[styles.floatBar, { paddingBottom: Math.max(insets.bottom, 12) + 12 }]}>
+      <View style={styles.floatTotals}>
         <View style={styles.summaryLine}><Text style={styles.summaryLabel}>Subtotal</Text><Text style={styles.summaryValue}>{formatIDR(subtotal)}</Text></View>
         {tax > 0 && <View style={styles.summaryLine}><Text style={styles.summaryLabel}>Pajak ({activeOutlet?.taxPercent ?? 0}%)</Text><Text style={styles.summaryValue}>{formatIDR(tax)}</Text></View>}
         <View style={[styles.summaryLine, styles.totalLine]}><Text style={styles.totalLabel}>Total</Text><Text style={styles.totalValue}>{formatIDR(total)}</Text></View>
-        <Pressable accessibilityRole="button" disabled={!canSubmit} onPress={() => { setError(''); setPaymentOpen(true); }} style={[styles.submit, !canSubmit && styles.disabled]}>{submitting ? <ActivityIndicator color={colors.night} /> : <Text style={styles.submitText}>Simpan & bayar</Text>}</Pressable>
       </View>
-    </ScrollView>
+      <Pressable accessibilityRole="button" disabled={!canSubmit} onPress={() => { setError(''); setPaymentOpen(true); }} style={[styles.submit, !canSubmit && styles.disabled]}>{submitting ? <ActivityIndicator color={colors.night} /> : <Text style={styles.submitText}>Simpan & bayar</Text>}</Pressable>
+    </View>
+    </View>
     <PaymentModal visible={paymentOpen} total={total} banks={banks} onClose={() => { if (!submitting) setPaymentOpen(false); }} onSubmit={completeOrder} />
     <Modal visible={Boolean(receipt)} transparent animationType="fade" onRequestClose={() => setReceipt(null)}>
       <View style={styles.modalBackdrop}><View style={styles.receiptCard}><Text style={styles.success}>Transaksi berhasil</Text><Text style={styles.receiptTitle}>{receipt?.order.invoiceNo}</Text><Text style={styles.queue}>Antrean {receipt?.order.queueNo} · {receipt?.order.vehicleType === 'motor' ? 'Motor' : 'Mobil'}</Text><View style={styles.divider} /><Text style={styles.receiptLine}>Paket · {receipt?.order.packageName}</Text><Text style={styles.receiptLine}>Plat · {receipt?.order.plate || '—'}</Text><Text style={styles.receiptTotal}>{formatIDR(receipt?.order.grandTotal ?? 0)}</Text><Text selectable style={styles.receiptUrl}>{receipt?.url}</Text>
@@ -111,9 +115,11 @@ export function KasirScreen() {
     </Modal>
   </KeyboardAvoidingView>;
 }
-function buildStyles(colors: Palette) {
+function buildStyles(colors: Palette, mode: 'light' | 'dark') {
+  const isLight = mode === 'light';
   return StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1 },
   content: { paddingHorizontal: 16, gap: 14 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
   eyebrow: { color: colors.brand, fontWeight: '800', fontSize: 11, letterSpacing: 1.5 },
@@ -127,16 +133,28 @@ function buildStyles(colors: Palette) {
   optional: { color: colors.lightMuted, fontWeight: '400' },
   input: { borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 10, height: 46, paddingHorizontal: 12, color: colors.ink, backgroundColor: colors.surface, fontSize: 15 },
   notes: { minHeight: 68, textAlignVertical: 'top', paddingTop: 11 },
-  summary: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.line, padding: 16, gap: 12 },
+  floatBar: {
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    gap: 10,
+    shadowColor: colors.night,
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  floatTotals: { gap: 6 },
   summaryLine: { flexDirection: 'row', justifyContent: 'space-between' },
   summaryLabel: { color: colors.muted, fontSize: 14 },
   summaryValue: { color: colors.ink, fontWeight: '700' },
   totalLine: { borderTopWidth: 1, borderColor: colors.line, paddingTop: 12 },
   totalLabel: { color: colors.ink, fontSize: 16, fontWeight: '800' },
   totalValue: { color: colors.brand, fontSize: 20, fontWeight: '800' },
-  dividerSection: { height: 1, backgroundColor: colors.line },
-  submit: { minHeight: 48, borderRadius: 10, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 },
-  submitText: { color: colors.night, fontWeight: '800', fontSize: 15, textAlign: 'center' },
+  submit: { minHeight: 48, borderRadius: 10, backgroundColor: isLight ? colors.brand : '#ffffff', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 },
+  submitText: { color: isLight ? '#ffffff' : colors.night, fontWeight: '800', fontSize: 15, textAlign: 'center' },
   disabled: { opacity: 0.55 },
   notice: { gap: 10 },
   error: { color: colors.dangerDark, backgroundColor: colors.dangerSoft, padding: 10, borderRadius: 9, fontSize: 13 },
