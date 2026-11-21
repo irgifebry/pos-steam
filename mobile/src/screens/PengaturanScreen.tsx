@@ -35,7 +35,7 @@ export function PengaturanScreen() {
     { label: 'Paket Layanan', hint: 'Harga dan durasi cuci', icon: Package, route: 'Paket' },
     { label: 'Add-on', hint: 'Layanan tambahan', icon: Wrench, route: 'Addon' },
     { label: 'Rekening Bank', hint: 'Tujuan transfer', icon: Wallet, route: 'Bank' },
-    { label: 'Pengguna', hint: 'Akses dan gaji karyawan', icon: Users, route: 'Pengguna' },
+    { label: 'Pengguna', hint: 'Kelola akun dan akses', icon: Users, route: 'Pengguna' },
   ] as const;
 
   return (

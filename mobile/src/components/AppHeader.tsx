@@ -1,16 +1,25 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../theme/ThemeContext';
 import { useStyles } from '../theme/useStyles';
 import type { Palette } from '../theme/palettes';
 import { KyaneLogo } from './KyaneLogo';
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 11) return 'Selamat pagi';
+  if (hour < 15) return 'Selamat siang';
+  if (hour < 18) return 'Selamat sore';
+  return 'Selamat malam';
+}
+
 export function AppHeader() {
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
   const styles = useStyles(buildStyles);
-  const { user, activeOutlet } = useAuth();
+  const { user } = useAuth();
+
+  const roleLabel = user?.role === 'admin' ? 'Admin' : 'Operator';
+  const displayName = user?.name?.trim() || roleLabel;
 
   return (
     <View style={[styles.headerWrapper, { paddingTop: Math.max(insets.top, 10) }]}>
@@ -22,13 +31,13 @@ export function AppHeader() {
 
         <View style={styles.rule} />
 
-        {/* Informasi Outlet & Operator */}
-        <View style={styles.outletInfo}>
-          <Text numberOfLines={1} style={styles.brandTitle}>
-            {activeOutlet?.name || 'Kyane Protect & Shine'}
+        {/* Sapaan dan status login di pojok kanan */}
+        <View style={styles.statusInfo}>
+          <Text numberOfLines={1} style={styles.greeting}>
+            {getGreeting()}, {displayName}
           </Text>
-          <Text numberOfLines={1} style={styles.userMeta}>
-            {user?.name || 'Operator'} · {user?.role === 'admin' ? 'Admin' : 'Operator'}
+          <Text numberOfLines={1} style={styles.loginStatus}>
+            Masuk sebagai {roleLabel}
           </Text>
         </View>
       </View>
@@ -61,22 +70,25 @@ function buildStyles(colors: Palette) {
     height: 28,
     backgroundColor: colors.line,
   },
-  outletInfo: {
+  statusInfo: {
     flex: 1,
     minWidth: 0,
+    alignItems: 'flex-end',
     justifyContent: 'center',
     gap: 3,
   },
-  brandTitle: {
+  greeting: {
     fontSize: 14.5,
     fontWeight: '800',
     color: colors.ink,
     letterSpacing: -0.3,
+    textAlign: 'right',
   },
-  userMeta: {
+  loginStatus: {
     fontSize: 11.5,
     fontWeight: '500',
     color: colors.muted,
+    textAlign: 'right',
   },
   });
 }
