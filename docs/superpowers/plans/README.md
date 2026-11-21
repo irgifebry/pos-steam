@@ -1,5 +1,7 @@
 # Peta Rencana Implementasi
 
+> **Catatan (21 November 2026):** Dokumen rencana fase di folder ini adalah **arsip historis** yang merekam proses perencanaan awal dan **tidak menggambarkan perilaku aplikasi yang saat ini dikirim**. Untuk perilaku terkini, rujuk `README.md` di root repo, bagian *Catatan Implementasi Saat Ini* di [`../../prd.md`](../../prd.md), dan `docs/backend/README.md`. Rencana lama sengaja dibiarkan apa adanya sebagai catatan sejarah dan tidak diperbarui.
+
 PRD (`../../prd.md`) dibagi menjadi 7 rencana terpisah. Setiap rencana menghasilkan perangkat lunak yang bisa diuji dan dijalankan sendiri, dan bisa dikerjakan berurutan.
 
 | # | Rencana | Cakupan | Output yang bisa diuji |

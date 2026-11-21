@@ -5,7 +5,10 @@ Gunakan checklist ini untuk memastikan perubahan baru tidak merusak fitur yang s
 - **Smoke test PR:** wajib untuk setiap Pull Request.
 - **Regression F1 lengkap:** sebelum F1 dinyatakan selesai atau sebelum rilis besar.
 - **Invariant lintas fase:** wajib dijalankan di setiap fase, karena aturan ini berlaku kumulatif.
+- **Regresi Mobile (Expo):** wajib jika perubahan menyentuh `mobile/` atau kontrak API yang dipakai mobile.
 - **Release checklist:** sebelum deploy ke production.
+
+> **Istilah role:** kontrak lama memakai `kasir`/`operator`; implementasi terkini memakai `admin` dan `karyawan`. Saat mengeksekusi butir lama, padankan `kasir`/`operator` dengan `karyawan`. Butir §1–§4 berlaku untuk web/backend; check mobile ada di §5.
 
 ---
 
@@ -75,24 +78,26 @@ Jika salah satu gagal: **jangan merge**. Buat bug issue dan tandai PR sebagai bl
 
 ### 2.4 Master Data
 
-- [ ] Paket motor/mobil bisa dibuat, diedit, dinonaktifkan
+> Catatan: di web, data dinonaktifkan. Di mobile, data master **dihapus** lewat tombol **Hapus** (DELETE) dan daftar hanya menampilkan record aktif — lihat §5. Jangan menguji mobile dengan asumsi "nonaktifkan".
+
+- [ ] Paket motor/mobil bisa dibuat, diedit, dinonaktifkan (web); di mobile paket dihapus via tombol "Hapus"
 - [ ] Nama sama beda tipe kendaraan diperbolehkan
 - [ ] Nama sama tipe sama ditolak 409
 - [ ] `price_snapshot` transaksi lama tidak berubah saat harga master diedit
-- [ ] Paket nonaktif tersembunyi dari list default
+- [ ] Paket nonaktif tersembunyi dari list default (web & mobile hanya memuat record aktif)
 - [ ] Urutan `sortOrder` lalu nama
 - [ ] Add-on filter tipe kendaraan benar
 - [ ] Add-on duplikat ditolak
 - [ ] Outlet (nama, alamat, HP, footer, pajak) tersimpan
 - [ ] Bank (nama, nomor rekening, pemilik, aktif) tersimpan
 - [ ] Settings mengembalikan data yang benar; field sensitif tidak bocor ke kasir
-- [ ] User CRUD, reset PIN, aktif/nonaktif bekerja
+- [ ] User CRUD, reset PIN, aktif/nonaktif bekerja (web); di mobile lewat sub-halaman Pengguna dengan aksi "Hapus"
 - [ ] Validasi client sama dengan validasi server
 - [ ] Data tetap ada setelah reload
 
 ### 2.5 UI, Shell, PWA
 
-- [ ] Admin melihat 5 tab; kasir/operator tanpa Pengaturan
+- [ ] Web: admin melihat 5 tab; karyawan tanpa Pengaturan. Mobile: 4 tab tanpa Karyawan (lihat §5)
 - [ ] Navigasi dan active state benar
 - [ ] Header menampilkan outlet/user; logout bekerja
 - [ ] Login: validasi kosong, PIN <6, PIN salah, PIN valid
@@ -153,6 +158,7 @@ Aturan ini berasal dari PRD dan Global Constraints Rencana 01. Jangan menunggu f
 - [ ] Semua test case P1 lulus ≥95%
 - [ ] Tidak ada bug S1/S2 terbuka
 - [ ] Regression checklist fase terkait lulus
+- [ ] Regresi Mobile (Expo) §5 lulus jika rilis menyentuh `mobile/` atau kontrak API
 - [ ] UAT sign-off dari PO/pemilik outlet
 - [ ] Environment variables production lengkap dan benar
 - [ ] `BETTER_AUTH_URL` dan `WEB_ORIGIN` sesuai domain production
@@ -177,7 +183,58 @@ Aturan ini berasal dari PRD dan Global Constraints Rencana 01. Jangan menunggu f
 
 ---
 
-## 5. Sign-off
+## 5. Regresi Mobile (Expo)
+
+Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobile. Prasyarat: backend di `http://localhost:3000`, Expo Web di `http://localhost:8081` (`npm run web` dari `mobile/`), dan CORS proxy `src/proxy.ts` aktif.
+
+### 5.1 Setup & Kesehatan
+
+- [ ] `npx tsc --noEmit` di root dan `mobile/` bersih; `npx expo-doctor` 20/20
+- [ ] `npm test` root lulus (28 file / 116 test)
+- [ ] Expo Web `http://localhost:8081` terhubung ke backend `http://localhost:3000`
+- [ ] CORS proxy (`src/proxy.ts`, matcher `/api/:path*`) aktif: preflight `OPTIONS /api/*` dari origin Expo Web balas 204 dengan header CORS; tanpa ini request mobile web ditolak browser
+- [ ] Respons sukses `{ data: ... }` dan error `{ error: { code, message } }` konsisten di endpoint yang dipakai mobile
+
+### 5.2 Tampilan & Navigasi
+
+- [ ] Login email + PIN berhasil di mobile; sesi tersimpan dan tetap ada setelah reload
+- [ ] Seluruh layar memakai **tema terang** (light mode only): tidak ada toggle/halaman dark mode, tidak ada warna gelap yang tertinggal
+- [ ] Bottom tab tepat **4**: Kasir, Antrean, Laporan, Pengaturan
+- [ ] **Tidak ada tab Karyawan/Absensi** di mobile; web `/karyawan` tetap terbuka dan berfungsi
+- [ ] Pengaturan terbuka sebagai menu yang mengarah ke 4 sub-halaman: **Paket Layanan, Add-on, Rekening Bank, Pengguna**; tombol kembali bekerja
+- [ ] Role `admin`/`karyawan` tampil konsisten (label Admin/Karyawan) di Pengaturan → Pengguna
+
+### 5.3 Master Data Mobile
+
+- [ ] Paket Layanan dan Add-on memakai tab kartu **Motor / Mobil**; Add-on juga punya tab **Semua** (berlaku untuk kedua tipe kendaraan)
+- [ ] Form Paket Layanan mobile **tidak memiliki field durasi**; harga dan `royaltyPrice` tersimpan dengan benar
+- [ ] Data baru aktif secara default dan langsung muncul di daftar
+- [ ] Daftar hanya menampilkan record aktif; record nonaktif tidak muncul
+- [ ] Aksi hapus bertuliskan **Hapus** (bukan "Nonaktifkan"), memunculkan konfirmasi destruktif, dan data benar-benar terhapus
+- [ ] Add-on hanya muncul pada tab tipe kendaraan yang sesuai (`vehicleTypes`); tab "Semua" menampilkan keduanya
+
+### 5.4 Kasir & ROYALTY
+
+- [ ] Form Kasir memakai label **Nama Kendaraan** (mis. Avanza/Fortuner), bukan "Nama Pelanggan"; nilai dikirim sebagai `vehicleName` dan tersimpan ke `vehicles.brand`
+- [ ] Toggle **Pelanggan ROYALTY** tersedia di Kasir
+- [ ] Saat ROYALTY aktif: paket **Reguler gratis (Rp 0)**, paket lain memakai `royaltyPrice` yang dikonfigurasi admin, **add-on tetap bayar penuh**
+- [ ] Selisih harga ROYALTY tercatat di backend sebagai `discount` (piutang), bukan mengubah harga master paket
+- [ ] Tombol aksi Kasir bertuliskan **Buat antrean** dan **tidak meminta pembayaran**; order baru berstatus `menunggu`
+- [ ] Ringkasan total berada di **bar mengambang di bawah** (floating), tidak mengikuti scroll
+- [ ] **Subtotal disembunyikan** ketika tidak ada pajak dan tidak ada diskon ROYALTY; muncul saat ada pajak/diskon
+- [ ] Modal struk bertema **terang** (light), menampilkan nomor invoice/antrean dan tautan `/r/{id}` yang bisa dibagikan
+
+### 5.5 Antrean & Pembayaran
+
+- [ ] Di Antrean, menekan **Mulai Cuci** memunculkan **modal pembayaran**; pembayaran berhasil membuat status menjadi `proses`
+- [ ] Order dengan **total 0** melewati modal pembayaran dan langsung berstatus `proses`
+- [ ] Membayar lewat modal tidak mengubah status menjadi `proses` jika dipicu dari aksi bayar biasa (tanpa Mulai Cuci) — status tetap sebelum aksi lanjutan
+- [ ] Tab status (Semua / Menunggu / Proses / Selesai / Dibatalkan) dan filter kendaraan (Semua Kendaraan / Motor / Mobil) menyaring daftar dengan benar
+- [ ] Aksi Selesai dan Batalkan pesanan (dengan alasan) bekerja dan daftar memperbarui otomatis
+
+---
+
+## 6. Sign-off
 
 | Fase | Tanggal | QA | Hasil | Catatan |
 |---|---|---|---|---|
@@ -188,3 +245,4 @@ Aturan ini berasal dari PRD dan Global Constraints Rencana 01. Jangan menunggu f
 | F5 |  | Dimas |  |  |
 | F6 |  | Dimas |  |  |
 | F7 |  | Dimas |  |  |
+| Mobile (Expo) |  | Dimas |  |  |

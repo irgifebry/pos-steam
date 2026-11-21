@@ -4,11 +4,11 @@ Dokumen ini khusus untuk **backend**: apa yang sudah dibangun, kontrak API, cara
 
 | | |
 |---|---|
-| **Fase** | F1–F2 — Fondasi backend + sinkronisasi transaksi (kasir, antrean, laporan, karyawan, gaji kas, struk publik) |
+| **Fase** | F1–F2 — Fondasi backend + sinkronisasi transaksi (kasir, antrean, laporan, karyawan, gaji kas, struk publik) + dukungan klien mobile (role `admin`/`karyawan`, harga ROYALTY, CORS Expo Web) |
 | **Status** | Selesai dan terverifikasi |
 | **PIC Backend** | [Najwan48](https://github.com/Najwan48) |
 | **Branch** | `main` |
-| **Terakhir diperbarui** | 29 Oktober 2026 |
+| **Terakhir diperbarui** | 21 November 2026 |
 
 ---
 
@@ -16,16 +16,18 @@ Dokumen ini khusus untuk **backend**: apa yang sudah dibangun, kontrak API, cara
 
 Backend F1 menyediakan fondasi aplikasi full-stack Next.js 16:
 
-- Database PostgreSQL via Drizzle ORM: **18 tabel**, 2 migrasi.
+- Database PostgreSQL via Drizzle ORM: **18 tabel**, 4 migrasi (`0000`–`0003`).
 - Autentikasi **Better Auth**: email/PIN.
-- Otorisasi berbasis peran di Route Handler: `authenticated`, `kasir`, `operator`.
+- Otorisasi berbasis sesi + peran di Route Handler: `admin`, `karyawan` (`roleSchema = z.enum(["admin", "karyawan"])`).
 - API master data: paket, add-on, outlet, bank, settings.
 - API manajemen pengguna: tambah, ubah, reset PIN, aktif/nonaktif.
 - API transaksi & operasional: order, antrean, pembayaran, pembatalan, struk publik, absensi, payroll, shift kas, laporan.
+- Harga ROYALTY per paket (`service_packages.royalty_price`) dengan aturan khusus di `services/orders.ts`.
+- Dukungan klien mobile Expo: tipe role `admin | karyawan`, base URL otomatis, dan proxy CORS untuk Expo Web (`src/proxy.ts`).
 - Validasi Zod sebagai sumber tunggal (`src/lib/schemas.ts`).
 - Format error konsisten `{ error: { code, message } }`.
 - Audit log untuk perubahan pengguna.
-- Seed data idempotent untuk outlet, paket, add-on, bank, dan authenticated.
+- Seed data idempotent untuk outlet, paket, add-on, bank, admin, dan karyawan.
 - Test backend dengan **PGlite** tanpa database eksternal.
 
 **Hasil verifikasi terakhir:**
@@ -36,6 +38,8 @@ Backend F1 menyediakan fondasi aplikasi full-stack Next.js 16:
 | `npm run lint` | Bersih |
 | `npx tsc --noEmit` | Bersih |
 | `npm run build` | Sukses, semua route API terdeteksi |
+| `npx expo-doctor` (mobile) | **20/20** |
+| `npx tsc --noEmit` (mobile) | Bersih |
 
 > Semua frontend (`/kasir`, `/antrean`, `/laporan`, `/karyawan`, `/pengaturan/*`, `r/[token]`) sudah tersambung ke API nyata. Mode demo, dummy data, dan fallback localStorage telah dihapus.
 
@@ -102,9 +106,12 @@ src/
     schemas.ts                    # semua skema Zod
     types.ts                      # tipe turunan Zod
     server-init.ts                # inisialisasi db + auth lazy
+  proxy.ts                        # proxy Next.js 16: CORS Expo Web untuk /api/*
 drizzle/
   0000_optimal_morlun.sql
   0001_secret_grim_reaper.sql
+  0002_rare_mathemanic.sql
+  0003_volatile_maelstrom.sql
   meta/
 ```
 
@@ -132,12 +139,15 @@ Route Handler  ->  Service  ->  Drizzle  ->  PostgreSQL
 | Operasional | `attendance`, `payroll_runs`, `payroll_items`, `cash_shifts` | **Ada endpoint F2** |
 | Audit | `audit_logs` | Dipakai untuk perubahan pengguna dan transaksi |
 
+`service_packages` memiliki kolom `royalty_price` (integer, nullable) untuk harga khusus ROYALTY per paket; ditambahkan lewat migrasi `0003`.
+
 ### 4.2 Aturan skema
 
 - Nama tabel dan kolom PostgreSQL: **snake_case**.
 - Properti Drizzle: **camelCase**.
 - ID: `text` UUID dibuat di aplikasi (`randomUUID`).
 - Harga: **integer Rupiah**, bukan float.
+- `service_packages.royalty_price`: integer Rupiah **nullable**; `NULL` berarti transaksi ROYALTY memakai `price` biasa.
 - `updated_at` otomatis lewat `$onUpdate`.
 - `order_items.price_snapshot` menyimpan harga final saat transaksi; perubahan harga master tidak mengubah transaksi lama.
 - `orders.client_id` disiapkan unik untuk idempotensi offline (F6).
@@ -154,9 +164,30 @@ npm run db:migrate    # jalankan migrasi (memakai DIRECT_URL)
 - Runtime aplikasi memakai `DATABASE_URL` (pooler).
 - Test memakai folder `drizzle/` yang sama lewat PGlite.
 
+**Penting:** `drizzle.config.ts` membaca `process.env.DIRECT_URL`, bukan otomatis memuat `.env.local`. Ekspor variabel env ke shell sebelum menjalankan migrasi:
+
+```bash
+set -a; source .env.local; set +a; npm run db:migrate
+```
+
+Sebaliknya, `npm run db:seed` memakai `tsx --env-file=.env.local` sehingga sudah memuat env sendiri; tidak perlu export manual untuk seed.
+
+Daftar migrasi saat ini:
+
+| Migrasi | Isi |
+|---|---|
+| `0000_optimal_morlun.sql` | Skema awal |
+| `0001_secret_grim_reaper.sql` | Menambah tabel `banks` |
+| `0002_rare_mathemanic.sql` | `orders.business_date`, `outlets.default_daily_rate`, komponen payroll, dan constraint unik |
+| `0003_volatile_maelstrom.sql` | Menambah `service_packages.royalty_price` (integer nullable) dan menetapkan default `user.role` = `'admin'` |
+
 ### 4.4 Tabel `banks`
 
 Tabel `banks` ditambahkan lewat migrasi `0001_secret_grim_reaper.sql`. Rencana F1 membutuhkan service dan endpoint bank, tetapi daftar tabel di Task 3 belum memuat tabel ini. Keputusan ini sudah disepakati sebagai penyesuaian rencana.
+
+### 4.5 Harga ROYALTY
+
+Kolom `service_packages.royalty_price` diisi admin per paket dan dipakai saat order dibuat dengan `royalty: true`. Detail aturannya ada di bagian 6.2 (Paket & Order).
 
 ---
 
@@ -173,6 +204,7 @@ Konfigurasi ada di `src/lib/auth/config.ts`:
 - `emailAndPassword.enabled = true`, `minPasswordLength = 6`.
 - Sesi berlaku **7 hari**, diperbarui setiap **1 hari**.
 - Field tambahan user: `role`, `phone`, `outletId`, `dailyRate`, `active`.
+- `role` bertipe `admin` atau `karyawan` (`roleSchema`); default `admin` di `userInputSchema` dan di kolom database (migrasi `0003`).
 - Semua field tambahan memakai `input: false`, sehingga tidak bisa diisi dari body sign-up publik.
 - `trustedOrigins` diambil dari `WEB_ORIGIN`.
 - Plugin `nextCookies()` aktif di runtime, dimatikan di test.
@@ -181,15 +213,14 @@ Konfigurasi ada di `src/lib/auth/config.ts`:
 
 | Fungsi | Perilaku |
 |---|---|
-| `getSessionUser()` | Mengembalikan user atau `null`. User dengan `active = false` dianggap tidak login. |
+| `getSessionUser()` | Mengembalikan user atau `null`. User dengan `active = false` atau role di luar `roleSchema` dianggap tidak login. |
 | `requireUser()` | Melempar `401 UNAUTHENTICATED` bila tidak ada sesi. |
-| `requireUser(["authenticated"])` | Melempar `403 FORBIDDEN` bila role tidak diizinkan. |
 
-Role yang dikenal: `authenticated` (satu peran untuk semua pengguna).
+Role yang dikenal: `admin` dan `karyawan` (`roleSchema = z.enum(["admin", "karyawan"])`). Saat ini Route Handler memakai `requireUser()` tanpa argumen peran, sehingga semua user aktif (admin maupun karyawan) dapat mengakses endpoint. Pembedaan peran dipakai pada data user, proteksi admin terakhir (`LAST_ADMIN`), dan tampilan mobile.
 
 ### 5.3 Reset PIN
 
-Reset PIN oleh authenticated:
+Reset PIN oleh user yang login:
 
 1. Validasi PIN minimal 6 karakter.
 2. Hash PIN dengan `hashPassword()` dari `better-auth/crypto`.
@@ -203,6 +234,8 @@ Reset PIN oleh authenticated:
 ## 6. Kontrak API
 
 Base URL lokal: `http://localhost:3000`.
+
+> **Expo Web & CORS:** web preview mobile berjalan di `localhost:8081` dan memanggil `localhost:3000`, sehingga browser melakukan preflight `OPTIONS`. `src/proxy.ts` (Proxy Next.js 16, menggantikan `middleware` yang sudah deprecated) menambahkan header CORS untuk origin dev `localhost`, `127.0.0.1`, dan IP LAN privat pada **semua** `/api/*`, termasuk response preflight `OPTIONS`. Aplikasi native tidak terkena CORS.
 
 ### 6.1 Format response
 
@@ -234,7 +267,7 @@ Error:
 | 403 | `FORBIDDEN` | Role tidak diizinkan |
 | 404 | `NOT_FOUND` | Data tidak ditemukan |
 | 409 | `DUPLICATE` | Nama/email sudah dipakai |
-| 409 | `LAST_ADMIN` | Aksi akan menghilangkan authenticated aktif terakhir |
+| 409 | `LAST_ADMIN` | Aksi akan menghilangkan admin aktif terakhir |
 | 500 | `INTERNAL_ERROR` | Kesalahan server |
 
 ### 6.2 Daftar endpoint
@@ -251,7 +284,7 @@ Login email/PIN:
 ```bash
 curl -i -X POST http://localhost:3000/api/auth/sign-in/email \
   -H "Content-Type: application/json" \
-  -d "{\"email\":\"authenticated@pos.test\",\"password\":\"authenticated123\"}"
+  -d "{\"email\":\"admin@pos.test\",\"password\":\"123456\"}"
 ```
 
 Cookie sesi dikirim lewat header `set-cookie`. Frontend harus memakai `credentials: "include"`.
@@ -260,10 +293,10 @@ Cookie sesi dikirim lewat header `set-cookie`. Frontend harus memakai `credentia
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/packages?vehicleType=motor\|mobil&includeInactive=true` | authenticated | Daftar paket, urut `sortOrder` lalu nama |
-| POST | `/api/packages` | authenticated | Buat paket |
-| PATCH | `/api/packages/:id` | authenticated | Ubah sebagian field |
-| DELETE | `/api/packages/:id` | authenticated | Soft-delete (`active = false`) |
+| GET | `/api/packages?vehicleType=motor\|mobil&includeInactive=true` | admin, karyawan | Daftar paket, urut `sortOrder` lalu nama |
+| POST | `/api/packages` | admin, karyawan | Buat paket |
+| PATCH | `/api/packages/:id` | admin, karyawan | Ubah sebagian field |
+| DELETE | `/api/packages/:id` | admin, karyawan | Soft-delete (`active = false`) |
 
 Body POST:
 
@@ -272,6 +305,7 @@ Body POST:
   "name": "Cuci Steam Komplit",
   "vehicleType": "motor",
   "price": 35000,
+  "royaltyPrice": 500,
   "durationMin": 30,
   "description": "Cuci + wax",
   "sortOrder": 2,
@@ -282,6 +316,8 @@ Body POST:
 Aturan:
 
 - `price` integer > 0.
+- `royaltyPrice` opsional: integer >= 0 atau `null`; harga khusus untuk order dengan `royalty: true`. Schema update juga menerima field ini.
+- `durationMin` opsional dengan default `0`. Mobile tidak lagi mengirim field ini; web masih boleh mengirimnya.
 - Duplikat `(outletId, vehicleType, name)` -> `409 DUPLICATE`.
 - Nama sama untuk tipe kendaraan berbeda diperbolehkan.
 - Harga transaksi lama tidak berubah karena memakai `price_snapshot`.
@@ -290,10 +326,10 @@ Aturan:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/addons?vehicleType=motor\|mobil&includeInactive=true` | authenticated | Filter tipe kendaraan |
-| POST | `/api/addons` | authenticated | Buat add-on |
-| PATCH | `/api/addons/:id` | authenticated | Ubah sebagian field |
-| DELETE | `/api/addons/:id` | authenticated | Soft-delete |
+| GET | `/api/addons?vehicleType=motor\|mobil&includeInactive=true` | admin, karyawan | Filter tipe kendaraan |
+| POST | `/api/addons` | admin, karyawan | Buat add-on |
+| PATCH | `/api/addons/:id` | admin, karyawan | Ubah sebagian field |
+| DELETE | `/api/addons/:id` | admin, karyawan | Soft-delete |
 
 Body POST:
 
@@ -311,8 +347,8 @@ Body POST:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/outlets` | authenticated | Daftar outlet |
-| PATCH | `/api/outlets` | authenticated | Ubah outlet milik user yang login |
+| GET | `/api/outlets` | admin, karyawan | Daftar outlet |
+| PATCH | `/api/outlets` | admin, karyawan | Ubah outlet milik user yang login |
 
 Body PATCH (semua field opsional):
 
@@ -330,9 +366,9 @@ Body PATCH (semua field opsional):
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/banks` | authenticated | Bank aktif milik outlet user |
-| POST | `/api/banks` | authenticated | Tambah bank |
-| PATCH | `/api/banks/:id` | authenticated | Ubah nama, nomor rekening, pemilik, atau status aktif bank |
+| GET | `/api/banks` | admin, karyawan | Bank aktif milik outlet user |
+| POST | `/api/banks` | admin, karyawan | Tambah bank |
+| PATCH | `/api/banks/:id` | admin, karyawan | Ubah nama, nomor rekening, pemilik, atau status aktif bank |
 
 Body POST:
 
@@ -349,13 +385,13 @@ Body POST:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/orders?date=...&from=...&to=...&includePaid=true\|false` | authenticated | Daftar order outlet dalam rentang tanggal; default hari ini |
-| GET | `/api/orders/:id` | authenticated | Detail order termasuk item dan pembayaran |
-| PATCH | `/api/orders/:id` | authenticated | Ubah item & data pelanggan (hanya saat status `menunggu`) |
-| POST | `/api/orders` | authenticated | Buat order (server menghitung total, antrean, invoice, snapshot) |
-| PATCH | `/api/orders/:id/status` | authenticated | Ubah status `menunggu` → `proses` → `selesai` |
-| POST | `/api/orders/:id/payments` | authenticated | Catat pembayaran pada order selesai → otomatis `paid` |
-| POST | `/api/orders/:id/cancel` | authenticated | Batalkan order |
+| GET | `/api/orders?date=...&from=...&to=...&includePaid=true\|false` | admin, karyawan | Daftar order outlet dalam rentang tanggal; default hari ini |
+| GET | `/api/orders/:id` | admin, karyawan | Detail order termasuk item dan pembayaran |
+| PATCH | `/api/orders/:id` | admin, karyawan | Ubah item & data pelanggan (hanya saat status `menunggu`) |
+| POST | `/api/orders` | admin, karyawan | Buat order (server menghitung total, antrean, invoice, snapshot) |
+| PATCH | `/api/orders/:id/status` | admin, karyawan | Ubah status `menunggu` → `proses` → `selesai` |
+| POST | `/api/orders/:id/payments` | admin, karyawan | Catat pembayaran pada order selesai → otomatis `paid` |
+| POST | `/api/orders/:id/cancel` | admin, karyawan | Batalkan order |
 | GET | `/api/receipts/:token` | Publik | Struk publik berbasis UUID order (tidak perlu login) |
 
 Body POST `/api/orders`:
@@ -368,7 +404,10 @@ Body POST `/api/orders`:
   "addons": [ { "addonId": "uuid-addon", "qty": 1 } ],
   "customerName": "Budi",
   "customerPhone": "08123456789",
+  "vehicleName": "Honda Beat",
   "plate": "B 1234 ABC",
+  "discount": 0,
+  "royalty": false,
   "payment": {
     "method": "tunai",
     "cashReceived": 33000
@@ -379,6 +418,10 @@ Body POST `/api/orders`:
 Aturan order:
 
 - Server otoritatif: frontend hanya mengirim `packageId`, `addonId` + `qty`, data pelanggan/kendaraan, dan payment opsional. Server menghitung total, pajak, nomor antrean, invoice, dan snapshot harga.
+- `vehicleName` opsional dan disimpan ke `vehicles.brand`; bila kosong, brand kendaraan tidak diubah.
+- `payment` tetap opsional. `discount` juga diterima schema (integer >= 0, opsional), tetapi nilai yang tercatat dihitung server dari selisih harga, bukan dari input.
+- `royalty: true` mengaktifkan aturan ROYALTY: paket dengan nama cocok `/reguler/i` harganya `0`; paket lain memakai `pkg.royaltyPrice ?? pkg.price`; add-on tetap harga normal.
+- Selisih `discount = pkg.price - effectivePrice` dicatat pada order sebagai piutang (`orders.discount`). Pajak dihitung dari subtotal setelah diskon tersebut.
 - Order baru selalu status `menunggu`; pembayaran saat pembuatan tetap disimpan.
 - Order `selesai` dengan pembayaran otomatis menjadi `paid`; tanpa pembayaran tetap `selesai` sampai dibayar lewat endpoint payment.
 - `paid` dan `dibatalkan` tidak dapat diubah/dibatalkan lagi.
@@ -388,16 +431,16 @@ Aturan order:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/attendance?date=YYYY-MM-DD` | authenticated | Daftar absensi outlet pada tanggal |
-| POST | `/api/attendance` | authenticated | Upsert absensi karyawan (tanggal + user unik) |
-| GET | `/api/attendance/summary?period=YYYY-MM` | authenticated | Ringkasan bulanan per karyawan |
+| GET | `/api/attendance?date=YYYY-MM-DD` | admin, karyawan | Daftar absensi outlet pada tanggal |
+| POST | `/api/attendance` | admin, karyawan | Upsert absensi karyawan (tanggal + user unik) |
+| GET | `/api/attendance/summary?period=YYYY-MM` | admin, karyawan | Ringkasan bulanan per karyawan |
 
 #### Payroll
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/payroll?period=YYYY-MM` | authenticated | Ambil payroll (draft atau final) dengan item per karyawan |
-| POST | `/api/payroll` | authenticated | Simpan draft atau finalisasi payroll periode |
+| GET | `/api/payroll?period=YYYY-MM` | admin, karyawan | Ambil payroll (draft atau final) dengan item per karyawan |
+| POST | `/api/payroll` | admin, karyawan | Simpan draft atau finalisasi payroll periode |
 
 Body POST `/api/payroll`:
 
@@ -418,50 +461,50 @@ Body POST `/api/payroll`:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/cash-shifts` | authenticated | Shift terbuka + riwayat 30 shift terakhir |
-| POST | `/api/cash-shifts` | authenticated | Buka shift kas (saldo awal) |
-| POST | `/api/cash-shifts/:id/close` | authenticated | Tutup shift; hitung kas seharusnya dari pembayaran tunai sejak dibuka |
+| GET | `/api/cash-shifts` | admin, karyawan | Shift terbuka + riwayat 30 shift terakhir |
+| POST | `/api/cash-shifts` | admin, karyawan | Buka shift kas (saldo awal) |
+| POST | `/api/cash-shifts/:id/close` | admin, karyawan | Tutup shift; hitung kas seharusnya dari pembayaran tunai sejak dibuka |
 
 #### Dashboard & Laporan
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/dashboard/today` | authenticated | Metrik ringkas hari ini (omzet, transaksi, tiket rata-rata, tunai/transfer, motor/mobil) |
-| GET | `/api/reports/transactions?from=...&to=...` | authenticated | Transaksi yang **sudah dibayar** dalam rentang, detail add-on |
-| GET | `/api/dashboard/today` | authenticated | Metrik ringkas hari ini (omzet, transaksi, tiket rata-rata, tunai/transfer, motor/mobil) |
-| GET | `/api/reports/transactions?from=...&to=...` | authenticated | Transaksi yang **sudah dibayar** dalam rentang, detail add-on |
-| GET | `/api/reports/omzet?from=...&to=...&groupBy=day\|week\|month` | authenticated | Tren omzet berkala |
-| GET | `/api/reports/paket?from=...&to=...` | authenticated | Agregasi per paket (jumlah & total) |
-| GET | `/api/reports/addon?from=...&to=...` | authenticated | Agregasi per add-on (qty, jumlah, total) |
-| GET | `/api/reports/payment-method?from=...&to=...` | authenticated | Agregasi per metode pembayaran (jumlah & total) |
-| GET | `/api/reports/employee?from=...&to=...` | authenticated | Agregasi per karyawan (jumlah & total) |
-| GET | `/api/reports/cash?date=YYYY-MM-DD` | authenticated | Rekonsiliasi kas harian & shift |
-| GET | `/api/reports/export.csv?from=...&to=...&type=...` | authenticated | Ekspor CSV (`transactions`, `paket`, `addon`, `payment-method`, `employee`) |
+| GET | `/api/dashboard/today` | admin, karyawan | Metrik ringkas hari ini (omzet, transaksi, tiket rata-rata, tunai/transfer, motor/mobil) |
+| GET | `/api/reports/transactions?from=...&to=...` | admin, karyawan | Transaksi yang **sudah dibayar** dalam rentang, detail add-on |
+| GET | `/api/dashboard/today` | admin, karyawan | Metrik ringkas hari ini (omzet, transaksi, tiket rata-rata, tunai/transfer, motor/mobil) |
+| GET | `/api/reports/transactions?from=...&to=...` | admin, karyawan | Transaksi yang **sudah dibayar** dalam rentang, detail add-on |
+| GET | `/api/reports/omzet?from=...&to=...&groupBy=day\|week\|month` | admin, karyawan | Tren omzet berkala |
+| GET | `/api/reports/paket?from=...&to=...` | admin, karyawan | Agregasi per paket (jumlah & total) |
+| GET | `/api/reports/addon?from=...&to=...` | admin, karyawan | Agregasi per add-on (qty, jumlah, total) |
+| GET | `/api/reports/payment-method?from=...&to=...` | admin, karyawan | Agregasi per metode pembayaran (jumlah & total) |
+| GET | `/api/reports/employee?from=...&to=...` | admin, karyawan | Agregasi per karyawan (jumlah & total) |
+| GET | `/api/reports/cash?date=YYYY-MM-DD` | admin, karyawan | Rekonsiliasi kas harian & shift |
+| GET | `/api/reports/export.csv?from=...&to=...&type=...` | admin, karyawan | Ekspor CSV (`transactions`, `paket`, `addon`, `payment-method`, `employee`) |
 
 #### Audit & Offline Sync
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/audit-logs?entity=...&limit=50&offset=0` | authenticated | Daftar riwayat audit log |
-| GET | `/api/sync/bootstrap` | authenticated | Master data + counter sequence invoice/antrean untuk cache offline |
-| POST | `/api/sync/batch` | authenticated | Batch sinkronisasi transaksi offline secara idempotent |
+| GET | `/api/audit-logs?entity=...&limit=50&offset=0` | admin, karyawan | Daftar riwayat audit log |
+| GET | `/api/sync/bootstrap` | admin, karyawan | Master data + counter sequence invoice/antrean untuk cache offline |
+| POST | `/api/sync/batch` | admin, karyawan | Batch sinkronisasi transaksi offline secara idempotent |
 
 #### Pengguna (query baru)
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/users?includeInactive=false\|true` | authenticated | Toggle sertakan pengguna nonaktif |
+| GET | `/api/users?includeInactive=false\|true` | admin, karyawan | Toggle sertakan pengguna nonaktif |
 
 #### Settings (update baru)
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| PATCH | `/api/settings` | authenticated | Ubah `defaultDailyRate` |
+| PATCH | `/api/settings` | admin, karyawan | Ubah `defaultDailyRate` |
 
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/settings` | authenticated | Gabungan outlet + bank aktif + `defaultDailyRate` |
+| GET | `/api/settings` | admin, karyawan | Gabungan outlet + bank aktif + `defaultDailyRate` |
 
 Contoh response:
 
@@ -481,12 +524,12 @@ Contoh response:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/users` | authenticated | Daftar lengkap termasuk nonaktif, termasuk `dailyRate` dan `email` |
-| GET | `/api/users?light=1` | authenticated | Ringkasan `{ id, name, role }` untuk operator switcher |
-| POST | `/api/users` | authenticated | Buat pengguna + PIN |
-| PATCH | `/api/users/:id` | authenticated | Ubah nama/email/role/telepon/gaji/aktif |
-| POST | `/api/users/:id/pin` | authenticated | Reset PIN |
-| POST | `/api/users/:id/active` | authenticated | Aktif/nonaktifkan pengguna |
+| GET | `/api/users` | admin, karyawan | Daftar lengkap termasuk nonaktif, termasuk `dailyRate` dan `email` |
+| GET | `/api/users?light=1` | admin, karyawan | Ringkasan `{ id, name, role }` untuk switcher pengguna |
+| POST | `/api/users` | admin, karyawan | Buat pengguna + PIN |
+| PATCH | `/api/users/:id` | admin, karyawan | Ubah nama/email/role/telepon/gaji/aktif |
+| POST | `/api/users/:id/pin` | admin, karyawan | Reset PIN |
+| POST | `/api/users/:id/active` | admin, karyawan | Aktif/nonaktifkan pengguna |
 
 Body POST:
 
@@ -495,7 +538,7 @@ Body POST:
   "name": "Siti",
   "email": "siti@contoh.id",
   "password": "112233",
-  "role": "kasir",
+  "role": "karyawan",
   "phone": "08123456789",
   "dailyRate": 50000,
   "active": true
@@ -516,9 +559,9 @@ Body aktif/nonaktif:
 
 Aturan:
 
-- `GET /api/users` hanya authenticated. Kasir **tidak boleh** melihat email/gaji.
+- `GET /api/users` hanya untuk user aktif; mengembalikan data lengkap termasuk `email` dan `dailyRate` (tidak ada pembatasan berdasarkan peran).
 - `?light=1` hanya mengembalikan `id`, `name`, `role` dan hanya untuk outlet yang sama.
-- Menurunkan role authenticated terakhir atau menonaktifkannya -> `409 LAST_ADMIN`.
+- Role yang diterima: `admin` atau `karyawan`. Menurunkan role admin terakhir atau menonaktifkannya -> `409 LAST_ADMIN`.
 - Menonaktifkan user menghapus semua sesinya.
 - Tidak ada `DELETE /api/users/:id`; gunakan endpoint aktif/nonaktif.
 
@@ -533,7 +576,7 @@ Aturan:
 | `services/outlets.ts` | `listOutlets`, `getOutlet`, `updateOutlet` | Data outlet, konversi pajak numerik ke number |
 | `services/banks.ts` | `listBanks`, `createBank`, `updateBank` | Bank aktif per outlet |
 | `services/settings.ts` | `getSettings`, `updateSettings` | Gabungan outlet + bank + tarif harian default |
-| `services/users.ts` | `listUsers`, `listUserSummaries`, `createUser`, `updateUser`, `resetPin`, `setUserActive` | Manajemen pengguna, proteksi authenticated terakhir, audit log |
+| `services/users.ts` | `listUsers`, `listUserSummaries`, `createUser`, `updateUser`, `resetPin`, `setUserActive` | Manajemen pengguna, proteksi admin terakhir, audit log |
 | `services/orders.ts` | `createOrder`, `listOrders`, `getOrder`, `getReceipt`, `updateOrderStatus`, `addOrderPayment`, `cancelOrder` | Order, antrean, invoice, pembayaran, pembatalan, struk publik |
 | `services/attendance.ts` | `listAttendance`, `saveAttendance`, `attendanceSummary` | Absensi harian dan ringkasan bulanan |
 | `services/payroll.ts` | `getPayroll`, `savePayroll` | Draft/final payroll, komponen gaji, kunci final |
@@ -565,6 +608,8 @@ Sumber tunggal: `src/lib/schemas.ts`.
 | `reportRangeSchema` | Laporan |
 
 Catatan penting: schema update **tidak** memakai `.partial()` pada schema input yang punya `.default()`. Di Zod, `.partial()` tetap menerapkan default, sehingga PATCH `{ "price": 50000 }` bisa mereset `description`, `sortOrder`, dan `active`. Karena itu setiap entitas punya schema update eksplisit.
+
+Perubahan terkini: `servicePackageInputSchema`/`servicePackageUpdateSchema` menerima `royaltyPrice` (integer >= 0, nullable, opsional) dan `durationMin` kini default `0` pada schema input. `orderCreateSchema` menerima `vehicleName`, `discount`, dan `royalty` (boolean) opsional. `roleSchema` adalah `z.enum(["admin", "karyawan"])`.
 
 ---
 
@@ -609,15 +654,17 @@ npm run db:seed
 | Data | Jumlah | Keterangan |
 |---|---|---|
 | Outlet | 1 | `Cuci Steam Bersama`, pajak 0% |
-| Paket | 6 | 3 motor + 3 mobil |
-| Add-on | 4 | Semprot Wax, Ojek Ban, Semprot Interior, Poles Kaca |
+| Paket | 7 | 4 motor + 3 mobil; masing-masing punya `royaltyPrice` |
+| Add-on | 5 | Semprot Wax, Ojek Ban, Semprot Interior, Poles Kaca, Formula |
 | Bank | 3 | BCA, BRI, Mandiri |
-| Admin | 1 | `authenticated@pos.test` / `authenticated123` |
+| Admin | 1 | `admin@pos.test` / `123456` (nama: Admin Outlet) |
+| Karyawan | 2 | `budi@pos.test` (Budi Setiawan, `dailyRate` 85000) dan `siti@pos.test` (Siti Rahayu, `dailyRate` 80000); PIN `123456` |
 
 - Seed **idempotent**: aman dijalankan berulang, memakai `onConflictDoUpdate`.
 - Harga seed masih **placeholder `1000`** sesuai rencana. Ganti lewat Pengaturan setelah frontend selesai.
-- PIN authenticated adalah PIN demo. **Wajib diganti** sebelum produksi.
-- Jika authenticated sudah ada, seed tidak mengubah role/PIN-nya.
+- `royaltyPrice` seed: Reguler `0`, Komplit `500` (motor) / `600` (mobil), Premium `700` (motor) / `800` (mobil), Cuci OJOL `400`.
+- PIN `123456` adalah PIN demo untuk admin maupun karyawan. **Wajib diganti** sebelum produksi.
+- Seed selalu mereset PIN dan menghapus sesi admin/karyawan yang sudah ada, lalu menimpa role, outlet, dan data karyawan sesuai seed.
 
 ---
 
@@ -674,19 +721,21 @@ npm install
 cp .env.example .env.local
 # isi DATABASE_URL, DIRECT_URL, BETTER_AUTH_SECRET, dll.
 
+# drizzle.config.ts membaca process.env, bukan .env.local otomatis:
+set -a; source .env.local; set +a
 npm run db:migrate
-npm run db:seed
+npm run db:seed   # seed memuat .env.local sendiri lewat tsx --env-file=.env.local
 npm run dev
 ```
 
-Buka `http://localhost:3000`. Root saat ini redirect ke `/kasir`, yang **belum ada** sampai frontend Task 10 selesai. Gunakan endpoint API langsung untuk sementara.
+Buka `http://localhost:3000`. Root mengarah ke `/kasir`; frontend web sudah tersambung ke API nyata. Untuk web preview mobile, backend harus berjalan di `localhost:3000` agar base URL dan cookie sesi sesuai.
 
 ### 12.3 Environment variable
 
 | Variabel | Wajib | Keterangan |
 |---|---|---|
 | `DATABASE_URL` | Ya | Koneksi runtime (Supabase transaction pooler) |
-| `DIRECT_URL` | Tidak | Koneksi migrasi; fallback ke URL default drizzle-kit |
+| `DIRECT_URL` | Ya, untuk migrasi | Koneksi migrasi; wajib di-export ke shell sebelum `npm run db:migrate` karena `drizzle.config.ts` membaca `process.env` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Tidak | Disiapkan, belum dipakai backend F1 |
 | `BETTER_AUTH_SECRET` | Ya | Minimal 32 karakter |
 | `BETTER_AUTH_URL` | Ya | Base URL aplikasi, mis. `http://localhost:3000` |
@@ -704,8 +753,8 @@ Buka `http://localhost:3000`. Root saat ini redirect ke `/kasir`, yang **belum a
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Vitest sekali jalan |
 | `npm run db:generate` | Generate migrasi Drizzle |
-| `npm run db:migrate` | Jalankan migrasi |
-| `npm run db:seed` | Seed data awal |
+| `npm run db:migrate` | Jalankan migrasi (butuh `DIRECT_URL` terekspor di shell) |
+| `npm run db:seed` | Seed data awal (`tsx --env-file=.env.local src/lib/db/seed.ts`) |
 
 ---
 
@@ -717,14 +766,18 @@ Hal-hal berikut **belum** dikerjakan dan perlu diketahui tim:
 |---|---|---|
 | 1 | Endpoint `PATCH /api/banks/:id` sudah tersedia | Selesai |
 | 2 | Audit mencakup transaksi dan master data | Sudah dilakukan |
-| 3 | Cek “authenticated terakhir” memakai count lalu update, belum dalam transaksi | F7 (race condition) |
+| 3 | Cek “admin terakhir” memakai count lalu update, belum dalam transaksi | F7 (race condition) |
 | 4 | Endpoint update/reset user berdasarkan `id` belum memeriksa outlet pemilik | F2 bila multi-outlet |
 | 5 | `GET /api/outlets` mengembalikan semua outlet ke semua role | F2 bila multi-outlet |
 | 6 | Belum ada rate limiting login/PIN | F7 |
 | 7 | Belum ada observability/log terstruktur | F7 |
-| 8 | Harga seed dan PIN authenticated masih placeholder | Sebelum produksi |
+| 8 | Harga seed masih placeholder dan PIN admin/karyawan masih `123456` | Sebelum produksi |
 | 9 | UI dan PWA sudah tersambung API; mode demo dihapus | Sudah dilakukan |
 | 10 | Endpoint settings, dashboard hari ini, dan sync offline | Selesai |
+| 11 | Fallback base URL mobile `http://192.168.101.4:3000` di `mobile/src/lib/storage.ts` sudah usang | Ganti/konfigurasikan sebelum build native |
+| 12 | Proxy CORS hanya mengizinkan origin dev (localhost/127.0.0.1/IP LAN privat) | Tambahkan origin produksi di `src/proxy.ts` saat deploy |
+
+Catatan klien mobile (Expo): `mobile/app.json` memakai `android.package` dan `ios.bundleIdentifier` = `com.kyane.pos` dengan `userInterfaceStyle: "light"` (tanpa dark mode); `expo-system-ui` sudah dihapus dari dependency. Base URL di `mobile/src/lib/storage.ts` adalah `http://localhost:3000` saat `Platform.OS === 'web'` (supaya cookie `SameSite=Lax` ikut terkirim); untuk native, URL diturunkan dari `hostUri` Expo dengan fallback hardcode `http://192.168.101.4:3000` yang **sudah usang** dan perlu diperbarui sesuai IP host.
 
 ---
 

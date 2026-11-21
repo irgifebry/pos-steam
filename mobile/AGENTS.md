@@ -25,9 +25,13 @@ Run lint and typecheck before declaring any task done.
 
 ## Navigation & Routing
 
-- Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
-- Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
-- Docs: https://docs.expo.dev/router/introduction.md
+- This app uses **React Navigation v7**, not Expo Router. `expo-router` is intentionally NOT installed.
+- Navigators live in `src/navigation/`: `RootNavigator.tsx` (native stack) and `BottomTabNavigator.tsx` (bottom tabs). Route param types are in `src/navigation/types.ts`.
+- Screens live in `src/screens/`; settings sub-screens are under `src/screens/settings/`. Reusable components in `src/components/`, shared theme in `src/theme/`.
+- There are 4 tabs: **Kasir, Antrean, Laporan, Pengaturan**. The Karyawan/Absensi tab was removed from mobile.
+- Use `useNavigation<NativeStackNavigationProp<RootStackParamList>>()` and `navigation.navigate(...)` for screen transitions. Native stack headers provide platform back buttons.
+- Theme: **light mode only**. Use `useTheme()` / `useStyles()` from `src/theme/`; do not reintroduce a dark palette or a mode toggle.
+- Docs (React Navigation): https://reactnavigation.org/docs/getting-started
 
 ## Building with EAS
 
@@ -39,3 +43,6 @@ Docs: https://docs.expo.dev/eas/index.md
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+- `npx expo lint` requires an ESLint config that this project does not currently have; `npx tsc --noEmit` and `npx expo-doctor` are the enforced checks.
+- API base URL is resolved in `src/lib/storage.ts`: `http://localhost:3000` on web (cookie `SameSite=Lax`), otherwise derived from Expo `hostUri` with a hardcoded LAN fallback that must be updated when the network changes. The backend CORS proxy lives at `src/proxy.ts` in the repo root.
+- Current build config: `android.package` / `ios.bundleIdentifier` are `com.kyane.pos`; `userInterfaceStyle` is `light`. Native bottom tabs were tried and reverted — keep `createBottomTabNavigator`.

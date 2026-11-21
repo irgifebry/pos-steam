@@ -1,15 +1,27 @@
 # POS Cuci Steam Motor & Mobil
 
-Sistem **Point of Sale** untuk outlet cuci steam (motor & mobil). Seluruh operasional berjalan dari HP: memilih paket, mencatat pesanan, melacak status kendaraan, menerima pembayaran, mencetak struk, sampai menyusun laporan omzet dan menghitung gaji karyawan.
-
-Mobile-first, bisa di-install ke layar utama HP (PWA), dan **tetap berfungsi saat koneksi internet hilang** di tengah shift.
+Sistem **Point of Sale** untuk outlet cuci steam (motor & mobil). Operasional dijalankan dari dua klien: **aplikasi web Next.js** dan **aplikasi mobile Expo/React Native**. Keduanya memakai backend dan database yang sama.
 
 | | |
 |---|---|
 | **Produk** | Sistem Point of Sale untuk outlet cuci steam (motor & mobil) |
-| **Status** | Fase Fondasi (F1) - backend selesai, frontend berjalan |
+| **Status** | Backend stabil; frontend web & mobile aktif dikembangkan |
 | **Tanggal mulai** | 20 Oktober 2026 |
-| **Dokumen spesifikasi** | [`prd.md`](./prd.md) |
+| **Dokumen spesifikasi** | [`prd.md`](./prd.md) — lihat juga catatan implementasi terkini di bagian atas |
+| **Terakhir diperbarui** | 21 November 2026 |
+
+---
+
+## Klien yang tersedia
+
+| Klien | Lokasi | Catatan |
+|---|---|---|
+| **Web** | `src/app` | Next.js 16 App Router. Halaman: `/kasir`, `/antrean`, `/laporan`, `/karyawan`, `/pengaturan/*`, struk publik `/r/[token]` |
+| **Mobile** | [`mobile/`](./mobile/) | Expo SDK ~58 + React Navigation v7. Empat tab: **Kasir, Antrean, Laporan, Pengaturan** |
+
+> Tab **Karyawan/Absensi** sengaja **tidak ada di mobile** — pengelolaan karyawan dilakukan lewat web dan/atau Pengaturan → Pengguna di mobile.
+
+Keduanya memanggil API yang sama. Untuk web preview mobile (`localhost:8081` → `localhost:3000`), backend memasang header CORS lewat [`src/proxy.ts`](./src/proxy.ts) (Next.js 16 Proxy, pengganti `middleware.ts`).
 
 ---
 
@@ -17,50 +29,22 @@ Mobile-first, bisa di-install ke layar utama HP (PWA), dan **tetap berfungsi saa
 
 | # | Modul | Ringkasan |
 |---|---|---|
-| 1 | **Kasir & Pembayaran** | Pilih paket/add-on, data pelanggan & plat, antrean, pembayaran tunai/transfer, cetak struk + struk digital via WhatsApp |
-| 2 | **Papan Status Antrean** | Kartu kendaraan hari ini, timer berjalan, filter motor/mobil, tombol Mulai & Selesai |
-| 3 | **Laporan Omzet** | Dashboard harian, 6 jenis laporan, export CSV, cetak A4 |
-| 4 | **Karyawan, Absensi & Gaji** | Absensi harian, rekap jam kerja, hitung gaji bulanan, slip gaji PDF |
-| 5 | **Pengaturan** | Paket, add-on, outlet, bank, pengguna, atur gaji, buka/tutup kas |
-| 6 | **Mode Offline** | Kasir tetap bertransaksi tanpa internet, tersinkron otomatis saat koneksi kembali |
+| 1 | **Kasir** | Pilih paket & add-on, plat nomor, **nama kendaraan** (contoh: Avanza, Fortuner), catatan, opsi **ROYALTY**, lalu buat antrean |
+| 2 | **Pembayaran di Antrean** | Pembayaran tunai/transfer dilakukan saat menekan **Mulai Cuci** di papan antrean, bukan di awal saat membuat order |
+| 3 | **Papan Status Antrean** | Kartu kendaraan hari ini, filter status & jenis kendaraan, statistik Menunggu/Diproses/Selesai/Total, tombol Mulai & Selesai |
+| 4 | **Laporan Omzet** | Dashboard harian, laporan omzet, metode pembayaran, paket terlaris, export CSV |
+| 5 | **Pengaturan** | Sub-halaman: Paket Layanan, Add-on, Rekening Bank, Pengguna. Data dihapus dengan tombol **Hapus**, bukan "Nonaktifkan" |
+| 6 | **Karyawan & Gaji (web)** | Absensi harian, rekap bulanan, hitung gaji, slip gaji |
+| 7 | **Struk digital** | Halaman struk publik `/r/[token]` dan bagikan via WhatsApp dari mobile |
 
 ### Peran pengguna
 
 | Peran | Kemampuan |
 |---|---|
-| **Admin / Owner** | Satu peran untuk semua operasional: Kasir, Antrean, Laporan, Karyawan, Pengaturan, Gaji, Harga |
+| **`admin`** | Akses penuh: kasir, antrean, laporan, pengaturan, pengguna, gaji |
+| **`karyawan`** | Peran data karyawan (dipakai untuk absensi & penggajian di web) |
 
-> Aplikasi hanya memiliki satu peran (`admin`). Setiap pengguna terautentikasi memiliki akses penuh; tidak ada pemisahan Kasir/Operator.
-
-## Tim Proyek
-
-| Akun GitHub | Peran | Tanggung jawab |
-|---|---|---|
-| [irgifebry](https://github.com/irgifebry) | Frontend Developer | Antarmuka dan pengalaman pengguna |
-| [Najwan48](https://github.com/Najwan48) | Backend Developer | API, logika bisnis, dan database |
-| [dimas22231](https://github.com/dimas22231) | QA | Pengujian dan pelaporan bug |
-
----
-
-## Stack Teknis
-
-| Bagian | Pilihan |
-|---|---|
-| Framework | **Next.js 16 (App Router)** — satu aplikasi full-stack |
-| Struktur | `src/app` (rute & API route handlers), `src/lib` (server & client), `src/components` |
-| UI | React 19 + TypeScript 5.9 + Tailwind CSS 4 |
-| API | **Next.js Route Handlers** di `src/app/api/**` |
-| Auth | **Better Auth** (email/password & PIN) |
-| ORM | Drizzle ORM + drizzle-kit |
-| Database | **Supabase PostgreSQL** via Transaction Pooler |
-| Validasi | Zod 4 (`src/lib/schemas.ts`, dipakai server & client) |
-| PWA | **Serwist** (`@serwist/next`) + IndexedDB (Dexie) untuk offline |
-| State/Data | TanStack Query (server state) + Zustand (state kasir) |
-| Testing | Vitest 5 + Testing Library + MSW (API diuji dengan **PGlite**) |
-| Deploy | **Vercel** |
-| Struk cetak | Printer thermal **Bluetooth 58mm** via Web Bluetooth — fallback: cetak via browser (A5) |
-
-> **Akses database:** semua data lewat Route Handler, browser **tidak pernah** bicara langsung ke Supabase. RLS tetap aktif sebagai lapisan pertahanan kedua; service-role key hanya ada di environment server.
+Seed membuat akun admin `admin@pos.test` / `123456` dan dua karyawan: `budi@pos.test` serta `siti@pos.test` (PIN sama).
 
 ---
 
@@ -69,30 +53,50 @@ Mobile-first, bisa di-install ke layar utama HP (PWA), dan **tetap berfungsi saa
 | Area | Aturan |
 |---|---|
 | Nomor antrean | Per tipe kendaraan: `M-001` (Motor) / `C-001` (Mobil), reset harian |
-| Nomor invoice | `S-YYYYMMDD-NNN`, unik per outlet per tanggal, tidak pernah dipakai ulang |
+| Nomor invoice | `S-YYYYMMDD-NNN`, unik per outlet per tanggal |
 | Urutan status | `MENUNGGU` → `PROSES` → `SELESAI` → lunas / `DIBATALKAN` |
-| Batas ubah pesanan | Hanya saat status `MENUNGGU` |
-| Pembatalan | Butuh alasan + audit log; hanya Admin/Kasir |
+| Pembayaran | Dilakukan saat **Mulai Cuci** di Antrean. Order dengan total `0` langsung masuk `PROSES` tanpa pembayaran |
+| ROYALTY | Paket **Reguler gratis**; paket lain memakai **harga ROYALTY** yang diatur admin per paket (`service_packages.royalty_price`); **add-on tetap dibayar penuh**. Selisih harga dicatat sebagai diskon/piutang |
+| Nama kendaraan | Mobile mengirim `vehicleName` (contoh: Avanza); disimpan ke `vehicles.brand` |
+| Durasi cuci | Tidak dipakai di mobile; kolom `duration_min` tetap ada untuk web dengan default `0` saat dibuat dari mobile |
+| Hapus data | Penghapusan bersifat **soft delete** (`active = false`). Data yang ada dianggap aktif; tidak ada UI "Nonaktifkan" di mobile |
 | Harga | Master boleh berubah, harga transaksi tidak (`price_snapshot` di `order_items`) |
-| Pajak | Default 0%, configurable per outlet |
+| Pajak | Default 0%, configurable per outlet; dihitung dari subtotal setelah diskon ROYALTY |
 | Idempotensi | `orders.client_id` UNIQUE — pengiriman ulang tidak menghasilkan transaksi ganda |
-| PIN | Diperlakukan sebagai password (minimal 6 karakter), ganti operator = sesi berganti |
+| PIN | Diperlakukan sebagai password (minimal 6 karakter) |
 
 ---
 
-## Roadmap
+## Stack Teknis
 
-| Fase | Isi | Estimasi |
-|---|---|---|
-| **F1 — Fondasi** | Next.js App Router, Drizzle + Supabase, Better Auth, master data, app shell + bottom nav, PWA | 1–2 minggu |
-| **F2 — Kasir Inti** | Input transaksi, antrean, pembayaran, struk cetak + digital, buka/tutup kas | 1–2 minggu |
-| **F3 — Papan Status** | Board antrean, timer, filter, layar pelanggan (opsional) | 3–5 hari |
-| **F4 — Laporan** | Dashboard omzet, 6 laporan, export CSV, cetak | 3–5 hari |
-| **F5 — Absensi & Gaji** | Absensi harian, rekap bulanan, hitung gaji, slip PDF | 3–5 hari |
-| **F6 — Offline** | IndexedDB, service worker, antrean sync, idempotensi server | 3–5 hari |
-| **F7 — Polish** | Audit log, PDF struk, validasi, empty state, error handling | 2–3 hari |
+### Backend & Web
 
-> Offline sengaja di F6 agar logika transaksi inti stabil dulu. Bila test lapangan menunjukkan sinyal sering hilang, F6 bisa naik ke F3.
+| Bagian | Pilihan |
+|---|---|
+| Framework | **Next.js 16 (App Router)** — satu aplikasi full-stack |
+| Struktur | `src/app` (rute & API route handlers), `src/lib` (server & client), `src/components` |
+| UI | React 19 + TypeScript + Tailwind CSS 4 |
+| API | **Next.js Route Handlers** di `src/app/api/**` |
+| Auth | **Better Auth** (cookie session; email/PIN) |
+| ORM | Drizzle ORM + drizzle-kit |
+| Database | **PostgreSQL / Supabase** |
+| Validasi | Zod (`src/lib/schemas.ts`, dipakai server & client) |
+| Testing | Vitest + PGlite (API diuji tanpa database eksternal) |
+| Deploy | Vercel |
+
+### Mobile (`mobile/`)
+
+| Bagian | Pilihan |
+|---|---|
+| Framework | Expo SDK ~58, React Native 0.88, React 19 |
+| Navigasi | **React Navigation v7** — bottom tabs + native stack (bukan Expo Router) |
+| Tema | **Light mode saja** (dark mode sudah dihapus) |
+| State | React Context (`AuthContext`, `ThemeContext`) |
+| Penyimpanan | AsyncStorage |
+| Ikon | `lucide-react-native` |
+| Build | `app.json`: package/bundle id `com.kyane.pos` |
+
+> Browser **tidak pernah** bicara langsung ke Supabase. Semua data lewat Route Handler; service-role key hanya ada di environment server.
 
 ---
 
@@ -100,58 +104,83 @@ Mobile-first, bisa di-install ke layar utama HP (PWA), dan **tetap berfungsi saa
 
 ```
 .
-├── prd.md                    # Product Requirements Document (spesifikasi acuan)
+├── prd.md                    # Spesifikasi produk + catatan implementasi terkini
 ├── docs/
-│   ├── backend/              # Dokumentasi backend (API, jobdesk, batasan)
-│   │   └── README.md
-│   ├── qa/                   # Test plan, test case, dan checklist regresi
-│   │   ├── test-plan.md
-│   │   ├── test-cases/f1-fondasi.md
-│   │   └── regression-checklist.md
-│   └── superpowers/plans/    # Peta rencana implementasi per fase
-│       ├── README.md         # Peta rencana + ketentuan yang sudah dikunci
-│       └── 2026-10-20-01-fondasi.md
-├── drizzle/                  # Migrasi database
+│   ├── backend/README.md     # Kontrak API, database, setup, batasan
+│   ├── qa/                   # Test plan, test case, checklist regresi (web + mobile)
+│   └── superpowers/plans/    # Arsip rencana fase (dokumen historis)
+├── drizzle/                  # Migrasi database (0000–0003)
 ├── src/
 │   ├── app/                  # Rute UI + API Route Handlers
 │   ├── lib/                  # Service layer, auth, db, validasi
-│   └── components/           # Komponen UI
-└── .env.example
+│   ├── components/
+│   └── proxy.ts              # CORS untuk Expo Web / origin dev
+├── mobile/                   # Aplikasi Expo/React Native
+├── .env.example
+└── AGENTS.md
 ```
 
 ---
 
 ## Setup
 
-> Detail setup backend ada di [`docs/backend/README.md`](./docs/backend/README.md). Spesifikasi produk ada di [`prd.md` §9.2](./prd.md), rencana fase di `docs/superpowers/plans/2026-10-20-01-fondasi.md`.
-
 ### Prasyarat
 
-- Node.js 20+ dan npm/pnpm
-- Supabase project (region terdekat dengan operasional) + connection string Transaction Pooler
-- Vercel account (untuk deploy)
+- Node.js 20+ dan npm
+- PostgreSQL / Supabase + connection string **Transaction Pooler** (`DATABASE_URL`) dan **Direct** (`DIRECT_URL`)
+- Akun Vercel untuk deploy (opsional untuk lokal)
 
 ### Environment Variables
 
 ```env
 DATABASE_URL=postgresql://...pooler.supabase.com:5432/postgres
 DIRECT_URL=postgresql://...:5432/postgres
-SUPABASE_SERVICE_ROLE_KEY=...
 BETTER_AUTH_SECRET=...
-BETTER_AUTH_URL=https://domain-anda.com
-WEB_ORIGIN=https://domain-anda.com
-NODE_ENV=production
+BETTER_AUTH_URL=http://localhost:3000
+WEB_ORIGIN=http://localhost:3000
 ```
 
-### Menjalankan
+### Migrasi & seed
 
 ```bash
 npm install
-cp .env.example .env.local   # isi kredensial
+
+# drizzle.config.ts membaca DIRECT_URL dari environment shell,
+# bukan dari .env.local otomatis:
+set -a; source .env.local; set +a
 npm run db:migrate
-npm run db:seed
-npm run dev
+
+npm run db:seed     # tsx --env-file=.env.local (env dimuat sendiri)
 ```
+
+### Menjalankan backend & web
+
+```bash
+npm run dev          # http://localhost:3000
+```
+
+### Menjalankan mobile
+
+```bash
+cd mobile
+npx expo start       # Expo Go / web preview http://localhost:8081
+```
+
+- Base URL otomatis: `localhost:3000` di web; di native diambil dari `hostUri` Expo (fallback hardcoded `http://192.168.101.4:3000` perlu diperbarui jika IP berubah).
+- Ekspor `DIRECT_URL` **wajib** sebelum `npm run db:migrate`.
+- CORS untuk web preview sudah ditangani `src/proxy.ts`.
+
+---
+
+## Verifikasi
+
+| Perintah | Hasil terkini |
+|---|---|
+| `npm test` | 28 file, **116 test lulus** |
+| `npx tsc --noEmit` (root) | Bersih |
+| `npx tsc --noEmit` (mobile) | Bersih |
+| `npx expo install --check` | Dependencies sesuai SDK |
+| `npx expo-doctor` | **20/20** |
 
 ---
 
@@ -159,13 +188,14 @@ npm run dev
 
 | Dokumen | Isi |
 |---|---|
-| [`prd.md`](./prd.md) | PRD lengkap:requirement, model data, kontrak API, risiko, open questions |
-| [`docs/backend/README.md`](./docs/backend/README.md) | Status backend, kontrak API, setup, batasan, dan jobdesk backend |
-| [`docs/superpowers/plans/README.md`](./docs/superpowers/plans/README.md) | Peta rencana implementasi 7 fase + ketentuan yang sudah dikunci |
-| [`docs/superpowers/plans/2026-10-20-01-fondasi.md`](./docs/superpowers/plans/2026-10-20-01-fondasi.md) | Rencana detail Fase F1 |
-| [`docs/qa/test-plan.md`](./docs/qa/test-plan.md) | Rencana pengujian: strategi, prioritas, environment, alur bug, roadmap QA |
-| [`docs/qa/test-cases/f1-fondasi.md`](./docs/qa/test-cases/f1-fondasi.md) | 69 test case F1: build, schema, auth/RBAC, master data, UI/PWA, seed/deploy |
-| [`docs/qa/regression-checklist.md`](./docs/qa/regression-checklist.md) | Smoke test PR, regression F1, invariant lintas fase, release checklist |
+| [`prd.md`](./prd.md) | PRD + catatan perbedaan implementasi terkini |
+| [`docs/backend/README.md`](./docs/backend/README.md) | Status backend, kontrak API, skema & migrasi, seed, setup, batasan |
+| [`docs/qa/test-plan.md`](./docs/qa/test-plan.md) | Strategi & environment pengujian (web + mobile) |
+| [`docs/qa/regression-checklist.md`](./docs/qa/regression-checklist.md) | Checklist regresi web & mobile |
+| [`docs/qa/test-cases/f1-fondasi.md`](./docs/qa/test-cases/f1-fondasi.md) | Test case historis F1 |
+| [`docs/superpowers/plans/README.md`](./docs/superpowers/plans/README.md) | Peta arsip rencana fase |
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Aturan kontribusi, termasuk commands mobile |
+| [`mobile/AGENTS.md`](./mobile/AGENTS.md) | Aturan pengembangan aplikasi mobile |
 
 ---
 

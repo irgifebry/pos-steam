@@ -76,6 +76,22 @@ npm run build
 
 > Script di atas tersedia sejak Fase F1 (Fondasi) selesai. Sampai saat itu, repo hanya berisi dokumen.
 
+### Mobile (Expo)
+
+Klien mobile berada di folder `mobile/`. Untuk menjalankan dan memeriksanya:
+
+```bash
+cd mobile && npx expo start   # jalankan dev server Expo
+npx expo-doctor               # cek kesehatan environment Expo
+npx tsc --noEmit              # typecheck klien mobile
+```
+
+Catatan penting:
+
+- Mobile memakai **React Navigation**, bukan Expo Router.
+- Mobile hanya mendukung **light mode**.
+- Setiap perubahan pada **kontrak API yang dipakai bersama** wajib disertai pembaruan [`docs/backend/README.md`](./docs/backend/README.md).
+
 ### 4. Push dan buka Pull Request
 
 ```bash

@@ -2,8 +2,9 @@
 
 | | |
 |---|---|
-| **Versi** | 1.0 |
+| **Versi** | 1.1 |
 | **Tanggal** | 28/10/2026 |
+| **Diperbarui** | 21/11/2026 |
 | **Pemilik** | Dimas (`@dimas22231`) — QA |
 | **Status** | Aktif — test case F1 siap dieksekusi setelah implementasi F1 selesai |
 | **Referensi utama** | [`prd.md`](../../prd.md), [`Rencana 01`](../superpowers/plans/2026-10-20-01-fondasi.md), [`CONTRIBUTING.md`](../../CONTRIBUTING.md) |
@@ -30,16 +31,18 @@ Test plan ini menjawab:
 ### 2.1 Termasuk (In Scope)
 
 - Seluruh 7 fase di PRD §12: Fondasi, Kasir Inti, Papan Status, Laporan, Absensi & Gaji, Offline, Polish.
-- Pengujian fungsional, validasi input, otorisasi per role, integritas data, regresi, kompatibilitas perangkat, PWA, dan performa dasar.
+- **Dua klien yang memakai backend dan kontrak API yang sama** (sukses `{ data: ... }`, error `{ error: { code, message } }`): klien web (Next.js di root) dan klien mobile (Expo/React Native di [`mobile/`](../../mobile), SDK ~58, React Navigation v7).
+- Khusus mobile: tema terang, 4 tab (Kasir, Antrean, Laporan, Pengaturan), alur kasir → antrean → pembayaran, aturan ROYALTY, dan manajemen master data lewat aksi **Hapus**.
+- Pengujian fungsional, validasi input, otorisasi per role (`admin`/`karyawan`), integritas data, regresi, kompatibilitas perangkat, PWA, dan performa dasar.
 - Pengujian manual/exploratory oleh QA dan verifikasi test otomatis yang ditulis developer.
 - UAT dengan skenario operasional outlet (kasir sibuk, sinyal hilang, printer gagal).
 
 ### 2.2 Tidak Termasuk (Out of Scope) — Fase Ini
 
-Sesuai PRD §4.2:
+Sesuai PRD §4.2, dengan penyesuaian karena klien mobile kini masuk ruang lingkup:
 
 - Member/loyalitas/poin, notifikasi WhatsApp otomatis, payment gateway/QRIS otomatis.
-- Aplikasi native (fokus PWA).
+- Build native mentah dan distribusi toko aplikasi (direktori `ios/`/`android/` dihasilkan otomatis, EAS build/submit) — fokus QA adalah perilaku lewat Expo Web/emulator dan kontrak API, bukan packaging toko.
 - Multi-outlet/multi-cabang.
 - Akuntansi formal (jurnal, buku besar), manajemen stok bahan kimia.
 - Load testing skala besar dan penetration test profesional. Untuk keamanan, QA hanya melakukan pemeriksaan dasar (secret, RBAC, XSS/SQLi, cookie).
@@ -54,8 +57,9 @@ Sesuai PRD §4.2:
 | **Unit test** | Vitest | Developer, direview QA | Schema Zod, service layer, format Rupiah/tanggal |
 | **Integration test API** | Vitest + PGlite + MSW | Developer, direview QA | Route Handler, otorisasi, constraint DB, idempotensi |
 | **Component test UI** | Vitest + Testing Library | Developer, direview QA | BottomNav, form login, halaman master data |
-| **Contract/manual API** | curl/Postman/Thunder Client | QA | Status code, envelope error, RBAC, validasi |
-| **E2E manual** | Browser + HP fisik | QA | Alur nyata dari login sampai transaksi |
+| **Contract/manual API** | curl/Postman/Thunder Client | QA | Status code, envelope `{ data }` / `{ error: { code, message } }`, RBAC, validasi |
+| **E2E manual web** | Browser + HP fisik | QA | Alur nyata dari login sampai transaksi di web (termasuk `/karyawan`) |
+| **E2E mobile** | Expo Web `localhost:8081`, emulator/HP dengan Expo Go atau dev build | QA | 4 tab, tema terang, Kasir → Antrean → pembayaran, ROYALTY, Hapus pada master data |
 | **Exploratory** | Charter berbasis risiko | QA | Celah di luar acceptance criteria |
 | **UAT** | Skenario outlet | QA + pemilik/kasir | Kesiapan operasional |
 
@@ -75,12 +79,36 @@ Sesuai PRD §4.2:
 | **Vercel Preview** | Verifikasi PR | Satu preview per PR; QA retest di sini |
 | **Production** | Smoke test setelah rilis | Jangan pakai data uji di production |
 
+**Menjalankan kedua klien (local):**
+
+```bash
+# Terminal 1 — backend + web (dari root repo)
+npm run dev                # http://localhost:3000
+
+# Terminal 2 — mobile web preview (dari folder mobile/)
+cd mobile
+npm run web                # Expo Web → http://localhost:8081
+```
+
+Expo Web memerlukan **CORS proxy** yang sudah tersedia di [`src/proxy.ts`](../../src/proxy.ts) (matcher `/api/:path*`): proxy menambahkan header CORS untuk origin `localhost`/IP jaringan lokal pada preflight `OPTIONS` maupun response. Tanpa ini, request dari `http://localhost:8081` ke `http://localhost:3000` ditolak browser. Aplikasi native (Expo Go/dev build) tidak terkena CORS, tetapi tetap memakai backend yang sama.
+
+**Verifikasi terkini (lokal):**
+
+| Perintah / item | Hasil |
+|---|---|
+| `npm test` (root) | 28 file / 116 test lulus |
+| `npx tsc --noEmit` (root & `mobile/`) | bersih |
+| `npx expo-doctor` (`mobile/`) | 20/20 |
+| Preview | Expo Web `http://localhost:8081` ↔ backend `http://localhost:3000` |
+
 **Matriks perangkat:**
 
 | Perangkat | Prioritas | Yang diuji |
 |---|---|---|
 | Android 8+ Chrome | Utama | Alur kasir, PWA install, Web Bluetooth (F2+) |
 | Android mid-range (RAM 3–4 GB) | Utama | Performa, layout 360x640 |
+| Expo Web (Chrome, `localhost:8081`) | Utama (mobile) | Seluruh alur mobile via browser; wajib dengan CORS proxy aktif |
+| Emulator/HP + Expo Go atau dev build | Utama (mobile) | Tema terang, 4 tab, alur pembayaran, struk |
 | iOS Safari 16+ | Cadangan | PWA, login, layout; Web Bluetooth tidak diharapkan |
 | Desktop Chrome/Edge | Sekunder | Halaman admin/Pengaturan, laporan, cetak A4 |
 
@@ -105,12 +133,14 @@ Sesuai PRD §4.2:
 
 | Akun | Role | PIN | Kegunaan |
 |---|---|---|---|
-| `admin@pos.test` | admin | `admin123` | Akun seed; **wajib diganti di luar local** |
-| `qa.kasir@pos.test` | kasir | `112233` | Pengujian kasir & operator switcher |
-| `qa.operator@pos.test` | operator | `445566` | Pengujian akses terbatas |
-| `qa.inactive@pos.test` | kasir | `778899` | Dinonaktifkan; pengujian sesi mati |
+| `admin@pos.test` | admin | `123456` | Akun seed; **wajib diganti di luar local** |
+| `budi@pos.test` | karyawan | `123456` | Karyawan seed (Budi Setiawan, gaji harian 85000) |
+| `siti@pos.test` | karyawan | `123456` | Karyawan seed (Siti Rahayu, gaji harian 80000) |
+| `qa.inactive@pos.test` | karyawan | `778899` | Buat via endpoint aktif/nonaktif; pengujian sesi mati |
 
-> PIN mengikuti keputusan Rencana 01: minimal 6 karakter. PRD §5.1/§9.3 masih menyebut PIN 4 angka — lihat §14.
+> Role yang dikenal backend saat ini hanya `admin` dan `karyawan` (`roleSchema` di `src/lib/schemas.ts`). Tidak ada peran `kasir`/`operator`. PIN minimal 6 karakter; PRD §5.1/§9.3 masih menyebut PIN 4 angka — lihat §14 dan catatan implementasi di puncak `prd.md`.
+
+> **Role terkini:** `admin` dan `karyawan`. Baris `kasir`/`operator` pada tabel di atas memakai label lama; padankan dengan `karyawan` saat menguji implementasi terkini di web maupun mobile.
 
 ### 5.2 Master Data Uji
 
@@ -160,6 +190,18 @@ Sesuai PRD §4.2:
 | **S3 — Minor** | Ada workaround | Filter salah urutan; validasi kurang jelas; layout geser sedikit |
 | **S4 — Trivial** | Kosmetik | Typo, ikon tidak sejajar |
 
+### 6.3 Fokus Prioritas Mobile
+
+| Prioritas | Area mobile | Alasan |
+|---|---|---|
+| **P0** | Login, tema terang, dan 4 tab (Kasir, Antrean, Laporan, Pengaturan); tidak ada tab Karyawan | Fondasi navigasi; salah satu saja gagal menghentikan operasi kasir |
+| **P0** | Pembayaran saat **Mulai Cuci** → status `proses`; order total 0 langsung `proses`; Kasir hanya "Buat antrean" | Alur inti dan titik serah terima Antrean; risiko order tanpa pembayaran |
+| **P0** | Aturan ROYALTY: Reguler gratis, paket lain `royaltyPrice`, add-on tetap bayar, `discount` tercatat sebagai piutang | Salah harga berdampak langsung ke kas/piutang |
+| **P1** | Aksi **Hapus** pada master data; daftar hanya record aktif; tab Motor/Mobil/Semua; form paket tanpa durasi | Konsistensi data master antar klien web dan mobile |
+| **P1** | `Nama Kendaraan` → `vehicleName` → `vehicles.brand`; struk modal terang; bar ringkasan mengambang; subtotal disembunyikan tanpa pajak/diskon | Kesesuaian UI dan data dengan web |
+| **P1** | CORS proxy Expo Web (`src/proxy.ts`) dan koneksi ke backend | Tanpa ini seluruh pengujian mobile web blokir |
+| **P2** | Sub-halaman Pengaturan (Paket Layanan, Add-on, Rekening Bank, Pengguna); konsistensi envelope `{ data }` / `{ error }` | Pendukung, bukan perilaku bisnis inti |
+
 **Prioritas ditentukan bersama PO/developer saat triage.** QA mengusulkan severity dan dampak, bukan memutuskan sendiri prioritas bisnis.
 
 ---
@@ -195,8 +237,8 @@ Mengacu pada Verifikasi Akhir Rencana 01:
 - [ ] `npm run lint` tanpa error.
 - [ ] `npm run build` sukses; `public/sw.js` terbentuk.
 - [ ] Login `admin@pos.test` / `admin123` berhasil setelah seed.
-- [ ] `/kasir`, `/antrean`, `/laporan`, `/karyawan` terbuka; tab Pengaturan hanya admin.
-- [ ] 5 halaman master data berfungsi: tambah, edit, nonaktifkan tersimpan di database.
+- [ ] Web: `/kasir`, `/antrean`, `/laporan`, `/karyawan` terbuka; tab Pengaturan hanya admin. Mobile: 4 tab tanpa Karyawan.
+- [ ] 5 halaman master data berfungsi: tambah, edit, nonaktifkan tersimpan di database (web); di mobile memakai aksi **Hapus** (lihat regresi mobile §5).
 - [ ] Review Focus 1–5 Rencana 01 terbukti (lihat test case F1).
 
 ---
@@ -279,6 +321,9 @@ Sebuah PR/fitur dianggap selesai dari sisi QA jika:
 | **Nomor invoice & antrean** | Struk ambigu, antrean bentrok | Unik per outlet/tanggal/tipe, reset harian |
 | **Audit log** | Tidak ada jejak pertanggungjawaban | Void, ubah harga, absensi, gaji, user |
 | **Timezone & reset harian** | Nomor/antrean salah hari | Uji sekitar tengah malam Asia/Jakarta |
+| **Mobile: pembayaran** | Order `menunggu` tanpa pembayaran, kasir bingung kapan bayar | Bayar di **Mulai Cuci**, status `proses`, order total 0 langsung `proses` |
+| **Mobile: ROYALTY** | Harga/potongan salah | Reguler gratis, `royaltyPrice`, add-on bayar, `discount` sebagai piutang |
+| **CORS Expo Web** | Semua request mobile web gagal | `src/proxy.ts`, origin `localhost`, preflight `OPTIONS /api/*` |
 | **Printer Bluetooth** | Struk tidak keluar | Koneksi, reprint, fallback browser |
 | **PWA iOS** | Tidak bisa install/offline | Safari 16+, add to home screen |
 | **Supabase cold start** | Query pertama lambat | Ukur warm vs cold; cache master data |
@@ -306,7 +351,9 @@ Dipantau per fase, bukan untuk menilai individu:
 |---|---|
 | Test plan | `docs/qa/test-plan.md` |
 | Test case F1 | `docs/qa/test-cases/f1-fondasi.md` |
-| Checklist regresi | `docs/qa/regression-checklist.md` |
+| Checklist regresi | `docs/qa/regression-checklist.md` (§5 Regresi Mobile) |
+| Klien mobile | `mobile/` (Expo SDK ~58, React Navigation v7) |
+| CORS proxy Expo Web | `src/proxy.ts` |
 | Template bug | `.github/ISSUE_TEMPLATE/bug_report.yml` |
 | Template PR | `.github/pull_request_template.md` |
 
@@ -346,3 +393,4 @@ Temuan dokumentasi/kontrak yang perlu dikonfirmasi sebelum atau selama F1–F2. 
 | Versi | Tanggal | Perubahan | Oleh |
 |---|---|---|---|
 | 1.0 | 28/10/2026 | Dokumen awal | Dimas |
+| 1.1 | 21/11/2026 | Ruang lingkup dua klien (web + mobile), environment Expo & CORS proxy, verifikasi terkini, fokus prioritas mobile | Dimas |

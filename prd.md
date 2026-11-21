@@ -9,6 +9,24 @@
 
 ---
 
+## Catatan Implementasi Saat Ini (21 November 2026)
+
+> Bagian ini mencatat penyimpangan yang **disengaja** antara spesifikasi asli dokumen ini dan aplikasi yang sudah dikirim (*shipped*). Untuk perilaku terkini yang sebenarnya, rujuk `README.md` di root, `docs/backend/README.md`, dan bagian ini. Bila ada yang bertentangan dengan bagian lain di PRD ini, **ikuti bagian ini**.
+
+| Aspek | Spesifikasi Awal | Implementasi Saat Ini |
+|---|---|---|
+| **Peran** | Satu peran `admin` untuk semua operasional; RBAC dihapus. | `admin` + `karyawan` (seed: **Budi** & **Siti**). Tab **Karyawan/Absensi** di mobile dihapus; web tetap mempertahankan `/karyawan`. |
+| **Klien mobile** | PWA mobile-first (tanpa aplikasi native). | Klien Expo ada di `mobile/` (Expo SDK 58, React Navigation v7): 4 tab — Kasir, Antrean, Laporan, Pengaturan. **Light mode saja**; Pengaturan dipecah ke sub-halaman; native bottom tabs dibatalkan (*reverted*). |
+| **Waktu pembayaran** | Pembayaran saat membuat order di Kasir. | Pembayaran terjadi saat menekan **"Mulai Cuci"** di tab Antrean, bukan saat order dibuat di Kasir. |
+| **Royalty** | Diskon tetap 50%. | `Reguler` gratis; paket lain memakai `royaltyPrice` yang diatur admin; add-on selalu berbayar. Dicatat sebagai diskon/piutang — **bukan flat 50%**. |
+| **Input order (mobile)** | Nama pelanggan saat buat order. | Order create menerima `vehicleName` (**"Nama Kendaraan"**, mis. Avanza) alih-alih nama pelanggan; menyertakan `discount`, `royalty`, dan opsional `payment`. |
+| **Durasi paket** | Durasi paket dipakai untuk estimasi. | Durasi paket **tidak dipakai** mobile (disimpan di DB/web sebagai default `0`). |
+| **Hapus data** | Nonaktifkan data. | "**Hapus**" = *soft delete* (`active=false`); tidak ada UI "Nonaktifkan" di mobile. |
+| **Backend & DB** | — | `src/proxy.ts` menangani CORS untuk Expo Web; migrasi `0003` menambah `service_packages.royalty_price`. |
+| **Verifikasi** | — | 116 test lolos, `tsc` bersih, `expo-doctor` 20/20. |
+
+---
+
 ## 1. Ringkasan Eksekutif
 
 Sistem kasir (POS) untuk satu outlet cuci steam yang melayani motor dan mobil. Seluruh operasional berjalan dari HP: memilih paket, mencatat pesanan, melacak status kendaraan, menerima pembayaran, mencetak struk, sampai menyusun laporan omzet dan menghitung gaji karyawan.
