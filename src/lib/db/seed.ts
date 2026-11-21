@@ -179,6 +179,50 @@ export async function seed(db: AppDatabase, auth: Auth): Promise<void> {
       .set({ role: "admin", outletId: OUTLET_ID, active: true })
       .where(eq(userTable.id, existingAdmin.id));
   }
+
+  const karyawanSeed = [
+    { name: "Budi Setiawan", email: "budi@pos.test", dailyRate: 85000 },
+    { name: "Siti Rahayu", email: "siti@pos.test", dailyRate: 80000 },
+  ];
+
+  for (const person of karyawanSeed) {
+    const [existing] = await db
+      .select({ id: userTable.id })
+      .from(userTable)
+      .where(eq(userTable.email, person.email))
+      .limit(1);
+
+    let userId = existing?.id;
+    if (!userId) {
+      const result = await auth.api.signUpEmail({
+        body: { name: person.name, email: person.email, password: ADMIN_PIN },
+        returnHeaders: true,
+      });
+      const created = result.response?.user;
+      if (!created) throw new Error(`Gagal membuat akun karyawan ${person.name}`);
+      userId = created.id;
+    } else {
+      const ctx = await auth.$context;
+      const hash = await ctx.password.hash(ADMIN_PIN);
+      const accounts = await ctx.internalAdapter.findAccountByUserId(userId);
+      if (accounts[0]) {
+        await ctx.internalAdapter.updateAccount(accounts[0].id, { password: hash });
+      }
+      await ctx.internalAdapter.deleteUserSessions(userId);
+    }
+
+    await db
+      .update(userTable)
+      .set({
+        name: person.name,
+        role: "karyawan",
+        outletId: OUTLET_ID,
+        dailyRate: person.dailyRate,
+        phone: "",
+        active: true,
+      })
+      .where(eq(userTable.id, userId));
+  }
 }
 
 async function runFromCli(): Promise<void> {

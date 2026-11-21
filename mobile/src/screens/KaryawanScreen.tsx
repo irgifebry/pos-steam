@@ -15,7 +15,7 @@ const dateKey = (date: Date) => {
   const part = (type: string) => parts.find((item) => item.type === type)?.value ?? '';
   return `${part('year')}-${part('month')}-${part('day')}`;
 };
-const roleName = (role: string) => (role === 'admin' ? 'Admin' : 'Operator');
+const roleName = (role: string) => (role === 'admin' ? 'Admin' : 'Karyawan');
 const attendanceName = (status?: string) => ({ hadir: 'Hadir', izin: 'Izin', sakit: 'Sakit', alpha: 'Alpa', cuti: 'Cuti' }[status ?? ''] ?? 'Belum dicatat');
 
 export function KaryawanScreen() {
@@ -28,6 +28,7 @@ export function KaryawanScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const karyawan = users.filter((user) => user.active && user.role === 'karyawan');
 
   const load = useCallback(async (background = false) => {
     if (background) setRefreshing(true);
@@ -63,14 +64,14 @@ export function KaryawanScreen() {
         <Pressable
           accessibilityRole="button"
           onPress={() =>
-            navigation.navigate('Absensi', { users: users.filter((user) => user.active) })
+            navigation.navigate('Absensi', { users: karyawan })
           }
           style={styles.action}
         >
           <Text style={styles.actionText}>Catat absensi</Text>
         </Pressable>
       </View>
-      <Text style={styles.subtitle}>Daftar pengguna dan status kehadiran hari ini.</Text>
+      <Text style={styles.subtitle}>Daftar karyawan dan status kehadiran hari ini.</Text>
       {error ? (
         <View style={styles.errorBox}>
           <Text accessibilityRole="alert" style={styles.errorText}>
@@ -83,8 +84,8 @@ export function KaryawanScreen() {
       ) : null}
       {loading && !users.length ? (
         <ActivityIndicator style={styles.loading} size="large" color={colors.brand} />
-      ) : users.length ? (
-        users.map((user) => {
+      ) : karyawan.length ? (
+        karyawan.map((user) => {
           const record = attendance.find((row) => row.userId === user.id);
           return (
             <View key={user.id} style={styles.card}>
@@ -119,12 +120,12 @@ export function KaryawanScreen() {
       ) : (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>Belum ada karyawan</Text>
-          <Text style={styles.subtitle}>Tidak ada pengguna untuk ditampilkan.</Text>
+          <Text style={styles.subtitle}>Tambahkan karyawan lewat Pengaturan → Pengguna.</Text>
         </View>
       )}
       <Pressable
         accessibilityRole="button"
-        onPress={() => navigation.navigate('Absensi', { users: users.filter((user) => user.active) })}
+        onPress={() => navigation.navigate('Absensi', { users: karyawan })}
         style={styles.fullAction}
       >
         <Text style={styles.actionText}>Buka absensi dan rekap gaji</Text>

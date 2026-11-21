@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const vehicleTypeSchema = z.enum(["motor", "mobil"]);
-export const roleSchema = z.enum(["admin"]);
+export const roleSchema = z.enum(["admin", "karyawan"]);
 export const attendanceStatusSchema = z.enum(["hadir", "izin", "sakit", "alpha", "cuti"]);
 
 export const servicePackageInputSchema = z.object({

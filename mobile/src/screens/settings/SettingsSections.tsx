@@ -21,7 +21,7 @@ import { useStyles } from '../../theme/useStyles';
 import type { Palette } from '../../theme/palettes';
 
 const rupiah = (amount: number) => `Rp ${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(amount)}`;
-const roleName = (role: string) => (role === 'admin' ? 'Admin' : 'Operator');
+const roleName = (role: string) => (role === 'admin' ? 'Admin' : 'Karyawan');
 const vehicleLabel = (vehicleType: string) => (vehicleType === 'mobil' ? 'Mobil' : 'Motor');
 
 // ─── Modal generik ────────────────────────────────────────────────────────────
@@ -511,7 +511,7 @@ export function BankSection() {
 
 // ─── Pengguna ─────────────────────────────────────────────────────────────────
 
-const emptyUser = { name: '', email: '', role: 'admin' as 'admin' | 'operator', phone: '', dailyRate: '', password: '' };
+const emptyUser = { name: '', email: '', role: 'admin' as 'admin' | 'karyawan', phone: '', dailyRate: '', password: '' };
 
 export function PenggunaSection() {
   const { colors } = useTheme();
@@ -546,7 +546,7 @@ export function PenggunaSection() {
 
   function openEdit(item: User) {
     setEditing(item);
-    setForm({ name: item.name, email: item.email, role: (item.role as 'admin' | 'operator') ?? 'admin', phone: item.phone ?? '', dailyRate: String(item.dailyRate ?? 0), password: '' });
+    setForm({ name: item.name, email: item.email, role: (item.role as 'admin' | 'karyawan') ?? 'admin', phone: item.phone ?? '', dailyRate: String(item.dailyRate ?? 0), password: '' });
     setFormError('');
     setModalVisible(true);
   }
@@ -650,9 +650,9 @@ export function PenggunaSection() {
         </Field>
         <Field label="Role">
           <View style={styles.segmentRow}>
-            {(['admin', 'operator'] as const).map((v) => (
+            {(['admin', 'karyawan'] as const).map((v) => (
               <Pressable key={v} onPress={() => setForm({ ...form, role: v })} style={[styles.segment, form.role === v && styles.segmentActive]}>
-                <Text style={[styles.segmentText, form.role === v && styles.segmentTextActive]}>{v === 'admin' ? 'Admin' : 'Operator'}</Text>
+                <Text style={[styles.segmentText, form.role === v && styles.segmentTextActive]}>{v === 'admin' ? 'Admin' : 'Karyawan'}</Text>
               </Pressable>
             ))}
           </View>
