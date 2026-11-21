@@ -157,6 +157,35 @@ export function PaketSection() {
     ]);
   }
 
+  const renderRow = (item: ServicePackage) => (
+    <View key={item.id} style={styles.listRow}>
+      <View style={styles.rowDetails}>
+        <Text style={styles.rowTitle}>{item.name}</Text>
+        <View style={styles.badgeGroup}>
+          <View style={[styles.badge, item.active ? styles.activeBadge : styles.inactiveBadge]}>
+            <Text style={[styles.badgeText, item.active ? styles.activeText : styles.inactiveText]}>{item.active ? 'Aktif' : 'Nonaktif'}</Text>
+          </View>
+        </View>
+        <Text style={styles.price}>{rupiah(item.price)} · {item.durationMin} menit</Text>
+      </View>
+      <View style={styles.rowActions}>
+        <Pressable accessibilityRole="button" onPress={() => openEdit(item)} style={[styles.textBtn, styles.textBtnPrimary]}>
+          <Text style={styles.textBtnText}>Ubah</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => void toggleActive(item)} style={[styles.textBtn, item.active ? styles.textBtnDanger : styles.textBtnSuccess]}>
+          <Text style={[styles.textBtnText, item.active ? styles.textBtnTextDanger : styles.textBtnTextSuccess]}>
+            {item.active ? 'Nonaktifkan' : 'Aktifkan'}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+
+  const groups = [
+    { label: 'Motor', rows: items.filter((item) => item.vehicleType === 'motor') },
+    { label: 'Mobil', rows: items.filter((item) => item.vehicleType === 'mobil') },
+  ];
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -168,32 +197,17 @@ export function PaketSection() {
       </View>
       {loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: 8 }} /> : items.length === 0 ? (
         <Text style={styles.muted}>Belum ada paket layanan.</Text>
-      ) : items.map((item) => (
-        <View key={item.id} style={styles.listRow}>
-          <View style={styles.rowDetails}>
-            <Text style={styles.rowTitle}>{item.name}</Text>
-            <View style={styles.badgeGroup}>
-              <View style={[styles.badge, item.active ? styles.activeBadge : styles.inactiveBadge]}>
-                <Text style={[styles.badgeText, item.active ? styles.activeText : styles.inactiveText]}>{item.active ? 'Aktif' : 'Nonaktif'}</Text>
-              </View>
-              <View style={styles.vehicleBadge}>
-                <Text style={styles.vehicleBadgeText}>{vehicleLabel(item.vehicleType)}</Text>
-              </View>
+      ) : (
+        groups.map((group) => group.rows.length > 0 && (
+          <View key={group.label} style={styles.groupBlock}>
+            <View style={styles.groupHeader}>
+              <Text style={styles.groupTitle}>{group.label}</Text>
+              <Text style={styles.groupCount}>{group.rows.length} paket</Text>
             </View>
-            <Text style={styles.price}>{rupiah(item.price)} · {item.durationMin} menit</Text>
+            {group.rows.map(renderRow)}
           </View>
-          <View style={styles.rowActions}>
-            <Pressable accessibilityRole="button" onPress={() => openEdit(item)} style={[styles.textBtn, styles.textBtnPrimary]}>
-              <Text style={styles.textBtnText}>Ubah</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => void toggleActive(item)} style={[styles.textBtn, item.active ? styles.textBtnDanger : styles.textBtnSuccess]}>
-              <Text style={[styles.textBtnText, item.active ? styles.textBtnTextDanger : styles.textBtnTextSuccess]}>
-                {item.active ? 'Nonaktifkan' : 'Aktifkan'}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      ))}
+        ))
+      )}
       <CrudModal visible={modalVisible} title={editing ? 'Edit Paket' : 'Tambah Paket'} onClose={() => setModalVisible(false)} onSave={() => void handleSave()} saving={saving} error={formError}>
         <Field label="Nama Paket">
           <TextInput value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} style={styles.input} placeholder="Cuci Motor Reguler" />
@@ -292,23 +306,6 @@ export function AddonSection() {
     finally { setSaving(false); }
   }
 
-  async function toggleActive(item: Addon) {
-    Alert.alert(item.active ? 'Nonaktifkan add-on?' : 'Aktifkan add-on?', item.name, [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: item.active ? 'Nonaktifkan' : 'Aktifkan',
-        style: item.active ? 'destructive' : 'default',
-        onPress: async () => {
-          try {
-            if (item.active) await api.addons.delete(item.id);
-            else await api.addons.update(item.id, { active: true });
-            await load();
-          } catch (e) { Alert.alert('Gagal', e instanceof Error ? e.message : 'Silakan coba lagi.'); }
-        },
-      },
-    ]);
-  }
-
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -339,11 +336,6 @@ export function AddonSection() {
           <View style={styles.rowActions}>
             <Pressable accessibilityRole="button" onPress={() => openEdit(item)} style={[styles.textBtn, styles.textBtnPrimary]}>
               <Text style={styles.textBtnText}>Ubah</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => void toggleActive(item)} style={[styles.textBtn, item.active ? styles.textBtnDanger : styles.textBtnSuccess]}>
-              <Text style={[styles.textBtnText, item.active ? styles.textBtnTextDanger : styles.textBtnTextSuccess]}>
-                {item.active ? 'Nonaktifkan' : 'Aktifkan'}
-              </Text>
             </Pressable>
           </View>
         </View>
@@ -727,6 +719,17 @@ function buildStyles(colors: Palette) {
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     sectionTitle: { color: colors.ink, fontSize: 15, fontWeight: '800' },
     count: { color: colors.muted, fontSize: 12 },
+    groupBlock: { gap: 8, marginTop: 8 },
+    groupHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingBottom: 7,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.line,
+    },
+    groupTitle: { color: colors.brandDark, fontSize: 12, fontWeight: '800', letterSpacing: 0.6 },
+    groupCount: { color: colors.muted, fontSize: 11 },
     addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.brand, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
     addBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
     field: { gap: 6 },
