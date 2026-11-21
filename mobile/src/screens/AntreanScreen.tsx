@@ -39,7 +39,7 @@ export function AntreanScreen() {
   const styles = useStyles(buildStyles);
   const insets = useSafeAreaInsets();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [counts, setCounts] = useState({ menunggu: 0, proses: 0 });
+  const [counts, setCounts] = useState({ menunggu: 0, proses: 0, selesai: 0, total: 0 });
   const [activeStatus, setActiveStatus] = useState<OrderStatus | undefined>(undefined);
   const [vehicleType, setVehicleType] = useState<VehicleType | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -58,7 +58,12 @@ export function AntreanScreen() {
     try {
       const board = await api.board();
       setOrders(board.orders);
-      setCounts({ menunggu: board.summary.menunggu, proses: board.summary.proses });
+      setCounts({
+        menunggu: board.summary.menunggu,
+        proses: board.summary.proses,
+        selesai: board.summary.selesai,
+        total: board.summary.total,
+      });
     } catch (cause) {
       try {
         const list = await api.orders.list({ date: new Date().toISOString().slice(0, 10) });
@@ -66,6 +71,8 @@ export function AntreanScreen() {
         setCounts({
           menunggu: list.filter((order) => order.status === 'menunggu').length,
           proses: list.filter((order) => order.status === 'proses').length,
+          selesai: list.filter((order) => order.status === 'selesai' || order.status === 'paid').length,
+          total: list.length,
         });
       } catch (fallbackCause) {
         setError(fallbackCause instanceof Error ? fallbackCause.message : cause instanceof Error ? cause.message : 'Gagal memuat antrean.');
@@ -158,12 +165,25 @@ export function AntreanScreen() {
               </Pressable>
             </View>
             <View style={styles.summary}>
-              <Text style={styles.summaryValue}>{counts.menunggu + counts.proses}</Text>
-              <Text style={styles.summaryLabel}>Kendaraan aktif</Text>
-              <View style={styles.dot} />
-              <Text style={styles.summaryLabel}>
-                {counts.menunggu} menunggu · {counts.proses} proses
-              </Text>
+              <View style={styles.stat}>
+                <Text style={[styles.summaryValue, styles.waitingValue]}>{counts.menunggu}</Text>
+                <Text style={styles.summaryLabel}>Menunggu</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.stat}>
+                <Text style={[styles.summaryValue, styles.processValue]}>{counts.proses}</Text>
+                <Text style={styles.summaryLabel}>Diproses</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.stat}>
+                <Text style={[styles.summaryValue, styles.doneValue]}>{counts.selesai}</Text>
+                <Text style={styles.summaryLabel}>Selesai</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.stat}>
+                <Text style={styles.summaryValue}>{counts.total}</Text>
+                <Text style={styles.summaryLabel}>Total antrean</Text>
+              </View>
             </View>
             <FlatList
               horizontal
@@ -278,16 +298,19 @@ function buildStyles(colors: Palette) {
     summary: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 7,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.line,
       borderRadius: 13,
-      padding: 12,
+      paddingVertical: 14,
     },
-    summaryValue: { color: colors.ink, fontSize: 19, fontWeight: '800', fontVariant: ['tabular-nums'] },
-    summaryLabel: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-    dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: colors.lightMuted },
+    stat: { flex: 1, alignItems: 'center', gap: 4 },
+    statDivider: { width: 1, height: 30, backgroundColor: colors.line },
+    summaryValue: { color: colors.ink, fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] },
+    waitingValue: { color: colors.warningDark },
+    processValue: { color: colors.brandDark },
+    doneValue: { color: colors.successDark },
+    summaryLabel: { color: colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'center' },
     tabRow: { gap: 7 },
     tab: {
       borderWidth: 1,

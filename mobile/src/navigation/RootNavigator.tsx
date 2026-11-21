@@ -1,12 +1,21 @@
 import { DefaultTheme, DarkTheme, NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator, type NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
+import { AbsensiScreen } from '../screens/AbsensiScreen';
 import { useTheme } from '../theme/ThemeContext';
 import { useStyles } from '../theme/useStyles';
 import type { Palette } from '../theme/palettes';
 import { BottomTabNavigator } from './BottomTabNavigator';
+import type { RootStackParamList } from './types';
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+function AbsensiRoute({ route }: NativeStackScreenProps<RootStackParamList, 'Absensi'>) {
+  return <AbsensiScreen users={route.params.users} />;
+}
 
 export function RootNavigator() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -39,7 +48,18 @@ export function RootNavigator() {
       }}
     >
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
-      <BottomTabNavigator />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Main" component={BottomTabNavigator} />
+        <Stack.Screen
+          name="Absensi"
+          component={AbsensiRoute}
+          options={{
+            headerShown: true,
+            title: 'Absensi Harian',
+            headerBackTitle: 'Kembali',
+          }}
+        />
+      </Stack.Navigator>
     </NavigationContainer>
   );
 }

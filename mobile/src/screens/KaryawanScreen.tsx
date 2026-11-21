@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AbsensiScreen } from './AbsensiScreen';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api } from '../lib/api';
+import type { RootStackParamList } from '../navigation/types';
 import type { Attendance, User } from '../types';
 import { useTheme } from '../theme/ThemeContext';
 import { useStyles } from '../theme/useStyles';
@@ -20,12 +22,12 @@ export function KaryawanScreen() {
   const { colors } = useTheme();
   const styles = useStyles(buildStyles);
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [users, setUsers] = useState<User[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [showAttendance, setShowAttendance] = useState(false);
 
   const load = useCallback(async (background = false) => {
     if (background) setRefreshing(true);
@@ -47,26 +49,6 @@ export function KaryawanScreen() {
     void load();
   }, [load]);
 
-  if (showAttendance) {
-    return (
-      <View style={{ flex: 1, paddingBottom: Math.max(insets.bottom, 8) }}>
-        <View style={styles.backRow}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => {
-              setShowAttendance(false);
-              void load(true);
-            }}
-            style={styles.backButton}
-          >
-            <Text style={styles.backText}>‹ Kembali ke Karyawan</Text>
-          </Pressable>
-        </View>
-        <AbsensiScreen users={users.filter((user) => user.active)} />
-      </View>
-    );
-  }
-
   return (
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
@@ -78,7 +60,13 @@ export function KaryawanScreen() {
           <Text style={styles.eyebrow}>MANAJEMEN TIM</Text>
           <Text style={styles.title}>Karyawan</Text>
         </View>
-        <Pressable accessibilityRole="button" onPress={() => setShowAttendance(true)} style={styles.action}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            navigation.navigate('Absensi', { users: users.filter((user) => user.active) })
+          }
+          style={styles.action}
+        >
           <Text style={styles.actionText}>Catat absensi</Text>
         </Pressable>
       </View>
@@ -134,7 +122,11 @@ export function KaryawanScreen() {
           <Text style={styles.subtitle}>Tidak ada pengguna untuk ditampilkan.</Text>
         </View>
       )}
-      <Pressable accessibilityRole="button" onPress={() => setShowAttendance(true)} style={styles.fullAction}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => navigation.navigate('Absensi', { users: users.filter((user) => user.active) })}
+        style={styles.fullAction}
+      >
         <Text style={styles.actionText}>Buka absensi dan rekap gaji</Text>
       </Pressable>
     </ScrollView>
@@ -184,8 +176,5 @@ function buildStyles(colors: Palette) {
   empty: { alignItems: 'center', padding: 24, backgroundColor: colors.surface, borderRadius: 12, gap: 6, borderWidth: 1, borderColor: colors.line },
   emptyTitle: { color: colors.ink, fontWeight: '800', fontSize: 16 },
   fullAction: { backgroundColor: colors.brandDark, borderRadius: 11, padding: 14, marginTop: 4 },
-  backRow: { paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.bg },
-  backButton: { alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 8 },
-  backText: { color: colors.brandDark, fontWeight: '800', fontSize: 14 },
   });
 }

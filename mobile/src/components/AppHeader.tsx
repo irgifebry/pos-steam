@@ -1,6 +1,5 @@
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LogOut } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
 import { useStyles } from '../theme/useStyles';
@@ -11,22 +10,7 @@ export function AppHeader() {
   const insets = useSafeAreaInsets();
   const { mode, colors } = useTheme();
   const styles = useStyles(buildStyles);
-  const { user, activeOutlet, logout } = useAuth();
-
-  function handleLogout() {
-    Alert.alert('Keluar dari Akun', 'Apakah Anda yakin ingin keluar dari akun ini?', [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: 'Keluar',
-        style: 'destructive',
-        onPress: () => {
-          void logout().catch((err) =>
-            Alert.alert('Gagal Keluar', err instanceof Error ? err.message : 'Silakan coba lagi.')
-          );
-        },
-      },
-    ]);
-  }
+  const { user, activeOutlet } = useAuth();
 
   return (
     <View style={[styles.headerWrapper, { paddingTop: Math.max(insets.top, 10) }]}>
@@ -51,17 +35,6 @@ export function AppHeader() {
             {user?.name || 'Operator'} · {user?.role === 'admin' ? 'Admin' : 'Operator'}
           </Text>
         </View>
-
-        {/* Tombol Logout Cepat */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Keluar akun"
-          onPress={handleLogout}
-          hitSlop={8}
-          style={({ pressed }) => [styles.logoutBtn, pressed && styles.logoutBtnPressed]}
-        >
-          <LogOut size={17} color={colors.ink} strokeWidth={2.2} />
-        </Pressable>
       </View>
     </View>
   );
@@ -108,20 +81,6 @@ function buildStyles(colors: Palette) {
     fontSize: 11.5,
     fontWeight: '500',
     color: colors.muted,
-  },
-  logoutBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoutBtnPressed: {
-    backgroundColor: colors.brandSoft,
-    borderColor: colors.brand,
   },
   });
 }
