@@ -11,6 +11,7 @@ export type ServicePackage = {
   name: string;
   vehicleType: VehicleType;
   price: number;
+  royaltyPrice: number | null;
   durationMin: number;
   description: string;
   sortOrder: number;
@@ -93,6 +94,7 @@ export async function updateServicePackage(
   if (data.name !== undefined) values.name = data.name;
   if (data.vehicleType !== undefined) values.vehicleType = data.vehicleType;
   if (data.price !== undefined) values.price = data.price;
+  if (data.royaltyPrice !== undefined) values.royaltyPrice = data.royaltyPrice;
   if (data.durationMin !== undefined) values.durationMin = data.durationMin;
   if (data.description !== undefined) values.description = data.description;
   if (data.sortOrder !== undefined) values.sortOrder = data.sortOrder;

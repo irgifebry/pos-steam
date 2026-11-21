@@ -75,29 +75,38 @@ function CrudModal({
 
 // ─── Tab kendaraan ────────────────────────────────────────────────────────────
 
+type VehicleTabKey = 'motor' | 'mobil' | 'both';
+
 function VehicleTabs({
   value,
   onChange,
   motorCount,
   mobilCount,
+  bothCount,
 }: {
-  value: 'motor' | 'mobil';
-  onChange: (value: 'motor' | 'mobil') => void;
+  value: VehicleTabKey;
+  onChange: (value: VehicleTabKey) => void;
   motorCount: number;
   mobilCount: number;
+  bothCount?: number;
 }) {
   const styles = useStyles(buildStyles);
+  const tabs = [
+    { key: 'motor' as const, label: 'Motor', count: motorCount },
+    { key: 'mobil' as const, label: 'Mobil', count: mobilCount },
+    ...(bothCount === undefined ? [] : [{ key: 'both' as const, label: 'Semua', count: bothCount }]),
+  ];
   return (
     <View style={styles.vehicleTabs}>
-      {(['motor', 'mobil'] as const).map((type) => (
+      {tabs.map((tab) => (
         <Pressable
-          key={type}
+          key={tab.key}
           accessibilityRole="button"
-          onPress={() => onChange(type)}
-          style={[styles.vehicleTab, value === type && styles.vehicleTabActive]}
+          onPress={() => onChange(tab.key)}
+          style={[styles.vehicleTab, value === tab.key && styles.vehicleTabActive]}
         >
-          <Text style={[styles.vehicleTabText, value === type && styles.vehicleTabTextActive]}>
-            {type === 'motor' ? 'Motor' : 'Mobil'} · {type === 'motor' ? motorCount : mobilCount}
+          <Text style={[styles.vehicleTabText, value === tab.key && styles.vehicleTabTextActive]}>
+            {tab.label} · {tab.count}
           </Text>
         </Pressable>
       ))}
@@ -107,7 +116,7 @@ function VehicleTabs({
 
 // ─── Paket Layanan ────────────────────────────────────────────────────────────
 
-const emptyPaket = { name: '', vehicleType: 'motor' as 'motor' | 'mobil', price: '', durationMin: '', description: '', sortOrder: '0', active: true };
+const emptyPaket = { name: '', vehicleType: 'motor' as 'motor' | 'mobil', price: '', royaltyPrice: '', durationMin: '', description: '', sortOrder: '0', active: true };
 
 export function PaketSection() {
   const { colors } = useTheme();
@@ -119,7 +128,7 @@ export function PaketSection() {
   const [form, setForm] = useState(emptyPaket);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
-  const [vehicleTab, setVehicleTab] = useState<'motor' | 'mobil'>('motor');
+  const [vehicleTab, setVehicleTab] = useState<VehicleTabKey>('motor');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -145,6 +154,7 @@ export function PaketSection() {
       name: item.name,
       vehicleType: item.vehicleType,
       price: String(item.price),
+      royaltyPrice: item.royaltyPrice == null ? '' : String(item.royaltyPrice),
       durationMin: String(item.durationMin),
       description: item.description ?? '',
       sortOrder: String(item.sortOrder ?? 0),
@@ -162,7 +172,12 @@ export function PaketSection() {
     if (!form.name.trim()) { setFormError('Nama paket wajib diisi'); return; }
     if (!Number.isInteger(price) || price <= 0) { setFormError('Harga harus angka bulat lebih dari 0'); return; }
     if (!Number.isInteger(dur) || dur <= 0) { setFormError('Durasi harus angka bulat lebih dari 0'); return; }
-    const body = { name: form.name.trim(), vehicleType: form.vehicleType, price, durationMin: dur, description: form.description.trim(), sortOrder: sort, active: form.active };
+    const royaltyPrice = form.royaltyPrice.trim() === '' ? null : Number(form.royaltyPrice);
+    if (royaltyPrice !== null && (!Number.isInteger(royaltyPrice) || royaltyPrice < 0)) {
+      setFormError('Harga ROYALTY harus angka bulat atau kosong');
+      return;
+    }
+    const body = { name: form.name.trim(), vehicleType: form.vehicleType, price, royaltyPrice, durationMin: dur, description: form.description.trim(), sortOrder: sort, active: form.active };
     setSaving(true);
     try {
       if (editing) await api.packages.update(editing.id, body);
@@ -241,6 +256,10 @@ export function PaketSection() {
             </Field>
           </View>
         </View>
+        <Field label="Harga ROYALTY (Rp)">
+          <TextInput value={form.royaltyPrice} onChangeText={(v) => setForm({ ...form, royaltyPrice: v.replace(/\D/g, '') })} style={styles.input} keyboardType="number-pad" placeholder="Kosongkan jika tidak ada" />
+          <Text style={styles.royaltyFormHint}>Harga khusus pelanggan ROYALTY. Paket Reguler tetap gratis.</Text>
+        </Field>
         <Field label="Deskripsi (opsional)">
           <TextInput value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} style={styles.input} placeholder="Opsional" />
         </Field>
@@ -269,7 +288,7 @@ export function AddonSection() {
   const [form, setForm] = useState(emptyAddon);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
-  const [vehicleTab, setVehicleTab] = useState<'motor' | 'mobil'>('motor');
+  const [vehicleTab, setVehicleTab] = useState<VehicleTabKey>('motor');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -333,10 +352,15 @@ export function AddonSection() {
             onChange={setVehicleTab}
             motorCount={items.filter((item) => (item.vehicleTypes ?? []).includes('motor')).length}
             mobilCount={items.filter((item) => (item.vehicleTypes ?? []).includes('mobil')).length}
+            bothCount={items.filter((item) => (item.vehicleTypes ?? []).includes('motor') && (item.vehicleTypes ?? []).includes('mobil')).length}
           />
           <View style={styles.tabRows}>
             {items
-              .filter((item) => (item.vehicleTypes ?? []).includes(vehicleTab))
+              .filter((item) =>
+                vehicleTab === 'both'
+                  ? (item.vehicleTypes ?? []).includes('motor') && (item.vehicleTypes ?? []).includes('mobil')
+                  : (item.vehicleTypes ?? []).includes(vehicleTab),
+              )
               .map((item) => (
                 <View key={item.id} style={styles.listRow}>
                   <View style={styles.rowDetails}>
@@ -453,23 +477,6 @@ export function BankSection() {
     finally { setSaving(false); }
   }
 
-  async function toggleActive(item: Bank) {
-    Alert.alert(item.active ? 'Nonaktifkan rekening?' : 'Aktifkan rekening?', item.name, [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: item.active ? 'Nonaktifkan' : 'Aktifkan',
-        style: item.active ? 'destructive' : 'default',
-        onPress: async () => {
-          try {
-            if (item.active) await api.banks.delete(item.id);
-            else await api.banks.update(item.id, { active: true });
-            await load();
-          } catch (e) { Alert.alert('Gagal', e instanceof Error ? e.message : 'Silakan coba lagi.'); }
-        },
-      },
-    ]);
-  }
-
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -494,11 +501,6 @@ export function BankSection() {
           <View style={styles.rowActions}>
             <Pressable accessibilityRole="button" onPress={() => openEdit(item)} style={[styles.textBtn, styles.textBtnPrimary]}>
               <Text style={styles.textBtnText}>Ubah</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => void toggleActive(item)} style={[styles.textBtn, item.active ? styles.textBtnDanger : styles.textBtnSuccess]}>
-              <Text style={[styles.textBtnText, item.active ? styles.textBtnTextDanger : styles.textBtnTextSuccess]}>
-                {item.active ? 'Nonaktifkan' : 'Aktifkan'}
-              </Text>
             </Pressable>
           </View>
         </View>
@@ -786,6 +788,7 @@ function buildStyles(colors: Palette) {
     textBtnTextDanger: { color: colors.dangerDark },
     textBtnTextSuccess: { color: colors.successDark },
     textBtnTextWarning: { fontSize: 12, fontWeight: '800', color: colors.warningDark },
+    royaltyFormHint: { color: colors.muted, fontSize: 11, lineHeight: 15 },
     rowActions2: { flexDirection: 'row', gap: 6 },
     saveBtn: { minHeight: 46, backgroundColor: colors.brand, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
     saveBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },

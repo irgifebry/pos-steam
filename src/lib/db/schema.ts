@@ -106,6 +106,7 @@ export const servicePackages = pgTable(
     name: text("name").notNull(),
     vehicleType: text("vehicle_type").notNull(),
     price: integer("price").notNull(),
+    royaltyPrice: integer("royalty_price"),
     durationMin: integer("duration_min").notNull(),
     description: text("description"),
     sortOrder: integer("sort_order").notNull().default(0),

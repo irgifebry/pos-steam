@@ -41,13 +41,13 @@ export async function seed(db: AppDatabase, auth: Auth): Promise<void> {
 
   // TODO: harga masih placeholder 1000; ganti lewat menu Pengaturan.
   const packages = [
-    { name: "Cuci Steam Reguler", vehicleType: "motor", durationMin: 15, sortOrder: 1 },
-    { name: "Cuci Steam Komplit", vehicleType: "motor", durationMin: 30, sortOrder: 2 },
-    { name: "Cuci Steam Premium", vehicleType: "motor", durationMin: 45, sortOrder: 3 },
-    { name: "Cuci Steam Reguler", vehicleType: "mobil", durationMin: 20, sortOrder: 1 },
-    { name: "Cuci Steam Komplit", vehicleType: "mobil", durationMin: 40, sortOrder: 2 },
-    { name: "Cuci Steam Premium", vehicleType: "mobil", durationMin: 60, sortOrder: 3 },
-    { name: "Cuci OJOL", vehicleType: "motor", durationMin: 20, sortOrder: 4 },
+    { name: "Cuci Steam Reguler", vehicleType: "motor", durationMin: 15, sortOrder: 1, royaltyPrice: 0 },
+    { name: "Cuci Steam Komplit", vehicleType: "motor", durationMin: 30, sortOrder: 2, royaltyPrice: 500 },
+    { name: "Cuci Steam Premium", vehicleType: "motor", durationMin: 45, sortOrder: 3, royaltyPrice: 700 },
+    { name: "Cuci Steam Reguler", vehicleType: "mobil", durationMin: 20, sortOrder: 1, royaltyPrice: 0 },
+    { name: "Cuci Steam Komplit", vehicleType: "mobil", durationMin: 40, sortOrder: 2, royaltyPrice: 600 },
+    { name: "Cuci Steam Premium", vehicleType: "mobil", durationMin: 60, sortOrder: 3, royaltyPrice: 800 },
+    { name: "Cuci OJOL", vehicleType: "motor", durationMin: 20, sortOrder: 4, royaltyPrice: 400 },
   ];
 
   for (const paket of packages) {
@@ -58,6 +58,7 @@ export async function seed(db: AppDatabase, auth: Auth): Promise<void> {
         name: paket.name,
         vehicleType: paket.vehicleType,
         price: 1000,
+        royaltyPrice: paket.royaltyPrice,
         durationMin: paket.durationMin,
         description: "",
         sortOrder: paket.sortOrder,
@@ -70,6 +71,7 @@ export async function seed(db: AppDatabase, auth: Auth): Promise<void> {
           servicePackages.name,
         ],
         set: {
+          royaltyPrice: paket.royaltyPrice,
           durationMin: paket.durationMin,
           sortOrder: paket.sortOrder,
           active: true,

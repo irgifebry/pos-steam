@@ -554,12 +554,13 @@ export async function createOrder(
           const addon = addonById.get(line.addonId);
           return sum + (addon ? addon.price * line.qty : 0);
         }, 0);
-        // ROYALTY: paket Reguler gratis, paket lain diskon 50%. Add-on tetap harga normal.
+        // ROYALTY: paket Reguler gratis; paket lain pakai harga ROYALTY yang
+        // diatur admin per paket. Add-on tetap harga normal.
         const isReguler = /reguler/i.test(pkg.name);
         const packagePrice = data.royalty
           ? isReguler
             ? 0
-            : Math.round(pkg.price * 0.5)
+            : (pkg.royaltyPrice ?? pkg.price)
           : pkg.price;
         const subtotal = packagePrice + addonSubtotal;
         const tax = Math.round((subtotal * Number(outlet.taxPercent)) / 100);

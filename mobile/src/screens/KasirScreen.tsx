@@ -53,13 +53,13 @@ export function KasirScreen() {
     () => addons.filter((addon) => addonIds.includes(addon.id)).reduce((sum, addon) => sum + addon.price, 0),
     [addons, addonIds],
   );
-  // ROYALTY: paket Reguler gratis, paket lain 50%. Add-on tetap bayar penuh.
+  // ROYALTY: paket Reguler gratis; paket lain pakai harga ROYALTY dari admin. Add-on tetap bayar penuh.
   const basePackagePrice = selectedPackage?.price ?? 0;
   const isReguler = /reguler/i.test(selectedPackage?.name ?? '');
   const packagePrice = royalty
     ? isReguler
       ? 0
-      : Math.round(basePackagePrice * 0.5)
+      : (selectedPackage?.royaltyPrice ?? basePackagePrice)
     : basePackagePrice;
   const discount = royalty ? basePackagePrice - packagePrice : 0;
   const subtotal = packagePrice + addonTotal;
@@ -104,7 +104,7 @@ export function KasirScreen() {
         <View style={styles.royaltyRow}>
           <View style={styles.royaltyCopy}>
             <Text style={styles.royaltyLabel}>Pelanggan ROYALTY</Text>
-            <Text style={styles.royaltyHint}>Reguler gratis · paket lain 50% · add-on tetap bayar</Text>
+            <Text style={styles.royaltyHint}>Reguler gratis · paket lain sesuai harga ROYALTY · add-on tetap bayar</Text>
           </View>
           <Switch value={royalty} onValueChange={setRoyalty} trackColor={{ false: colors.lineMuted, true: colors.brand }} thumbColor={colors.surface} />
         </View>
