@@ -8,7 +8,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -73,6 +72,21 @@ function CrudModal({
   );
 }
 
+function confirmDelete(label: string, onConfirm: () => Promise<void>) {
+  Alert.alert(`Hapus ${label}?`, 'Data yang dihapus tidak bisa dikembalikan.', [
+    { text: 'Batal', style: 'cancel' },
+    {
+      text: 'Hapus',
+      style: 'destructive',
+      onPress: () => {
+        void onConfirm().catch((e) =>
+          Alert.alert('Gagal menghapus', e instanceof Error ? e.message : 'Silakan coba lagi.'),
+        );
+      },
+    },
+  ]);
+}
+
 // ─── Tab kendaraan ────────────────────────────────────────────────────────────
 
 type VehicleTabKey = 'motor' | 'mobil' | 'both';
@@ -116,7 +130,7 @@ function VehicleTabs({
 
 // ─── Paket Layanan ────────────────────────────────────────────────────────────
 
-const emptyPaket = { name: '', vehicleType: 'motor' as 'motor' | 'mobil', price: '', royaltyPrice: '', description: '', sortOrder: '0', active: true };
+const emptyPaket = { name: '', vehicleType: 'motor' as 'motor' | 'mobil', price: '', royaltyPrice: '', description: '', sortOrder: '0' };
 
 export function PaketSection() {
   const { colors } = useTheme();
@@ -133,7 +147,7 @@ export function PaketSection() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = await api.packages.list({ active: false });
+      const rows = await api.packages.list();
       setItems(rows);
     } catch { setItems([]); }
     finally { setLoading(false); }
@@ -157,7 +171,6 @@ export function PaketSection() {
       royaltyPrice: item.royaltyPrice == null ? '' : String(item.royaltyPrice),
       description: item.description ?? '',
       sortOrder: String(item.sortOrder ?? 0),
-      active: item.active,
     });
     setFormError('');
     setModalVisible(true);
@@ -174,7 +187,7 @@ export function PaketSection() {
       setFormError('Harga ROYALTY harus angka bulat atau kosong');
       return;
     }
-    const body = { name: form.name.trim(), vehicleType: form.vehicleType, price, royaltyPrice, description: form.description.trim(), sortOrder: sort, active: form.active };
+    const body = { name: form.name.trim(), vehicleType: form.vehicleType, price, royaltyPrice, description: form.description.trim(), sortOrder: sort };
     setSaving(true);
     try {
       if (editing) await api.packages.update(editing.id, body);
@@ -190,9 +203,6 @@ export function PaketSection() {
       <View style={styles.rowDetails}>
         <Text style={styles.rowTitle}>{item.name}</Text>
         <View style={styles.badgeGroup}>
-          <View style={[styles.badge, item.active ? styles.activeBadge : styles.inactiveBadge]}>
-            <Text style={[styles.badgeText, item.active ? styles.activeText : styles.inactiveText]}>{item.active ? 'Aktif' : 'Nonaktif'}</Text>
-          </View>
         </View>
         <Text style={styles.price}>{rupiah(item.price)}</Text>
       </View>
@@ -251,12 +261,15 @@ export function PaketSection() {
         <Field label="Deskripsi (opsional)">
           <TextInput value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} style={styles.input} placeholder="Opsional" />
         </Field>
-        <Field label="Status">
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>{form.active ? 'Aktif' : 'Nonaktif'}</Text>
-            <Switch value={form.active} onValueChange={(v) => setForm({ ...form, active: v })} trackColor={{ true: colors.brand }} />
-          </View>
-        </Field>
+        {editing && (
+          <Pressable accessibilityRole="button" style={styles.deleteBtn} onPress={() => confirmDelete('paket', async () => {
+            await api.packages.delete(editing.id);
+            setModalVisible(false);
+            await load();
+          })}>
+            <Text style={styles.deleteBtnText}>Hapus paket</Text>
+          </Pressable>
+        )}
       </CrudModal>
     </View>
   );
@@ -264,7 +277,7 @@ export function PaketSection() {
 
 // ─── Add-on ───────────────────────────────────────────────────────────────────
 
-const emptyAddon = { name: '', price: '', unitLabel: 'pcs', vehicleTypes: ['motor', 'mobil'] as ('motor' | 'mobil')[], active: true };
+const emptyAddon = { name: '', price: '', unitLabel: 'pcs', vehicleTypes: ['motor', 'mobil'] as ('motor' | 'mobil')[] };
 
 export function AddonSection() {
   const { colors } = useTheme();
@@ -280,7 +293,7 @@ export function AddonSection() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setItems(await api.addons.list({ includeInactive: true })); }
+    try { setItems(await api.addons.list()); }
     catch { setItems([]); }
     finally { setLoading(false); }
   }, []);
@@ -296,7 +309,7 @@ export function AddonSection() {
 
   function openEdit(item: Addon) {
     setEditing(item);
-    setForm({ name: item.name, price: String(item.price), unitLabel: item.unitLabel ?? 'pcs', vehicleTypes: Array.isArray(item.vehicleTypes) ? item.vehicleTypes : [], active: item.active });
+    setForm({ name: item.name, price: String(item.price), unitLabel: item.unitLabel ?? 'pcs', vehicleTypes: Array.isArray(item.vehicleTypes) ? item.vehicleTypes : [] });
     setFormError('');
     setModalVisible(true);
   }
@@ -311,7 +324,7 @@ export function AddonSection() {
     if (!form.name.trim()) { setFormError('Nama add-on wajib diisi'); return; }
     if (!Number.isInteger(price) || price <= 0) { setFormError('Harga harus angka bulat lebih dari 0'); return; }
     if (form.vehicleTypes.length === 0) { setFormError('Pilih minimal satu tipe kendaraan'); return; }
-    const body = { name: form.name.trim(), price, unitLabel: form.unitLabel.trim() || 'pcs', vehicleTypes: form.vehicleTypes, active: form.active };
+    const body = { name: form.name.trim(), price, unitLabel: form.unitLabel.trim() || 'pcs', vehicleTypes: form.vehicleTypes };
     setSaving(true);
     try {
       if (editing) await api.addons.update(editing.id, body);
@@ -354,9 +367,6 @@ export function AddonSection() {
                   <View style={styles.rowDetails}>
                     <Text style={styles.rowTitle}>{item.name}</Text>
                     <View style={styles.badgeGroup}>
-                      <View style={[styles.badge, item.active ? styles.activeBadge : styles.inactiveBadge]}>
-                        <Text style={[styles.badgeText, item.active ? styles.activeText : styles.inactiveText]}>{item.active ? 'Aktif' : 'Nonaktif'}</Text>
-                      </View>
                       {(item.vehicleTypes ?? []).map((vt) => (
                         <View key={vt} style={styles.vehicleBadge}>
                           <Text style={styles.vehicleBadgeText}>{vehicleLabel(vt)}</Text>
@@ -400,12 +410,15 @@ export function AddonSection() {
             ))}
           </View>
         </Field>
-        <Field label="Status">
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>{form.active ? 'Aktif' : 'Nonaktif'}</Text>
-            <Switch value={form.active} onValueChange={(v) => setForm({ ...form, active: v })} trackColor={{ true: colors.brand }} />
-          </View>
-        </Field>
+        {editing && (
+          <Pressable accessibilityRole="button" style={styles.deleteBtn} onPress={() => confirmDelete('add-on', async () => {
+            await api.addons.delete(editing.id);
+            setModalVisible(false);
+            await load();
+          })}>
+            <Text style={styles.deleteBtnText}>Hapus add-on</Text>
+          </Pressable>
+        )}
       </CrudModal>
     </View>
   );
@@ -413,7 +426,7 @@ export function AddonSection() {
 
 // ─── Rekening Bank ────────────────────────────────────────────────────────────
 
-const emptyBank = { name: '', accountNumber: '', accountName: '', active: true };
+const emptyBank = { name: '', accountNumber: '', accountName: '' };
 
 export function BankSection() {
   const { colors } = useTheme();
@@ -444,7 +457,7 @@ export function BankSection() {
 
   function openEdit(item: Bank) {
     setEditing(item);
-    setForm({ name: item.name, accountNumber: item.accountNumber, accountName: item.accountName, active: item.active });
+    setForm({ name: item.name, accountNumber: item.accountNumber, accountName: item.accountName });
     setFormError('');
     setModalVisible(true);
   }
@@ -454,7 +467,7 @@ export function BankSection() {
     if (!form.name.trim()) { setFormError('Nama bank wajib diisi'); return; }
     if (!form.accountNumber.trim()) { setFormError('Nomor rekening wajib diisi'); return; }
     if (!form.accountName.trim()) { setFormError('Nama pemilik wajib diisi'); return; }
-    const body = { name: form.name.trim(), accountNumber: form.accountNumber.trim(), accountName: form.accountName.trim(), active: form.active };
+    const body = { name: form.name.trim(), accountNumber: form.accountNumber.trim(), accountName: form.accountName.trim() };
     setSaving(true);
     try {
       if (editing) await api.banks.update(editing.id, body);
@@ -480,9 +493,6 @@ export function BankSection() {
         <View key={item.id} style={styles.listRow}>
           <View style={styles.rowDetails}>
             <Text style={styles.rowTitle}>{item.name}</Text>
-            <View style={[styles.badge, item.active ? styles.activeBadge : styles.inactiveBadge]}>
-              <Text style={[styles.badgeText, item.active ? styles.activeText : styles.inactiveText]}>{item.active ? 'Aktif' : 'Nonaktif'}</Text>
-            </View>
             <Text selectable style={styles.accountNumber}>{item.accountNumber}</Text>
             <Text style={styles.muted}>a.n. {item.accountName}</Text>
           </View>
@@ -503,12 +513,15 @@ export function BankSection() {
         <Field label="Nama Pemilik (a.n.)">
           <TextInput value={form.accountName} onChangeText={(v) => setForm({ ...form, accountName: v })} style={styles.input} />
         </Field>
-        <Field label="Status">
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>{form.active ? 'Aktif' : 'Nonaktif'}</Text>
-            <Switch value={form.active} onValueChange={(v) => setForm({ ...form, active: v })} trackColor={{ true: colors.brand }} />
-          </View>
-        </Field>
+        {editing && (
+          <Pressable accessibilityRole="button" style={styles.deleteBtn} onPress={() => confirmDelete('rekening', async () => {
+            await api.banks.delete(editing.id);
+            setModalVisible(false);
+            await load();
+          })}>
+            <Text style={styles.deleteBtnText}>Hapus rekening</Text>
+          </Pressable>
+        )}
       </CrudModal>
     </View>
   );
@@ -535,7 +548,7 @@ export function PenggunaSection() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setItems(await api.users.list()); }
+    try { setItems(await api.users.list(false)); }
     catch { setItems([]); }
     finally { setLoading(false); }
   }, []);
@@ -576,19 +589,6 @@ export function PenggunaSection() {
     finally { setSaving(false); }
   }
 
-  async function handleToggleActive(item: User) {
-    Alert.alert(item.active ? 'Nonaktifkan pengguna?' : 'Aktifkan pengguna?', item.name, [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: item.active ? 'Nonaktifkan' : 'Aktifkan',
-        style: item.active ? 'destructive' : 'default',
-        onPress: async () => {
-          try { await api.users.setActive(item.id, !item.active); await load(); }
-          catch (e) { Alert.alert('Gagal', e instanceof Error ? e.message : 'Silakan coba lagi.'); }
-        },
-      },
-    ]);
-  }
 
   async function handleResetPin() {
     if (!pinTarget) return;
@@ -619,9 +619,6 @@ export function PenggunaSection() {
           <View style={styles.rowDetails}>
             <Text style={styles.rowTitle}>{item.name}</Text>
             <View style={styles.badgeGroup}>
-              <View style={[styles.badge, item.active ? styles.activeBadge : styles.inactiveBadge]}>
-                <Text style={[styles.badgeText, item.active ? styles.activeText : styles.inactiveText]}>{item.active ? 'Aktif' : 'Nonaktif'}</Text>
-              </View>
               <View style={styles.vehicleBadge}>
                 <Text style={styles.vehicleBadgeText}>{roleName(item.role ?? '')}</Text>
               </View>
@@ -636,11 +633,6 @@ export function PenggunaSection() {
             </Pressable>
             <Pressable accessibilityRole="button" onPress={() => { setPinTarget(item); setNewPin(''); setPinError(''); }} style={[styles.textBtn, styles.textBtnWarning]}>
               <Text style={styles.textBtnTextWarning}>Reset PIN</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => void handleToggleActive(item)} style={[styles.textBtn, item.active ? styles.textBtnDanger : styles.textBtnSuccess]}>
-              <Text style={[styles.textBtnText, item.active ? styles.textBtnTextDanger : styles.textBtnTextSuccess]}>
-                {item.active ? 'Nonaktifkan' : 'Aktifkan'}
-              </Text>
             </Pressable>
           </View>
         </View>
@@ -672,6 +664,15 @@ export function PenggunaSection() {
           <Field label="PIN (min. 6 karakter)">
             <TextInput value={form.password} onChangeText={(v) => setForm({ ...form, password: v })} style={styles.input} secureTextEntry keyboardType="numeric" />
           </Field>
+        )}
+        {editing && editing.role !== 'admin' && (
+          <Pressable accessibilityRole="button" style={styles.deleteBtn} onPress={() => confirmDelete('pengguna', async () => {
+            await api.users.setActive(editing.id, false);
+            setModalVisible(false);
+            await load();
+          })}>
+            <Text style={styles.deleteBtnText}>Hapus pengguna</Text>
+          </Pressable>
         )}
       </CrudModal>
 
@@ -760,22 +761,24 @@ function buildStyles(colors: Palette) {
     accountNumber: { color: colors.ink, fontSize: 13, fontWeight: '700' },
     badgeGroup: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5 },
     badge: { alignSelf: 'flex-start', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
-    activeBadge: { backgroundColor: colors.successSoft },
-    inactiveBadge: { backgroundColor: colors.bg },
     badgeText: { fontSize: 10, fontWeight: '800' },
-    activeText: { color: colors.successDark },
-    inactiveText: { color: colors.muted },
     vehicleBadge: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.line },
     vehicleBadgeText: { color: colors.brandDark, fontSize: 10, fontWeight: '800' },
     textBtn: { minHeight: 34, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
     textBtnPrimary: { borderColor: colors.brandSoft, backgroundColor: colors.brandSoft },
-    textBtnDanger: { borderColor: colors.dangerSoft, backgroundColor: colors.dangerSoft },
-    textBtnSuccess: { borderColor: colors.successSoft, backgroundColor: colors.successSoft },
     textBtnWarning: { borderColor: colors.warningSoft, backgroundColor: colors.warningSoft },
     textBtnText: { fontSize: 12, fontWeight: '800', color: colors.brandDark },
-    textBtnTextDanger: { color: colors.dangerDark },
-    textBtnTextSuccess: { color: colors.successDark },
     textBtnTextWarning: { fontSize: 12, fontWeight: '800', color: colors.warningDark },
+    deleteBtn: {
+      minHeight: 42,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.dangerSoft,
+      backgroundColor: colors.dangerSoft,
+    },
+    deleteBtnText: { color: colors.dangerDark, fontSize: 13, fontWeight: '800' },
     royaltyFormHint: { color: colors.muted, fontSize: 11, lineHeight: 15 },
     rowActions2: { flexDirection: 'row', gap: 6 },
     saveBtn: { minHeight: 46, backgroundColor: colors.brand, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
@@ -797,8 +800,6 @@ function buildStyles(colors: Palette) {
     segmentActive: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
     segmentText: { color: colors.muted, fontWeight: '700', fontSize: 13 },
     segmentTextActive: { color: colors.brandDark },
-    // Switch row
-    switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 4 },
     // 2-col row
     row2: { flexDirection: 'row', gap: 10 },
     muted: { color: colors.muted, fontSize: 12 },

@@ -140,7 +140,7 @@ export const api = {
     delete: (id: string) => request<void>(`/api/banks/${encodeURIComponent(id)}`, json('DELETE')),
   },
   users: {
-    list: () => request<User[]>('/api/users'),
+    list: (includeInactive = false) => request<User[]>(`/api/users?includeInactive=${includeInactive}`),
     create: (body: { name: string; email: string; role: string; phone: string; dailyRate: number; password: string; active: boolean }) =>
       request<User>('/api/users', json('POST', body)),
     update: (id: string, body: { name?: string; email?: string; role?: string; phone?: string; dailyRate?: number }) =>
