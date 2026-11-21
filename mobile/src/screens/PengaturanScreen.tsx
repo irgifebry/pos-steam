@@ -6,7 +6,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
@@ -18,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Pencil, Plus, X, KeyRound, UserX, UserCheck, Ban, CircleCheck, Sun, Moon } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import type { Addon, Bank, Outlet, ServicePackage, User } from '../types';
+import type { Addon, Bank, ServicePackage, User } from '../types';
 import { useTheme } from '../theme/ThemeContext';
 import { useStyles } from '../theme/useStyles';
 import type { Palette } from '../theme/palettes';
@@ -710,62 +709,8 @@ export function PengaturanScreen() {
   const { colors } = useTheme();
   const styles = useStyles(buildStyles);
   const { mode, setMode, colors: themeColors } = useTheme();
-  const { user, activeOutlet, logout, updateActiveOutlet } = useAuth();
+  const { user, activeOutlet, logout } = useAuth();
   const insets = useSafeAreaInsets();
-  const [outlet, setOutlet] = useState<Outlet | null>(activeOutlet);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [savingOutlet, setSavingOutlet] = useState(false);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
-
-  const load = useCallback(
-    async (refresh = false) => {
-      if (refresh) setRefreshing(true);
-      else setLoading(true);
-      setError('');
-      try {
-        const settings = await api.settings.get();
-        const configured = settings.outlet as Outlet | undefined;
-        const resolvedOutlet = configured ?? activeOutlet;
-        setOutlet(resolvedOutlet ?? null);
-        if (resolvedOutlet && (resolvedOutlet.id !== activeOutlet?.id || resolvedOutlet.name !== activeOutlet.name || resolvedOutlet.taxPercent !== activeOutlet.taxPercent)) {
-          updateActiveOutlet(resolvedOutlet);
-        }
-      } catch (cause) {
-        setError(cause instanceof Error ? cause.message : 'Gagal memuat pengaturan.');
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [activeOutlet, updateActiveOutlet]
-  );
-
-  useEffect(() => { void load(); }, [load]);
-
-  const updateOutletField = (field: 'name' | 'address' | 'phone' | 'taxPercent', value: string) => {
-    setOutlet((current) => (current ? { ...current, [field]: field === 'taxPercent' ? Number(value) : value } : current));
-  };
-
-  async function saveOutlet() {
-    if (!outlet || savingOutlet) return;
-    if (!outlet.name.trim()) { setError('Nama outlet wajib diisi.'); return; }
-    if (!Number.isFinite(outlet.taxPercent) || outlet.taxPercent < 0 || outlet.taxPercent > 100) { setError('Pajak harus 0–100%.'); return; }
-    setSavingOutlet(true);
-    setError('');
-    setMessage('');
-    try {
-      const updated = await api.outlets.update({ name: outlet.name.trim(), address: outlet.address.trim(), phone: outlet.phone.trim(), taxPercent: outlet.taxPercent });
-      setOutlet(updated);
-      updateActiveOutlet(updated);
-      setMessage('Profil outlet berhasil disimpan.');
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Gagal menyimpan profil outlet.');
-    } finally {
-      setSavingOutlet(false);
-    }
-  }
 
   function confirmLogout() {
     Alert.alert('Keluar dari akun?', 'Anda perlu masuk kembali untuk mengakses aplikasi.', [
@@ -779,42 +724,25 @@ export function PengaturanScreen() {
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
         contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 18) + 18 }]}
       >
         <View>
           <Text style={styles.eyebrow}>PREFERENSI APLIKASI</Text>
           <Text style={styles.title}>Pengaturan</Text>
-          <Text style={styles.subtitle}>Profil outlet, layanan, dan akun pengguna.</Text>
+          <Text style={styles.subtitle}>Layanan, rekening, dan akun pengguna.</Text>
         </View>
 
-        {!!error && (
-          <View style={styles.errorBox}>
-            <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text>
-            <Pressable accessibilityRole="button" onPress={() => void load()}>
-              <Text style={styles.retryText}>Coba lagi</Text>
-            </Pressable>
-          </View>
-        )}
-        {!!message && (
-          <View style={styles.successBox}>
-            <Text accessibilityRole="alert" style={styles.successText}>{message}</Text>
-          </View>
-        )}
-
         {/* Profil user */}
-        {!loading && (
-          <View style={styles.profileCard}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{user?.name.trim().charAt(0).toUpperCase() || 'U'}</Text>
-            </View>
-            <View style={styles.profileDetails}>
-              <Text style={styles.profileName}>{user?.name || 'Pengguna'}</Text>
-              <Text selectable style={styles.profileEmail}>{user?.email || 'Email tidak tersedia'}</Text>
-              <Text style={styles.profileMeta}>{roleName(user?.role ?? '')} · {activeOutlet?.name ?? outlet?.name ?? 'Outlet belum dipilih'}</Text>
-            </View>
+        <View style={styles.profileCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{user?.name.trim().charAt(0).toUpperCase() || 'U'}</Text>
           </View>
-        )}
+          <View style={styles.profileDetails}>
+            <Text style={styles.profileName}>{user?.name || 'Pengguna'}</Text>
+            <Text selectable style={styles.profileEmail}>{user?.email || 'Email tidak tersedia'}</Text>
+            <Text style={styles.profileMeta}>{roleName(user?.role ?? '')} · {activeOutlet?.name ?? 'Outlet belum dipilih'}</Text>
+          </View>
+        </View>
 
         {/* Tampilan */}
         <View style={styles.section}>
@@ -839,36 +767,6 @@ export function PengaturanScreen() {
           </View>
         </View>
 
-        {/* Profil outlet */}
-        {loading && !outlet ? (
-          <ActivityIndicator style={styles.loading} size="large" color={colors.brand} />
-        ) : (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Profil outlet aktif</Text>
-            {outlet ? (
-              <>
-                <Field label="Nama outlet">
-                  <TextInput accessibilityLabel="Nama outlet" value={outlet.name} onChangeText={(v) => updateOutletField('name', v)} style={styles.input} />
-                </Field>
-                <Field label="Alamat">
-                  <TextInput accessibilityLabel="Alamat outlet" value={outlet.address ?? ''} onChangeText={(v) => updateOutletField('address', v)} style={styles.input} />
-                </Field>
-                <Field label="Telepon">
-                  <TextInput accessibilityLabel="Telepon outlet" keyboardType="phone-pad" value={outlet.phone ?? ''} onChangeText={(v) => updateOutletField('phone', v)} style={styles.input} />
-                </Field>
-                <Field label="Pajak (%)">
-                  <TextInput accessibilityLabel="Pajak outlet" keyboardType="decimal-pad" value={String(outlet.taxPercent ?? 0)} onChangeText={(v) => updateOutletField('taxPercent', v)} style={styles.input} />
-                </Field>
-                <Pressable accessibilityRole="button" disabled={savingOutlet} onPress={() => void saveOutlet()} style={[styles.saveBtn, savingOutlet && styles.disabled]}>
-                  {savingOutlet ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Simpan profil outlet</Text>}
-                </Pressable>
-              </>
-            ) : (
-              <Text style={styles.muted}>Profil outlet belum tersedia.</Text>
-            )}
-          </View>
-        )}
-
         <PaketSection />
         <AddonSection />
         <BankSection />
@@ -889,7 +787,6 @@ function buildStyles(colors: Palette) {
     eyebrow: { color: colors.brandDark, fontSize: 11, fontWeight: '800', letterSpacing: 1.4 },
     title: { color: colors.ink, fontSize: 24, fontWeight: '800' },
     subtitle: { color: colors.muted, fontSize: 13, marginTop: -2 },
-    loading: { marginTop: 38 },
     profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, borderRadius: 16 },
     avatar: { width: 46, height: 46, borderRadius: 15, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
     avatarText: { color: colors.brandDark, fontSize: 19, fontWeight: '800' },
@@ -930,11 +827,6 @@ function buildStyles(colors: Palette) {
     disabled: { opacity: 0.55 },
     logoutButton: { minHeight: 48, justifyContent: 'center', alignItems: 'center', borderRadius: 11, borderWidth: 1, borderColor: colors.dangerSoft, backgroundColor: colors.surface, paddingHorizontal: 14 },
     logoutText: { color: colors.danger, fontWeight: '800' },
-    errorBox: { borderRadius: 10, padding: 11, backgroundColor: colors.dangerSoft },
-    errorText: { color: colors.dangerDark, fontSize: 13 },
-    successBox: { borderRadius: 10, padding: 11, backgroundColor: colors.successSoft },
-    successText: { color: colors.successDark, fontSize: 13, fontWeight: '700' },
-    retryText: { color: colors.brandDark, fontSize: 12, fontWeight: '800' },
     // Modal styles
     modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end' },
     modalSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%' },
