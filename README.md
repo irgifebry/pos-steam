@@ -32,7 +32,7 @@ Keduanya memanggil API yang sama. Untuk web preview mobile (`localhost:8081` →
 | 1 | **Kasir** | Pilih paket & add-on, plat nomor, **nama kendaraan** (contoh: Avanza, Fortuner), catatan, opsi **ROYALTY**, lalu buat antrean |
 | 2 | **Pembayaran di Antrean** | Pembayaran tunai/transfer dilakukan saat menekan **Mulai Cuci** di papan antrean, bukan di awal saat membuat order |
 | 3 | **Papan Status Antrean** | Kartu kendaraan hari ini, filter status & jenis kendaraan, statistik Menunggu/Diproses/Selesai/Total, tombol Mulai & Selesai |
-| 4 | **Laporan Omzet** | Dashboard harian, laporan omzet, metode pembayaran, paket terlaris, export CSV |
+| 4 | **Laporan Omzet** | Dashboard harian, laporan omzet, metode pembayaran, paket terlaris, export **CSV & Excel (.xlsx)** |
 | 5 | **Pengaturan** | Sub-halaman: Paket Layanan, Add-on, Rekening Bank, Pengguna. Data dihapus dengan tombol **Hapus**, bukan "Nonaktifkan" |
 | 6 | **Karyawan & Gaji (web)** | Absensi harian, rekap bulanan, hitung gaji, slip gaji |
 | 7 | **Struk digital** | Halaman struk publik `/r/[token]` dan bagikan via WhatsApp dari mobile |
@@ -42,7 +42,6 @@ Keduanya memanggil API yang sama. Untuk web preview mobile (`localhost:8081` →
 | Peran | Kemampuan |
 |---|---|
 | **`admin`** | Akses penuh: kasir, antrean, laporan, pengaturan, pengguna, gaji |
-| **`karyawan`** | Peran data karyawan (dipakai untuk absensi & penggajian di web) |
 
 Seed hanya membuat **satu akun demo**: `admin@pos.test` / `123456` dengan nama tampilan **`testing`** (status belum rilis), beserta satu outlet kosong. Tidak ada paket, add-on, rekening, karyawan, atau transaksi contoh — semuanya diisi admin lewat menu Pengaturan. Nama outlet bisa diatur lewat env `SEED_OUTLET_NAME` (default `KYANE POS`).
 

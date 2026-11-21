@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Banknote, Calendar, CreditCard, Download, Package, Printer, TrendingUp, Users, Wrench } from "lucide-react";
+import { BarChart3, Banknote, Calendar, CreditCard, Download, FileSpreadsheet, Package, Printer, TrendingUp, Users, Wrench } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -269,6 +269,31 @@ export default function LaporanPage() {
     }
   }
 
+  async function downloadExcel(type: string) {
+    if (invalidRange) {
+      showToastMsg("Rentang tanggal tidak valid");
+      return;
+    }
+    const qs = new URLSearchParams({ type, from: rangeFrom, to: rangeTo });
+    try {
+      const res = await fetch(`/api/reports/export.xlsx?${qs}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Server menolak unduhan Excel");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const suffix = rangeTo !== rangeFrom ? `_${rangeTo}` : "";
+      a.download = `laporan-${type}-${rangeFrom}${suffix}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToastMsg("Excel berhasil diunduh");
+    } catch (e) {
+      showToastMsg(e instanceof Error ? e.message : "Gagal unduh Excel");
+    }
+  }
+
   function handlePrint() {
     window.print();
   }
@@ -439,9 +464,14 @@ export default function LaporanPage() {
                 <BarChart3 className="h-4 w-4 text-brand" />
                 <span className="font-display font-bold text-ink">Omzet per Periode</span>
               </div>
-              <Button variant="primary" size="sm" onClick={() => downloadCsv("transaksi")} disabled={invalidRange || loading.omzet || txs.length === 0}>
-                <Download className="h-4 w-4" /> Export CSV
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="primary" size="sm" onClick={() => downloadCsv("transaksi")} disabled={invalidRange || loading.omzet || txs.length === 0}>
+                  <Download className="h-4 w-4" /> CSV
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => downloadExcel("transactions")} disabled={invalidRange || loading.omzet || txs.length === 0}>
+                  <FileSpreadsheet className="h-4 w-4" /> Excel
+                </Button>
+              </div>
             </div>
 
             {loading.omzet && (
@@ -502,9 +532,14 @@ export default function LaporanPage() {
                 <Package className="h-4 w-4 text-brand" />
                 <span className="font-display font-bold text-ink">Rekap Paket</span>
               </div>
-              <Button variant="primary" size="sm" onClick={() => downloadCsv("paket")} disabled={invalidRange || loading.paket || paketRows.length === 0}>
-                <Download className="h-4 w-4" /> Export CSV
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="primary" size="sm" onClick={() => downloadCsv("paket")} disabled={invalidRange || loading.paket || paketRows.length === 0}>
+                  <Download className="h-4 w-4" /> CSV
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => downloadExcel("paket")} disabled={invalidRange || loading.paket || paketRows.length === 0}>
+                  <FileSpreadsheet className="h-4 w-4" /> Excel
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <Card className="p-4 flex flex-col gap-1">
@@ -564,9 +599,14 @@ export default function LaporanPage() {
                 <Wrench className="h-4 w-4 text-brand" />
                 <span className="font-display font-bold text-ink">Rekap Add-on</span>
               </div>
-              <Button variant="primary" size="sm" onClick={() => downloadCsv("addon")} disabled={invalidRange || loading.addon || addonRows.length === 0}>
-                <Download className="h-4 w-4" /> Export CSV
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="primary" size="sm" onClick={() => downloadCsv("addon")} disabled={invalidRange || loading.addon || addonRows.length === 0}>
+                  <Download className="h-4 w-4" /> CSV
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => downloadExcel("addon")} disabled={invalidRange || loading.addon || addonRows.length === 0}>
+                  <FileSpreadsheet className="h-4 w-4" /> Excel
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <Card className="p-4 flex flex-col gap-1">
@@ -626,9 +666,14 @@ export default function LaporanPage() {
                 <CreditCard className="h-4 w-4 text-brand" />
                 <span className="font-display font-bold text-ink">Rekap Metode Pembayaran</span>
               </div>
-              <Button variant="primary" size="sm" onClick={() => downloadCsv("pembayaran")} disabled={invalidRange || loading.pembayaran || paymentRows.length === 0}>
-                <Download className="h-4 w-4" /> Export CSV
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="primary" size="sm" onClick={() => downloadCsv("pembayaran")} disabled={invalidRange || loading.pembayaran || paymentRows.length === 0}>
+                  <Download className="h-4 w-4" /> CSV
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => downloadExcel("payment-method")} disabled={invalidRange || loading.pembayaran || paymentRows.length === 0}>
+                  <FileSpreadsheet className="h-4 w-4" /> Excel
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Card className="flex flex-col gap-1 p-4">
@@ -686,9 +731,14 @@ export default function LaporanPage() {
                 <Users className="h-4 w-4 text-brand" />
                 <span className="font-display font-bold text-ink">Rekap Karyawan</span>
               </div>
-              <Button variant="primary" size="sm" onClick={() => downloadCsv("karyawan")} disabled={invalidRange || loading.karyawan || employeeRows.length === 0}>
-                <Download className="h-4 w-4" /> Export CSV
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="primary" size="sm" onClick={() => downloadCsv("karyawan")} disabled={invalidRange || loading.karyawan || employeeRows.length === 0}>
+                  <Download className="h-4 w-4" /> CSV
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => downloadExcel("employee")} disabled={invalidRange || loading.karyawan || employeeRows.length === 0}>
+                  <FileSpreadsheet className="h-4 w-4" /> Excel
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <Card className="p-4 flex flex-col gap-1">
@@ -762,16 +812,11 @@ export default function LaporanPage() {
 
             {mode === "single" && !loading.kas && !error.kas && (
               <>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="w-fit self-start"
-                  onClick={() => downloadCsv("kas")}
-                  disabled
-                   title="Ekspor CSV untuk kas belum tersedia"
-                >
-                  <Download className="h-4 w-4" /> Export CSV
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => downloadExcel("cash")} disabled={invalidRange || loading.kas}>
+                    <FileSpreadsheet className="h-4 w-4" /> Excel
+                  </Button>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                   <Card className="p-4 flex flex-col gap-1">
                     <p className="text-xs text-muted">Saldo awal</p>

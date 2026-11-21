@@ -4,7 +4,7 @@ Dokumen ini khusus untuk **backend**: apa yang sudah dibangun, kontrak API, cara
 
 | | |
 |---|---|
-| **Fase** | F1–F2 — Fondasi backend + sinkronisasi transaksi (kasir, antrean, laporan, karyawan, gaji kas, struk publik) + dukungan klien mobile (role `admin`/`karyawan`, harga ROYALTY, CORS Expo Web) |
+| **Fase** | F1–F2 — Fondasi backend + sinkronisasi transaksi (kasir, antrean, laporan, karyawan, gaji kas, struk publik) + dukungan klien mobile (harga ROYALTY, CORS Expo Web) |
 | **Status** | Selesai dan terverifikasi |
 | **PIC Backend** | [Najwan48](https://github.com/Najwan48) |
 | **Branch** | `main` |
@@ -18,12 +18,12 @@ Backend F1 menyediakan fondasi aplikasi full-stack Next.js 16:
 
 - Database PostgreSQL via Drizzle ORM: **18 tabel**, 4 migrasi (`0000`–`0003`).
 - Autentikasi **Better Auth**: email/PIN.
-- Otorisasi berbasis sesi + peran di Route Handler: `admin`, `karyawan` (`roleSchema = z.enum(["admin", "karyawan"])`).
+- Otorisasi berbasis sesi di Route Handler. Satu-satunya peran: `admin` (`roleSchema = z.enum(["admin"])`).
 - API master data: paket, add-on, outlet, bank, settings.
 - API manajemen pengguna: tambah, ubah, reset PIN, aktif/nonaktif.
 - API transaksi & operasional: order, antrean, pembayaran, pembatalan, struk publik, absensi, payroll, shift kas, laporan.
 - Harga ROYALTY per paket (`service_packages.royalty_price`) dengan aturan khusus di `services/orders.ts`.
-- Dukungan klien mobile Expo: tipe role `admin | karyawan`, base URL otomatis, dan proxy CORS untuk Expo Web (`src/proxy.ts`).
+- Dukungan klien mobile Expo: base URL otomatis dan proxy CORS untuk Expo Web (`src/proxy.ts`).
 - Validasi Zod sebagai sumber tunggal (`src/lib/schemas.ts`).
 - Format error konsisten `{ error: { code, message } }`.
 - Audit log untuk perubahan pengguna.
@@ -204,7 +204,7 @@ Konfigurasi ada di `src/lib/auth/config.ts`:
 - `emailAndPassword.enabled = true`, `minPasswordLength = 6`.
 - Sesi berlaku **7 hari**, diperbarui setiap **1 hari**.
 - Field tambahan user: `role`, `phone`, `outletId`, `dailyRate`, `active`.
-- `role` bertipe `admin` atau `karyawan` (`roleSchema`); default `admin` di `userInputSchema` dan di kolom database (migrasi `0003`).
+- `role` hanya bertipe `admin` (`roleSchema = z.enum(["admin"])`); default `admin` di `userInputSchema` dan di kolom database.
 - Semua field tambahan memakai `input: false`, sehingga tidak bisa diisi dari body sign-up publik.
 - `trustedOrigins` diambil dari `WEB_ORIGIN`.
 - Plugin `nextCookies()` aktif di runtime, dimatikan di test.
@@ -216,7 +216,7 @@ Konfigurasi ada di `src/lib/auth/config.ts`:
 | `getSessionUser()` | Mengembalikan user atau `null`. User dengan `active = false` atau role di luar `roleSchema` dianggap tidak login. |
 | `requireUser()` | Melempar `401 UNAUTHENTICATED` bila tidak ada sesi. |
 
-Role yang dikenal: `admin` dan `karyawan` (`roleSchema = z.enum(["admin", "karyawan"])`). Saat ini Route Handler memakai `requireUser()` tanpa argumen peran, sehingga semua user aktif (admin maupun karyawan) dapat mengakses endpoint. Pembedaan peran dipakai pada data user, proteksi admin terakhir (`LAST_ADMIN`), dan tampilan mobile.
+Role yang dikenal: **hanya `admin`** (`roleSchema = z.enum(["admin"])`). Route Handler memakai `requireUser()` tanpa argumen peran. Proteksi `LAST_ADMIN` mencegah penonaktifan admin terakhir.
 
 ### 5.3 Reset PIN
 
@@ -293,10 +293,10 @@ Cookie sesi dikirim lewat header `set-cookie`. Frontend harus memakai `credentia
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/packages?vehicleType=motor\|mobil&includeInactive=true` | admin, karyawan | Daftar paket, urut `sortOrder` lalu nama |
-| POST | `/api/packages` | admin, karyawan | Buat paket |
-| PATCH | `/api/packages/:id` | admin, karyawan | Ubah sebagian field |
-| DELETE | `/api/packages/:id` | admin, karyawan | Soft-delete (`active = false`) |
+| GET | `/api/packages?vehicleType=motor\|mobil&includeInactive=true` | admin | Daftar paket, urut `sortOrder` lalu nama |
+| POST | `/api/packages` | admin | Buat paket |
+| PATCH | `/api/packages/:id` | admin | Ubah sebagian field |
+| DELETE | `/api/packages/:id` | admin | Soft-delete (`active = false`) |
 
 Body POST:
 
@@ -326,10 +326,10 @@ Aturan:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/addons?vehicleType=motor\|mobil&includeInactive=true` | admin, karyawan | Filter tipe kendaraan |
-| POST | `/api/addons` | admin, karyawan | Buat add-on |
-| PATCH | `/api/addons/:id` | admin, karyawan | Ubah sebagian field |
-| DELETE | `/api/addons/:id` | admin, karyawan | Soft-delete |
+| GET | `/api/addons?vehicleType=motor\|mobil&includeInactive=true` | admin | Filter tipe kendaraan |
+| POST | `/api/addons` | admin | Buat add-on |
+| PATCH | `/api/addons/:id` | admin | Ubah sebagian field |
+| DELETE | `/api/addons/:id` | admin | Soft-delete |
 
 Body POST:
 
@@ -347,8 +347,8 @@ Body POST:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/outlets` | admin, karyawan | Daftar outlet |
-| PATCH | `/api/outlets` | admin, karyawan | Ubah outlet milik user yang login |
+| GET | `/api/outlets` | admin | Daftar outlet |
+| PATCH | `/api/outlets` | admin | Ubah outlet milik user yang login |
 
 Body PATCH (semua field opsional):
 
@@ -366,9 +366,9 @@ Body PATCH (semua field opsional):
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/banks` | admin, karyawan | Bank aktif milik outlet user |
-| POST | `/api/banks` | admin, karyawan | Tambah bank |
-| PATCH | `/api/banks/:id` | admin, karyawan | Ubah nama, nomor rekening, pemilik, atau status aktif bank |
+| GET | `/api/banks` | admin | Bank aktif milik outlet user |
+| POST | `/api/banks` | admin | Tambah bank |
+| PATCH | `/api/banks/:id` | admin | Ubah nama, nomor rekening, pemilik, atau status aktif bank |
 
 Body POST:
 
@@ -385,13 +385,13 @@ Body POST:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/orders?date=...&from=...&to=...&includePaid=true\|false` | admin, karyawan | Daftar order outlet dalam rentang tanggal; default hari ini |
-| GET | `/api/orders/:id` | admin, karyawan | Detail order termasuk item dan pembayaran |
-| PATCH | `/api/orders/:id` | admin, karyawan | Ubah item & data pelanggan (hanya saat status `menunggu`) |
-| POST | `/api/orders` | admin, karyawan | Buat order (server menghitung total, antrean, invoice, snapshot) |
-| PATCH | `/api/orders/:id/status` | admin, karyawan | Ubah status `menunggu` → `proses` → `selesai` |
-| POST | `/api/orders/:id/payments` | admin, karyawan | Catat pembayaran pada order selesai → otomatis `paid` |
-| POST | `/api/orders/:id/cancel` | admin, karyawan | Batalkan order |
+| GET | `/api/orders?date=...&from=...&to=...&includePaid=true\|false` | admin | Daftar order outlet dalam rentang tanggal; default hari ini |
+| GET | `/api/orders/:id` | admin | Detail order termasuk item dan pembayaran |
+| PATCH | `/api/orders/:id` | admin | Ubah item & data pelanggan (hanya saat status `menunggu`) |
+| POST | `/api/orders` | admin | Buat order (server menghitung total, antrean, invoice, snapshot) |
+| PATCH | `/api/orders/:id/status` | admin | Ubah status `menunggu` → `proses` → `selesai` |
+| POST | `/api/orders/:id/payments` | admin | Catat pembayaran pada order selesai → otomatis `paid` |
+| POST | `/api/orders/:id/cancel` | admin | Batalkan order |
 | GET | `/api/receipts/:token` | Publik | Struk publik berbasis UUID order (tidak perlu login) |
 
 Body POST `/api/orders`:
@@ -431,16 +431,16 @@ Aturan order:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/attendance?date=YYYY-MM-DD` | admin, karyawan | Daftar absensi outlet pada tanggal |
-| POST | `/api/attendance` | admin, karyawan | Upsert absensi karyawan (tanggal + user unik) |
-| GET | `/api/attendance/summary?period=YYYY-MM` | admin, karyawan | Ringkasan bulanan per karyawan |
+| GET | `/api/attendance?date=YYYY-MM-DD` | admin | Daftar absensi outlet pada tanggal |
+| POST | `/api/attendance` | admin | Upsert absensi karyawan (tanggal + user unik) |
+| GET | `/api/attendance/summary?period=YYYY-MM` | admin | Ringkasan bulanan per karyawan |
 
 #### Payroll
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/payroll?period=YYYY-MM` | admin, karyawan | Ambil payroll (draft atau final) dengan item per karyawan |
-| POST | `/api/payroll` | admin, karyawan | Simpan draft atau finalisasi payroll periode |
+| GET | `/api/payroll?period=YYYY-MM` | admin | Ambil payroll (draft atau final) dengan item per karyawan |
+| POST | `/api/payroll` | admin | Simpan draft atau finalisasi payroll periode |
 
 Body POST `/api/payroll`:
 
@@ -461,50 +461,53 @@ Body POST `/api/payroll`:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/cash-shifts` | admin, karyawan | Shift terbuka + riwayat 30 shift terakhir |
-| POST | `/api/cash-shifts` | admin, karyawan | Buka shift kas (saldo awal) |
-| POST | `/api/cash-shifts/:id/close` | admin, karyawan | Tutup shift; hitung kas seharusnya dari pembayaran tunai sejak dibuka |
+| GET | `/api/cash-shifts` | admin | Shift terbuka + riwayat 30 shift terakhir |
+| POST | `/api/cash-shifts` | admin | Buka shift kas (saldo awal) |
+| POST | `/api/cash-shifts/:id/close` | admin | Tutup shift; hitung kas seharusnya dari pembayaran tunai sejak dibuka |
 
 #### Dashboard & Laporan
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/dashboard/today` | admin, karyawan | Metrik ringkas hari ini (omzet, transaksi, tiket rata-rata, tunai/transfer, motor/mobil) |
-| GET | `/api/reports/transactions?from=...&to=...` | admin, karyawan | Transaksi yang **sudah dibayar** dalam rentang, detail add-on |
-| GET | `/api/dashboard/today` | admin, karyawan | Metrik ringkas hari ini (omzet, transaksi, tiket rata-rata, tunai/transfer, motor/mobil) |
-| GET | `/api/reports/transactions?from=...&to=...` | admin, karyawan | Transaksi yang **sudah dibayar** dalam rentang, detail add-on |
-| GET | `/api/reports/omzet?from=...&to=...&groupBy=day\|week\|month` | admin, karyawan | Tren omzet berkala |
-| GET | `/api/reports/paket?from=...&to=...` | admin, karyawan | Agregasi per paket (jumlah & total) |
-| GET | `/api/reports/addon?from=...&to=...` | admin, karyawan | Agregasi per add-on (qty, jumlah, total) |
-| GET | `/api/reports/payment-method?from=...&to=...` | admin, karyawan | Agregasi per metode pembayaran (jumlah & total) |
-| GET | `/api/reports/employee?from=...&to=...` | admin, karyawan | Agregasi per karyawan (jumlah & total) |
-| GET | `/api/reports/cash?date=YYYY-MM-DD` | admin, karyawan | Rekonsiliasi kas harian & shift |
-| GET | `/api/reports/export.csv?from=...&to=...&type=...` | admin, karyawan | Ekspor CSV (`transactions`, `paket`, `addon`, `payment-method`, `employee`) |
+| GET | `/api/dashboard/today` | admin | Metrik ringkas hari ini (omzet, transaksi, tiket rata-rata, tunai/transfer, motor/mobil) |
+| GET | `/api/reports/transactions?from=...&to=...` | admin | Transaksi yang **sudah dibayar** dalam rentang, detail add-on |
+| GET | `/api/dashboard/today` | admin | Metrik ringkas hari ini (omzet, transaksi, tiket rata-rata, tunai/transfer, motor/mobil) |
+| GET | `/api/reports/transactions?from=...&to=...` | admin | Transaksi yang **sudah dibayar** dalam rentang, detail add-on |
+| GET | `/api/reports/omzet?from=...&to=...&groupBy=day\|week\|month` | admin | Tren omzet berkala |
+| GET | `/api/reports/paket?from=...&to=...` | admin | Agregasi per paket (jumlah & total) |
+| GET | `/api/reports/addon?from=...&to=...` | admin | Agregasi per add-on (qty, jumlah, total) |
+| GET | `/api/reports/payment-method?from=...&to=...` | admin | Agregasi per metode pembayaran (jumlah & total) |
+| GET | `/api/reports/employee?from=...&to=...` | admin | Agregasi per karyawan (jumlah & total) |
+| GET | `/api/reports/cash?date=YYYY-MM-DD` | admin | Rekonsiliasi kas harian & shift |
+| GET | `/api/reports/export.csv?from=...&to=...&type=...` | admin | Ekspor CSV (`transactions`, `paket`, `addon`, `payment-method`, `employee`) |
+| GET | `/api/reports/export.xlsx?from=...&to=...&type=...` | admin | Ekspor Excel `.xlsx` (7 sheet: Ringkasan, Transaksi, Paket, Add-on, Metode Pembayaran, Karyawan, Kas). Sheet aktif mengikuti `type` |
+
+> **Format Excel:** generator ada di `src/lib/services/report-export.ts` (exceljs). Font Arial, header biru brand, baris bergaris, filter, freeze header, lebar kolom diatur, dan format mata uang Rupiah. Setiap sheet memakai header di baris 6, data mulai baris 7, serta baris **TOTAL** berupa formula `SUM(...)` (bukan nilai statis). Sheet **Ringkasan** memakai formula lintas sheet (`COUNT`, `SUM`, `IF`). Catatan asumsi ditaruh di bawah tabel dan sebagai catatan sel.
 
 #### Audit & Offline Sync
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/audit-logs?entity=...&limit=50&offset=0` | admin, karyawan | Daftar riwayat audit log |
-| GET | `/api/sync/bootstrap` | admin, karyawan | Master data + counter sequence invoice/antrean untuk cache offline |
-| POST | `/api/sync/batch` | admin, karyawan | Batch sinkronisasi transaksi offline secara idempotent |
+| GET | `/api/audit-logs?entity=...&limit=50&offset=0` | admin | Daftar riwayat audit log |
+| GET | `/api/sync/bootstrap` | admin | Master data + counter sequence invoice/antrean untuk cache offline |
+| POST | `/api/sync/batch` | admin | Batch sinkronisasi transaksi offline secara idempotent |
 
 #### Pengguna (query baru)
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/users?includeInactive=false\|true` | admin, karyawan | Toggle sertakan pengguna nonaktif |
+| GET | `/api/users?includeInactive=false\|true` | admin | Toggle sertakan pengguna nonaktif |
 
 #### Settings (update baru)
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| PATCH | `/api/settings` | admin, karyawan | Ubah `defaultDailyRate` |
+| PATCH | `/api/settings` | admin | Ubah `defaultDailyRate` |
 
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/settings` | admin, karyawan | Gabungan outlet + bank aktif + `defaultDailyRate` |
+| GET | `/api/settings` | admin | Gabungan outlet + bank aktif + `defaultDailyRate` |
 
 Contoh response:
 
@@ -524,12 +527,12 @@ Contoh response:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
-| GET | `/api/users` | admin, karyawan | Daftar lengkap termasuk nonaktif, termasuk `dailyRate` dan `email` |
-| GET | `/api/users?light=1` | admin, karyawan | Ringkasan `{ id, name, role }` untuk switcher pengguna |
-| POST | `/api/users` | admin, karyawan | Buat pengguna + PIN |
-| PATCH | `/api/users/:id` | admin, karyawan | Ubah nama/email/role/telepon/gaji/aktif |
-| POST | `/api/users/:id/pin` | admin, karyawan | Reset PIN |
-| POST | `/api/users/:id/active` | admin, karyawan | Aktif/nonaktifkan pengguna |
+| GET | `/api/users` | admin | Daftar lengkap termasuk nonaktif, termasuk `dailyRate` dan `email` |
+| GET | `/api/users?light=1` | admin | Ringkasan `{ id, name, role }` untuk switcher pengguna |
+| POST | `/api/users` | admin | Buat pengguna + PIN |
+| PATCH | `/api/users/:id` | admin | Ubah nama/email/role/telepon/gaji/aktif |
+| POST | `/api/users/:id/pin` | admin | Reset PIN |
+| POST | `/api/users/:id/active` | admin | Aktif/nonaktifkan pengguna |
 
 Body POST:
 
@@ -538,7 +541,7 @@ Body POST:
   "name": "Siti",
   "email": "siti@contoh.id",
   "password": "112233",
-  "role": "karyawan",
+  "role": "admin",
   "phone": "08123456789",
   "dailyRate": 50000,
   "active": true
@@ -561,7 +564,7 @@ Aturan:
 
 - `GET /api/users` hanya untuk user aktif; mengembalikan data lengkap termasuk `email` dan `dailyRate` (tidak ada pembatasan berdasarkan peran).
 - `?light=1` hanya mengembalikan `id`, `name`, `role` dan hanya untuk outlet yang sama.
-- Role yang diterima: `admin` atau `karyawan`. Menurunkan role admin terakhir atau menonaktifkannya -> `409 LAST_ADMIN`.
+- Role yang diterima: hanya `admin`. Menonaktifkan admin terakhir -> `409 LAST_ADMIN`.
 - Menonaktifkan user menghapus semua sesinya.
 - Tidak ada `DELETE /api/users/:id`; gunakan endpoint aktif/nonaktif.
 
@@ -609,7 +612,7 @@ Sumber tunggal: `src/lib/schemas.ts`.
 
 Catatan penting: schema update **tidak** memakai `.partial()` pada schema input yang punya `.default()`. Di Zod, `.partial()` tetap menerapkan default, sehingga PATCH `{ "price": 50000 }` bisa mereset `description`, `sortOrder`, dan `active`. Karena itu setiap entitas punya schema update eksplisit.
 
-Perubahan terkini: `servicePackageInputSchema`/`servicePackageUpdateSchema` menerima `royaltyPrice` (integer >= 0, nullable, opsional) dan `durationMin` kini default `0` pada schema input. `orderCreateSchema` menerima `vehicleName`, `discount`, dan `royalty` (boolean) opsional. `roleSchema` adalah `z.enum(["admin", "karyawan"])`.
+Perubahan terkini: `servicePackageInputSchema`/`servicePackageUpdateSchema` menerima `royaltyPrice` (integer >= 0, nullable, opsional) dan `durationMin` kini default `0` pada schema input. `orderCreateSchema` menerima `vehicleName`, `discount`, dan `royalty` (boolean) opsional. `roleSchema` adalah `z.enum(["admin"])`.
 
 ---
 
@@ -658,10 +661,9 @@ npm run db:seed
 | Paket | 0 | Diisi admin lewat Pengaturan → Paket Layanan |
 | Add-on | 0 | Diisi admin lewat Pengaturan → Add-on |
 | Bank | 0 | Diisi admin lewat Pengaturan → Rekening Bank |
-| Karyawan | 0 | Dibuat admin lewat Pengaturan → Pengguna |
 
 - Seed **idempotent**: aman dijalankan berulang, memakai `onConflictDoUpdate` untuk outlet dan update langsung untuk admin.
-- **Tidak ada data dummy**: tidak ada paket, add-on, rekening, karyawan, transaksi, ataupun harga contoh. Seluruh master data diisi pengguna setelah login pertama.
+- **Tidak ada data dummy**: tidak ada paket, add-on, rekening, transaksi, ataupun harga contoh. Seluruh master data diisi pengguna setelah login pertama.
 - `SEED_OUTLET_NAME` (opsional) mengganti nama outlet saat seed; gunakan nama usaha sebenarnya di lingkungan non-lokal.
 - PIN `123456` adalah PIN demo untuk akun admin. **Wajib diganti** sebelum produksi.
 - Seed selalu mereset PIN dan menghapus sesi admin yang sudah ada, lalu menimpa role dan `outletId` admin sesuai seed.
