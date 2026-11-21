@@ -33,18 +33,16 @@ describe("seed", () => {
     const outletRows = await db.select().from(outlets);
     expect(outletRows).toHaveLength(1);
 
-    const packageRows = await db.select().from(servicePackages);
-    expect(packageRows).toHaveLength(7);
+    // Tidak ada data contoh: master data diisi admin lewat UI.
+    expect(await db.select().from(servicePackages)).toHaveLength(0);
+    expect(await db.select().from(addons)).toHaveLength(0);
+    expect(await db.select().from(banks)).toHaveLength(0);
 
-    const addonRows = await db.select().from(addons);
-    expect(addonRows).toHaveLength(5);
-
-    const bankRows = await db.select().from(banks);
-    expect(bankRows).toHaveLength(3);
-
-    const adminRows = await db.select().from(userTable).where(eq(userTable.email, "admin@pos.test"));
-    expect(adminRows).toHaveLength(1);
-    expect(adminRows[0].role).toBe("admin");
+    // Hanya satu akun demo yang dibuat seed.
+    const users = await db.select().from(userTable);
+    expect(users).toHaveLength(1);
+    expect(users[0].email).toBe("admin@pos.test");
+    expect(users[0].role).toBe("admin");
   });
 
   it("admin hasil seed bisa login dengan PIN demo", async () => {

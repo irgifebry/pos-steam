@@ -44,7 +44,7 @@ Keduanya memanggil API yang sama. Untuk web preview mobile (`localhost:8081` →
 | **`admin`** | Akses penuh: kasir, antrean, laporan, pengaturan, pengguna, gaji |
 | **`karyawan`** | Peran data karyawan (dipakai untuk absensi & penggajian di web) |
 
-Seed membuat akun admin `admin@pos.test` / `123456` dan dua karyawan: `budi@pos.test` serta `siti@pos.test` (PIN sama).
+Seed hanya membuat **satu akun demo**: `admin@pos.test` / `123456`, beserta satu outlet kosong. Tidak ada paket, add-on, rekening, karyawan, atau transaksi contoh — semuanya diisi admin lewat menu Pengaturan. Nama outlet bisa diatur lewat env `SEED_OUTLET_NAME` (default `KYANE POS`).
 
 ---
 
@@ -138,6 +138,7 @@ DIRECT_URL=postgresql://...:5432/postgres
 BETTER_AUTH_SECRET=...
 BETTER_AUTH_URL=http://localhost:3000
 WEB_ORIGIN=http://localhost:3000
+SEED_OUTLET_NAME=Nama Outlet Anda   # opsional, dipakai saat db:seed
 ```
 
 ### Migrasi & seed

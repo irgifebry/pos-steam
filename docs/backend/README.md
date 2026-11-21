@@ -27,7 +27,7 @@ Backend F1 menyediakan fondasi aplikasi full-stack Next.js 16:
 - Validasi Zod sebagai sumber tunggal (`src/lib/schemas.ts`).
 - Format error konsisten `{ error: { code, message } }`.
 - Audit log untuk perubahan pengguna.
-- Seed data idempotent untuk outlet, paket, add-on, bank, admin, dan karyawan.
+- Seed sengaja **minimal**: satu outlet kosong dan satu akun demo admin. Tidak ada data contoh paket, add-on, bank, maupun karyawan.
 - Test backend dengan **PGlite** tanpa database eksternal.
 
 **Hasil verifikasi terakhir:**
@@ -653,18 +653,18 @@ npm run db:seed
 
 | Data | Jumlah | Keterangan |
 |---|---|---|
-| Outlet | 1 | `Cuci Steam Bersama`, pajak 0% |
-| Paket | 7 | 4 motor + 3 mobil; masing-masing punya `royaltyPrice` |
-| Add-on | 5 | Semprot Wax, Ojek Ban, Semprot Interior, Poles Kaca, Formula |
-| Bank | 3 | BCA, BRI, Mandiri |
-| Admin | 1 | `admin@pos.test` / `123456` (nama: Admin Outlet) |
-| Karyawan | 2 | `budi@pos.test` (Budi Setiawan, `dailyRate` 85000) dan `siti@pos.test` (Siti Rahayu, `dailyRate` 80000); PIN `123456` |
+| Outlet | 1 | Outlet kosong: nama dari `SEED_OUTLET_NAME` (default `KYANE POS`), alamat/telepon/footer kosong, pajak 0% |
+| Admin | 1 | `admin@pos.test` / `123456` (nama: Admin) — **satu-satunya akun demo** |
+| Paket | 0 | Diisi admin lewat Pengaturan → Paket Layanan |
+| Add-on | 0 | Diisi admin lewat Pengaturan → Add-on |
+| Bank | 0 | Diisi admin lewat Pengaturan → Rekening Bank |
+| Karyawan | 0 | Dibuat admin lewat Pengaturan → Pengguna |
 
-- Seed **idempotent**: aman dijalankan berulang, memakai `onConflictDoUpdate`.
-- Harga seed masih **placeholder `1000`** sesuai rencana. Ganti lewat Pengaturan setelah frontend selesai.
-- `royaltyPrice` seed: Reguler `0`, Komplit `500` (motor) / `600` (mobil), Premium `700` (motor) / `800` (mobil), Cuci OJOL `400`.
-- PIN `123456` adalah PIN demo untuk admin maupun karyawan. **Wajib diganti** sebelum produksi.
-- Seed selalu mereset PIN dan menghapus sesi admin/karyawan yang sudah ada, lalu menimpa role, outlet, dan data karyawan sesuai seed.
+- Seed **idempotent**: aman dijalankan berulang, memakai `onConflictDoUpdate` untuk outlet dan update langsung untuk admin.
+- **Tidak ada data dummy**: tidak ada paket, add-on, rekening, karyawan, transaksi, ataupun harga contoh. Seluruh master data diisi pengguna setelah login pertama.
+- `SEED_OUTLET_NAME` (opsional) mengganti nama outlet saat seed; gunakan nama usaha sebenarnya di lingkungan non-lokal.
+- PIN `123456` adalah PIN demo untuk akun admin. **Wajib diganti** sebelum produksi.
+- Seed selalu mereset PIN dan menghapus sesi admin yang sudah ada, lalu menimpa role dan `outletId` admin sesuai seed.
 
 ---
 
@@ -741,6 +741,7 @@ Buka `http://localhost:3000`. Root mengarah ke `/kasir`; frontend web sudah ters
 | `BETTER_AUTH_URL` | Ya | Base URL aplikasi, mis. `http://localhost:3000` |
 | `WEB_ORIGIN` | Ya | Origin yang diizinkan untuk CORS/trusted origin |
 | `NODE_ENV` | Tidak | `development` / `test` / `production` |
+| `SEED_OUTLET_NAME` | Tidak | Nama outlet saat `db:seed`; default `KYANE POS`. Seed tidak membuat data contoh lain |
 
 ### 12.4 Script npm
 

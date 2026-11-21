@@ -134,9 +134,10 @@ Expo Web memerlukan **CORS proxy** yang sudah tersedia di [`src/proxy.ts`](../..
 | Akun | Role | PIN | Kegunaan |
 |---|---|---|---|
 | `admin@pos.test` | admin | `123456` | Akun seed; **wajib diganti di luar local** |
-| `budi@pos.test` | karyawan | `123456` | Karyawan seed (Budi Setiawan, gaji harian 85000) |
-| `siti@pos.test` | karyawan | `123456` | Karyawan seed (Siti Rahayu, gaji harian 80000) |
-| `qa.inactive@pos.test` | karyawan | `778899` | Buat via endpoint aktif/nonaktif; pengujian sesi mati |
+| `qa.karyawan@pos.test` | karyawan | `123456` | Buat manual lewat Pengaturan → Pengguna saat setup test |
+| `qa.inactive@pos.test` | karyawan | `778899` | Buat manual lalu nonaktifkan; pengujian sesi mati |
+
+> Seed hanya membuat akun `admin@pos.test`. Tidak ada akun karyawan, paket, add-on, bank, atau transaksi contoh — siapkan data uji lewat UI/API sebelum menjalankan skenario.
 
 > Role yang dikenal backend saat ini hanya `admin` dan `karyawan` (`roleSchema` di `src/lib/schemas.ts`). Tidak ada peran `kasir`/`operator`. PIN minimal 6 karakter; PRD §5.1/§9.3 masih menyebut PIN 4 angka — lihat §14 dan catatan implementasi di puncak `prd.md`.
 

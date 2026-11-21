@@ -15,7 +15,7 @@
 
 | Aspek | Spesifikasi Awal | Implementasi Saat Ini |
 |---|---|---|
-| **Peran** | Satu peran `admin` untuk semua operasional; RBAC dihapus. | `admin` + `karyawan` (seed: **Budi** & **Siti**). Tab **Karyawan/Absensi** di mobile dihapus; web tetap mempertahankan `/karyawan`. |
+| **Peran** | Satu peran `admin` untuk semua operasional; RBAC dihapus. | `admin` + `karyawan`. Seed **hanya membuat satu akun demo admin**; karyawan dibuat manual lewat Pengaturan → Pengguna. Tab **Karyawan/Absensi** di mobile dihapus; web tetap mempertahankan `/karyawan`. |
 | **Klien mobile** | PWA mobile-first (tanpa aplikasi native). | Klien Expo ada di `mobile/` (Expo SDK 58, React Navigation v7): 4 tab — Kasir, Antrean, Laporan, Pengaturan. **Light mode saja**; Pengaturan dipecah ke sub-halaman; native bottom tabs dibatalkan (*reverted*). |
 | **Waktu pembayaran** | Pembayaran saat membuat order di Kasir. | Pembayaran terjadi saat menekan **"Mulai Cuci"** di tab Antrean, bukan saat order dibuat di Kasir. |
 | **Royalty** | Diskon tetap 50%. | `Reguler` gratis; paket lain memakai `royaltyPrice` yang diatur admin; add-on selalu berbayar. Dicatat sebagai diskon/piutang — **bukan flat 50%**. |
