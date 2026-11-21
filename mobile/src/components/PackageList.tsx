@@ -62,10 +62,12 @@ export function PackageList({
           onPress={() => onAddonToggle(item.id)}
           style={[styles.item, addonIds.includes(item.id) && styles.chosen]}
         >
-          <Text style={styles.name}>
-            {addonIds.includes(item.id) ? '☑ ' : '□ '}
-            {item.name}
-          </Text>
+          <View style={styles.addonLabel}>
+            <View style={[styles.checkbox, addonIds.includes(item.id) && styles.checkboxChecked]}>
+              {addonIds.includes(item.id) && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={styles.name}>{item.name}</Text>
+          </View>
           <Text style={styles.price}>
             {formatIDR(item.price)}
             {item.unitLabel ? ` / ${item.unitLabel}` : ''}
@@ -99,6 +101,22 @@ function buildStyles(colors: Palette) {
     backgroundColor: colors.brandSoft,
   },
   copy: { flex: 1, gap: 3 },
+  addonLabel: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: colors.inputBorder,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brand,
+  },
+  checkmark: { color: '#ffffff', fontSize: 14, fontWeight: '800', lineHeight: 16 },
   name: { color: colors.ink, fontWeight: '700', fontSize: 14 },
   detail: { color: colors.muted, fontSize: 12 },
   price: { color: colors.brandDark, fontSize: 13, fontWeight: '800' },

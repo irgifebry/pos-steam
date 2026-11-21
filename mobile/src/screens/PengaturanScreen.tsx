@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Pencil, Plus, X, KeyRound, UserX, UserCheck, Ban, CircleCheck, Sun, Moon } from 'lucide-react-native';
+import { Plus, X, Sun, Moon } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import type { Addon, Bank, ServicePackage, User } from '../types';
@@ -185,11 +185,13 @@ function PaketSection() {
             <Text style={styles.price}>{rupiah(item.price)} · {item.durationMin} menit</Text>
           </View>
           <View style={styles.rowActions}>
-            <Pressable onPress={() => openEdit(item)} style={styles.iconBtn}>
-              <Pencil size={16} color={colors.brandDark} />
+            <Pressable accessibilityRole="button" onPress={() => openEdit(item)} style={[styles.textBtn, styles.textBtnPrimary]}>
+              <Text style={styles.textBtnText}>Ubah</Text>
             </Pressable>
-            <Pressable onPress={() => void toggleActive(item)} style={[styles.iconBtn, item.active ? styles.iconBtnDanger : styles.iconBtnSuccess]}>
-              {item.active ? <Ban size={16} color={colors.danger} /> : <CircleCheck size={16} color={colors.successDark} />}
+            <Pressable accessibilityRole="button" onPress={() => void toggleActive(item)} style={[styles.textBtn, item.active ? styles.textBtnDanger : styles.textBtnSuccess]}>
+              <Text style={[styles.textBtnText, item.active ? styles.textBtnTextDanger : styles.textBtnTextSuccess]}>
+                {item.active ? 'Nonaktifkan' : 'Aktifkan'}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -337,11 +339,13 @@ function AddonSection() {
             <Text style={styles.price}>{rupiah(item.price)}{item.unitLabel ? ` / ${item.unitLabel}` : ''}</Text>
           </View>
           <View style={styles.rowActions}>
-            <Pressable onPress={() => openEdit(item)} style={styles.iconBtn}>
-              <Pencil size={16} color={colors.brandDark} />
+            <Pressable accessibilityRole="button" onPress={() => openEdit(item)} style={[styles.textBtn, styles.textBtnPrimary]}>
+              <Text style={styles.textBtnText}>Ubah</Text>
             </Pressable>
-            <Pressable onPress={() => void toggleActive(item)} style={[styles.iconBtn, item.active ? styles.iconBtnDanger : styles.iconBtnSuccess]}>
-              {item.active ? <Ban size={16} color={colors.danger} /> : <CircleCheck size={16} color={colors.successDark} />}
+            <Pressable accessibilityRole="button" onPress={() => void toggleActive(item)} style={[styles.textBtn, item.active ? styles.textBtnDanger : styles.textBtnSuccess]}>
+              <Text style={[styles.textBtnText, item.active ? styles.textBtnTextDanger : styles.textBtnTextSuccess]}>
+                {item.active ? 'Nonaktifkan' : 'Aktifkan'}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -475,11 +479,13 @@ function BankSection() {
             <Text style={styles.muted}>a.n. {item.accountName}</Text>
           </View>
           <View style={styles.rowActions}>
-            <Pressable onPress={() => openEdit(item)} style={styles.iconBtn}>
-              <Pencil size={16} color={colors.brandDark} />
+            <Pressable accessibilityRole="button" onPress={() => openEdit(item)} style={[styles.textBtn, styles.textBtnPrimary]}>
+              <Text style={styles.textBtnText}>Ubah</Text>
             </Pressable>
-            <Pressable onPress={() => void toggleActive(item)} style={[styles.iconBtn, item.active ? styles.iconBtnDanger : styles.iconBtnSuccess]}>
-              {item.active ? <Ban size={16} color={colors.danger} /> : <CircleCheck size={16} color={colors.successDark} />}
+            <Pressable accessibilityRole="button" onPress={() => void toggleActive(item)} style={[styles.textBtn, item.active ? styles.textBtnDanger : styles.textBtnSuccess]}>
+              <Text style={[styles.textBtnText, item.active ? styles.textBtnTextDanger : styles.textBtnTextSuccess]}>
+                {item.active ? 'Nonaktifkan' : 'Aktifkan'}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -622,14 +628,16 @@ function PenggunaSection() {
             <Text style={styles.muted}>Gaji harian: {rupiah(item.dailyRate ?? 0)}</Text>
           </View>
           <View style={styles.rowActions}>
-            <Pressable onPress={() => openEdit(item)} style={styles.iconBtn}>
-              <Pencil size={16} color={colors.brandDark} />
+            <Pressable accessibilityRole="button" onPress={() => openEdit(item)} style={[styles.textBtn, styles.textBtnPrimary]}>
+              <Text style={styles.textBtnText}>Ubah</Text>
             </Pressable>
-            <Pressable onPress={() => { setPinTarget(item); setNewPin(''); setPinError(''); }} style={styles.iconBtn}>
-              <KeyRound size={16} color={colors.warning} />
+            <Pressable accessibilityRole="button" onPress={() => { setPinTarget(item); setNewPin(''); setPinError(''); }} style={[styles.textBtn, styles.textBtnWarning]}>
+              <Text style={styles.textBtnTextWarning}>Reset PIN</Text>
             </Pressable>
-            <Pressable onPress={() => void handleToggleActive(item)} style={[styles.iconBtn, item.active ? styles.iconBtnDanger : styles.iconBtnSuccess]}>
-              {item.active ? <UserX size={16} color={colors.danger} /> : <UserCheck size={16} color={colors.successDark} />}
+            <Pressable accessibilityRole="button" onPress={() => void handleToggleActive(item)} style={[styles.textBtn, item.active ? styles.textBtnDanger : styles.textBtnSuccess]}>
+              <Text style={[styles.textBtnText, item.active ? styles.textBtnTextDanger : styles.textBtnTextSuccess]}>
+                {item.active ? 'Nonaktifkan' : 'Aktifkan'}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -818,9 +826,15 @@ function buildStyles(colors: Palette) {
     inactiveText: { color: colors.muted },
     vehicleBadge: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.line },
     vehicleBadgeText: { color: colors.brandDark, fontSize: 10, fontWeight: '800' },
-    iconBtn: { width: 34, height: 34, borderRadius: 8, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-    iconBtnDanger: { borderColor: colors.dangerSoft },
-    iconBtnSuccess: { borderColor: colors.successSoft },
+    textBtn: { minHeight: 34, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+    textBtnPrimary: { borderColor: colors.brandSoft, backgroundColor: colors.brandSoft },
+    textBtnDanger: { borderColor: colors.dangerSoft, backgroundColor: colors.dangerSoft },
+    textBtnSuccess: { borderColor: colors.successSoft, backgroundColor: colors.successSoft },
+    textBtnWarning: { borderColor: colors.warningSoft, backgroundColor: colors.warningSoft },
+    textBtnText: { fontSize: 12, fontWeight: '800', color: colors.brandDark },
+    textBtnTextDanger: { color: colors.dangerDark },
+    textBtnTextSuccess: { color: colors.successDark },
+    textBtnTextWarning: { fontSize: 12, fontWeight: '800', color: colors.warningDark },
     rowActions2: { flexDirection: 'row', gap: 6 },
     saveBtn: { minHeight: 46, backgroundColor: colors.brand, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
     saveBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
