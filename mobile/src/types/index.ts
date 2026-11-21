@@ -29,6 +29,6 @@ export interface CashShift { id: string; openedAt: string; closedAt: string | nu
 export interface Reports { from: string; to: string; totalOrders?: number; omzet?: number; transactions?: Order[]; [key: string]: unknown }
 
 export interface OrderPaymentInput { method: 'tunai' | 'transfer'; cashReceived?: number; bankId?: string; referenceNo?: string }
-export interface OrderCreate { clientId?: string; vehicleType: VehicleType; packageId: string; addons?: Array<{ addonId: string; qty: number }>; customerName?: string; customerPhone?: string; vehicleName?: string; plate?: string; discount?: number; payment?: OrderPaymentInput }
+export interface OrderCreate { clientId?: string; vehicleType: VehicleType; packageId: string; addons?: Array<{ addonId: string; qty: number }>; customerName?: string; customerPhone?: string; vehicleName?: string; plate?: string; discount?: number; royalty?: boolean; payment?: OrderPaymentInput }
 export interface AttendanceSave { date: string; records: Record<string, { status: AttendanceStatus; checkIn?: string; checkOut?: string; note?: string }> }
 export interface ApiErrorPayload { code: string; message: string }

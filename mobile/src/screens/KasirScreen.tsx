@@ -49,10 +49,22 @@ export function KasirScreen() {
   }, [vehicleType, packages, addons]);
 
   const selectedPackage = packages.find((item) => item.id === packageId);
-  const subtotal = useMemo(() => (selectedPackage?.price ?? 0) + addons.filter((addon) => addonIds.includes(addon.id)).reduce((sum, addon) => sum + addon.price, 0), [selectedPackage, addons, addonIds]);
-  const tax = useMemo(() => Math.round((subtotal * (activeOutlet?.taxPercent ?? 0)) / 100), [subtotal, activeOutlet?.taxPercent]);
-  const discount = royalty ? subtotal + tax : 0;
-  const total = useMemo(() => subtotal + tax - discount, [subtotal, tax, discount]);
+  const addonTotal = useMemo(
+    () => addons.filter((addon) => addonIds.includes(addon.id)).reduce((sum, addon) => sum + addon.price, 0),
+    [addons, addonIds],
+  );
+  // ROYALTY: paket Reguler gratis, paket lain 50%. Add-on tetap bayar penuh.
+  const basePackagePrice = selectedPackage?.price ?? 0;
+  const isReguler = /reguler/i.test(selectedPackage?.name ?? '');
+  const packagePrice = royalty
+    ? isReguler
+      ? 0
+      : Math.round(basePackagePrice * 0.5)
+    : basePackagePrice;
+  const discount = royalty ? basePackagePrice - packagePrice : 0;
+  const subtotal = packagePrice + addonTotal;
+  const tax = Math.round((subtotal * (activeOutlet?.taxPercent ?? 0)) / 100);
+  const total = subtotal + tax;
   const canSubmit = Boolean(selectedPackage && !loading && !submitting);
 
   async function completeOrder() {
@@ -64,7 +76,7 @@ export function KasirScreen() {
         addons: addonIds.map((addonId) => ({ addonId, qty: 1 })),
         vehicleName: vehicleName.trim() || undefined,
         plate: plate.trim().toUpperCase() || undefined,
-        discount: discount || undefined,
+        royalty: royalty || undefined,
       });
       const baseUrl = (await getBaseUrl()).replace(/\/$/, '');
       setReceipt({ order, url: `${baseUrl}/r/${order.id}` });
@@ -92,7 +104,7 @@ export function KasirScreen() {
         <View style={styles.royaltyRow}>
           <View style={styles.royaltyCopy}>
             <Text style={styles.royaltyLabel}>Pelanggan ROYALTY</Text>
-            <Text style={styles.royaltyHint}>Diskon 100% · dicatat piutang</Text>
+            <Text style={styles.royaltyHint}>Reguler gratis · paket lain 50% · add-on tetap bayar</Text>
           </View>
           <Switch value={royalty} onValueChange={setRoyalty} trackColor={{ false: colors.lineMuted, true: colors.brand }} thumbColor={colors.surface} />
         </View>

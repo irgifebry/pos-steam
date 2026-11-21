@@ -554,10 +554,17 @@ export async function createOrder(
           const addon = addonById.get(line.addonId);
           return sum + (addon ? addon.price * line.qty : 0);
         }, 0);
-        const subtotal = pkg.price + addonSubtotal;
+        // ROYALTY: paket Reguler gratis, paket lain diskon 50%. Add-on tetap harga normal.
+        const isReguler = /reguler/i.test(pkg.name);
+        const packagePrice = data.royalty
+          ? isReguler
+            ? 0
+            : Math.round(pkg.price * 0.5)
+          : pkg.price;
+        const subtotal = packagePrice + addonSubtotal;
         const tax = Math.round((subtotal * Number(outlet.taxPercent)) / 100);
-        const discount = Math.min(data.discount ?? 0, subtotal + tax);
-        const grandTotal = subtotal + tax - discount;
+        const discount = pkg.price - packagePrice;
+        const grandTotal = subtotal + tax;
 
         const payment = data.payment
           ? await resolvePayment(tx, outletId, grandTotal, data.payment, actor.id)
@@ -593,9 +600,9 @@ export async function createOrder(
             kind: "package",
             refId: pkg.id,
             nameSnapshot: pkg.name,
-            priceSnapshot: pkg.price,
+            priceSnapshot: packagePrice,
             qty: 1,
-            subtotal: pkg.price,
+            subtotal: packagePrice,
           },
           ...data.addons.map((line) => {
             const addon = addonById.get(line.addonId)!;

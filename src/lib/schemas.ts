@@ -137,6 +137,7 @@ export const orderCreateSchema = z.object({
   vehicleName: z.string().trim().max(80).optional(),
   plate: z.string().trim().max(20).default(""),
   discount: z.number().int().nonnegative().optional(),
+  royalty: z.boolean().optional(),
   payment: orderPaymentInputSchema.optional(),
 });
 
