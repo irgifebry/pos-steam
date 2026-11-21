@@ -10,7 +10,7 @@ export interface User {
 export interface Session { user: User; token?: string; cookie?: string; expiresAt?: string }
 export interface Outlet { id: string; name: string; address: string; phone: string; receiptFooter: string; taxPercent: number; defaultDailyRate: number; active?: boolean }
 export interface Bank { id: string; name: string; accountNumber: string; accountName: string; active: boolean }
-export interface ServicePackage { id: string; name: string; vehicleType: VehicleType; price: number; royaltyPrice: number | null; durationMin: number; description: string; sortOrder: number; active: boolean }
+export interface ServicePackage { id: string; name: string; vehicleType: VehicleType; price: number; royaltyPrice: number | null; description: string; sortOrder: number; active: boolean }
 export interface Addon { id: string; name: string; price: number; unitLabel: string; vehicleTypes: VehicleType[]; active: boolean }
 export interface OrderItem { id: string; kind: string; refId: string | null; name: string; price: number; qty: number; subtotal: number }
 export interface OrderPayment { id: string; method: string; amount: number; tender: number | null; changeAmount: number | null; bank: string | null; referenceNo: string | null; verifiedAt: string | null }

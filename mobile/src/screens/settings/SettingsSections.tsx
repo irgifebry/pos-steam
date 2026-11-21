@@ -116,7 +116,7 @@ function VehicleTabs({
 
 // ─── Paket Layanan ────────────────────────────────────────────────────────────
 
-const emptyPaket = { name: '', vehicleType: 'motor' as 'motor' | 'mobil', price: '', royaltyPrice: '', durationMin: '', description: '', sortOrder: '0', active: true };
+const emptyPaket = { name: '', vehicleType: 'motor' as 'motor' | 'mobil', price: '', royaltyPrice: '', description: '', sortOrder: '0', active: true };
 
 export function PaketSection() {
   const { colors } = useTheme();
@@ -155,7 +155,6 @@ export function PaketSection() {
       vehicleType: item.vehicleType,
       price: String(item.price),
       royaltyPrice: item.royaltyPrice == null ? '' : String(item.royaltyPrice),
-      durationMin: String(item.durationMin),
       description: item.description ?? '',
       sortOrder: String(item.sortOrder ?? 0),
       active: item.active,
@@ -167,17 +166,15 @@ export function PaketSection() {
   async function handleSave() {
     setFormError('');
     const price = Number(form.price);
-    const dur = Number(form.durationMin);
     const sort = Number(form.sortOrder);
     if (!form.name.trim()) { setFormError('Nama paket wajib diisi'); return; }
     if (!Number.isInteger(price) || price <= 0) { setFormError('Harga harus angka bulat lebih dari 0'); return; }
-    if (!Number.isInteger(dur) || dur <= 0) { setFormError('Durasi harus angka bulat lebih dari 0'); return; }
     const royaltyPrice = form.royaltyPrice.trim() === '' ? null : Number(form.royaltyPrice);
     if (royaltyPrice !== null && (!Number.isInteger(royaltyPrice) || royaltyPrice < 0)) {
       setFormError('Harga ROYALTY harus angka bulat atau kosong');
       return;
     }
-    const body = { name: form.name.trim(), vehicleType: form.vehicleType, price, royaltyPrice, durationMin: dur, description: form.description.trim(), sortOrder: sort, active: form.active };
+    const body = { name: form.name.trim(), vehicleType: form.vehicleType, price, royaltyPrice, description: form.description.trim(), sortOrder: sort, active: form.active };
     setSaving(true);
     try {
       if (editing) await api.packages.update(editing.id, body);
@@ -197,7 +194,7 @@ export function PaketSection() {
             <Text style={[styles.badgeText, item.active ? styles.activeText : styles.inactiveText]}>{item.active ? 'Aktif' : 'Nonaktif'}</Text>
           </View>
         </View>
-        <Text style={styles.price}>{rupiah(item.price)} · {item.durationMin} menit</Text>
+        <Text style={styles.price}>{rupiah(item.price)}</Text>
       </View>
       <View style={styles.rowActions}>
         <Pressable accessibilityRole="button" onPress={() => openEdit(item)} style={[styles.textBtn, styles.textBtnPrimary]}>
@@ -244,18 +241,9 @@ export function PaketSection() {
             ))}
           </View>
         </Field>
-        <View style={styles.row2}>
-          <View style={{ flex: 1 }}>
-            <Field label="Harga (Rp)">
-              <TextInput value={form.price} onChangeText={(v) => setForm({ ...form, price: v.replace(/\D/g, '') })} style={styles.input} keyboardType="number-pad" placeholder="25000" />
-            </Field>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Field label="Durasi (menit)">
-              <TextInput value={form.durationMin} onChangeText={(v) => setForm({ ...form, durationMin: v.replace(/\D/g, '') })} style={styles.input} keyboardType="number-pad" placeholder="20" />
-            </Field>
-          </View>
-        </View>
+        <Field label="Harga (Rp)">
+          <TextInput value={form.price} onChangeText={(v) => setForm({ ...form, price: v.replace(/\D/g, '') })} style={styles.input} keyboardType="number-pad" placeholder="25000" />
+        </Field>
         <Field label="Harga ROYALTY (Rp)">
           <TextInput value={form.royaltyPrice} onChangeText={(v) => setForm({ ...form, royaltyPrice: v.replace(/\D/g, '') })} style={styles.input} keyboardType="number-pad" placeholder="Kosongkan jika tidak ada" />
           <Text style={styles.royaltyFormHint}>Harga khusus pelanggan ROYALTY. Paket Reguler tetap gratis.</Text>
