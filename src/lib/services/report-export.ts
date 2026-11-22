@@ -162,7 +162,7 @@ function addTable(
       if (rowIndex % 2 === 1) {
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLOR.stripe } };
       }
-      if (column.money || column.total) cell.numFmt = MONEY;
+      if (column.money) cell.numFmt = MONEY;
       else if (typeof value === "number") cell.numFmt = INTEGER;
     });
   });
@@ -189,7 +189,7 @@ function addTable(
     cell.font = { name: FONT, size: 10, bold: true, color: { argb: COLOR.navy } };
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLOR.soft } };
     cell.alignment = { vertical: "middle", horizontal: "right" };
-    cell.numFmt = column.money || column.total ? MONEY : INTEGER;
+    cell.numFmt = column.money ? MONEY : INTEGER;
     cell.border = { top: { style: "medium", color: { argb: COLOR.navy } } };
   });
   ws.getRow(totalRow).height = 24;
