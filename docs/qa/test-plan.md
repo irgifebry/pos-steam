@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Versi** | 1.1 |
+| **Versi** | 1.2 |
 | **Tanggal** | 28/10/2026 |
-| **Diperbarui** | 21/11/2026 |
+| **Diperbarui** | 23/11/2026 |
 | **Pemilik** | Dimas (`@dimas22231`) — QA |
 | **Status** | Aktif — test case F1 siap dieksekusi setelah implementasi F1 selesai |
 | **Referensi utama** | [`prd.md`](../../prd.md), [`Rencana 01`](../superpowers/plans/2026-10-20-01-fondasi.md), [`CONTRIBUTING.md`](../../CONTRIBUTING.md) |
@@ -31,15 +31,15 @@ Test plan ini menjawab:
 ### 2.1 Termasuk (In Scope)
 
 - Fase di PRD §12 yang masih berlaku: Fondasi, Kasir Inti, Papan Status, Laporan, Offline, Polish.
-- **Dua klien yang memakai backend dan kontrak API yang sama** (sukses `{ data: ... }`, error `{ error: { code, message } }`): klien web (Next.js di root) dan klien mobile (Expo/React Native di [`mobile/`](../../mobile), SDK ~58, React Navigation v7).
+- **Backend API** (Next.js Route Handlers di `src/app/api/**`) dan **satu klien**, aplikasi Expo/React Native di [`mobile/`](../../mobile) (SDK ~58, React Navigation v7). Tidak ada klien web Next.js. Kontrak bersama: sukses `{ data: ... }`, error `{ error: { code, message } }`.
 - Khusus mobile: tema terang, 4 tab (Kasir, Antrean, Laporan, Pengaturan), alur kasir → antrean → pembayaran, aturan ROYALTY, dan manajemen master data lewat aksi **Hapus**.
-- Pengujian fungsional, validasi input, otorisasi satu role (`admin`), integritas data, regresi, kompatibilitas perangkat, PWA, dan performa dasar.
+- Pengujian fungsional endpoint API, validasi input, otorisasi satu role (`admin`), integritas data, regresi, kompatibilitas perangkat, dan performa dasar.
 - Pengujian manual/exploratory oleh QA dan verifikasi test otomatis yang ditulis developer.
 - UAT dengan skenario operasional outlet (kasir sibuk, sinyal hilang, printer gagal).
 
 ### 2.2 Tidak Termasuk (Out of Scope) — Fase Ini
 
-Sesuai PRD §4.2, dengan penyesuaian karena klien mobile kini masuk ruang lingkup:
+Sesuai PRD §4.2, dengan penyesuaian karena pengujian berfokus pada backend API dan klien Expo:
 
 - Member/loyalitas/poin, notifikasi WhatsApp otomatis, payment gateway/QRIS otomatis.
 - Build native mentah dan distribusi toko aplikasi (direktori `ios/`/`android/` dihasilkan otomatis, EAS build/submit) — fokus QA adalah perilaku lewat Expo Web/emulator dan kontrak API, bukan packaging toko.
@@ -55,10 +55,8 @@ Sesuai PRD §4.2, dengan penyesuaian karena klien mobile kini masuk ruang lingku
 |---|---|---|---|
 | **Static check** | `tsc`, ESLint, `next build` | Developer, diverifikasi QA | Error tipe, lint, build produksi |
 | **Unit test** | Vitest | Developer, direview QA | Schema Zod, service layer, format Rupiah/tanggal |
-| **Integration test API** | Vitest + PGlite + MSW | Developer, direview QA | Route Handler, otorisasi, constraint DB, idempotensi |
-| **Component test UI** | Vitest + Testing Library | Developer, direview QA | BottomNav, form login, halaman master data |
-| **Contract/manual API** | curl/Postman/Thunder Client | QA | Status code, envelope `{ data }` / `{ error: { code, message } }`, RBAC, validasi |
-| **E2E manual web** | Browser + HP fisik | QA | Alur nyata dari login sampai transaksi di web |
+| **Integration test API** | Vitest + PGlite | Developer, direview QA | Route Handler, otorisasi, constraint DB, idempotensi, CORS `src/proxy.ts` |
+| **Contract/manual API** | curl/Postman/Thunder Client | QA | Root `/` JSON status, health, status code, envelope `{ data }` / `{ error: { code, message } }`, RBAC, validasi |
 | **E2E mobile** | Expo Web `localhost:8081`, emulator/HP dengan Expo Go atau dev build | QA | 4 tab, tema terang, Kasir → Antrean → pembayaran, ROYALTY, Hapus pada master data |
 | **Exploratory** | Charter berbasis risiko | QA | Celah di luar acceptance criteria |
 | **UAT** | Skenario outlet | QA + pemilik/kasir | Kesiapan operasional |
@@ -79,49 +77,46 @@ Sesuai PRD §4.2, dengan penyesuaian karena klien mobile kini masuk ruang lingku
 | **Vercel Preview** | Verifikasi PR | Satu preview per PR; QA retest di sini |
 | **Production** | Smoke test setelah rilis | Jangan pakai data uji di production |
 
-**Menjalankan kedua klien (local):**
+**Menjalankan backend & mobile (local):**
 
 ```bash
-# Terminal 1 — backend + web (dari root repo)
-npm run dev                # http://localhost:3001
+# Terminal 1 — backend API (dari root repo; port 3000 dipakai proyek lain)
+npm run dev -- -p 3001     # API di http://localhost:3001 (tanpa UI)
 
 # Terminal 2 — mobile web preview (dari folder mobile/)
 cd mobile
 npm run web                # Expo Web → http://localhost:8081
 ```
 
-Expo Web memerlukan **CORS proxy** yang sudah tersedia di [`src/proxy.ts`](../../src/proxy.ts) (matcher `/api/:path*`): proxy menambahkan header CORS untuk origin `localhost`/IP jaringan lokal pada preflight `OPTIONS` maupun response. Tanpa ini, request dari `http://localhost:8081` ke `http://localhost:3001` ditolak browser. Aplikasi native (Expo Go/dev build) tidak terkena CORS, tetapi tetap memakai backend yang sama.
+Expo Web memerlukan **CORS proxy** di [`src/proxy.ts`](../../src/proxy.ts) (matcher `/api/:path*`): proxy menambahkan header CORS untuk origin `localhost`/IP jaringan lokal **dan** origin dari `WEB_ORIGIN`/`BETTER_AUTH_URL` (comma-separated didukung) pada preflight `OPTIONS` (204) maupun response. Tanpa ini, request dari `http://localhost:8081` ke `http://localhost:3001` ditolak browser. Aplikasi native (Expo Go/dev build) tidak terkena CORS, tetapi tetap memakai backend yang sama. Untuk produksi, build Expo dengan `EXPO_PUBLIC_API_BASE_URL=https://<backend>.vercel.app` agar tidak bergantung alamat LAN.
 
 **Verifikasi terkini (lokal):**
 
 | Perintah / item | Hasil |
 |---|---|
-| `npm test` (root) | 28 file / 116 test lulus |
+| `npm test` (root) | **27 file / 111 test lulus** (termasuk test CORS proxy) |
 | `npx tsc --noEmit` (root & `mobile/`) | bersih |
-| `npx expo-doctor` (`mobile/`) | 20/20 |
+| `npx expo-doctor` (`mobile/`) | **20/20** |
 | Preview | Expo Web `http://localhost:8081` ↔ backend `http://localhost:3001` |
 
 **Matriks perangkat:**
 
 | Perangkat | Prioritas | Yang diuji |
 |---|---|---|
-| Android 8+ Chrome | Utama | Alur kasir, PWA install, Web Bluetooth (F2+) |
-| Android mid-range (RAM 3–4 GB) | Utama | Performa, layout 360x640 |
-| Expo Web (Chrome, `localhost:8081`) | Utama (mobile) | Seluruh alur mobile via browser; wajib dengan CORS proxy aktif |
-| Emulator/HP + Expo Go atau dev build | Utama (mobile) | Tema terang, 4 tab, alur pembayaran, struk |
-| iOS Safari 16+ | Cadangan | PWA, login, layout; Web Bluetooth tidak diharapkan |
-| Desktop Chrome/Edge | Sekunder | Halaman admin/Pengaturan, laporan, cetak A4 |
+| Expo Web (Chrome, `localhost:8081`) | Utama | Seluruh alur mobile via browser; wajib dengan CORS proxy aktif |
+| Emulator/HP Android 8+ + Expo Go atau dev build | Utama | Tema terang, 4 tab, alur pembayaran, struk |
+| Android mid-range (RAM 3–4 GB) | Utama | Performa aplikasi, koneksi ke backend |
+| iOS (Expo Go/dev build) | Cadangan | Tema terang, 4 tab, alur pembayaran |
 
 **Jaringan:**
 
 - Normal (Wi-Fi/4G).
 - Slow 3G (throttling DevTools).
-- Offline/airplane mode (pengujian penuh di F6; F1 hanya app shell).
+- Offline/airplane mode (pengujian penuh di F6; F1 hanya kontrak API).
 
 **Periferal:**
 
-- Printer thermal Bluetooth 58mm (F2+).
-- Printer A4 / print-to-PDF untuk laporan.
+- Printer thermal Bluetooth 58mm untuk struk dari mobile (F2+).
 
 **Aturan promosi environment:** Local → Preview → Production. Bug hanya ditutup setelah retest di environment tempat bug ditemukan, minimal di Preview.
 
@@ -134,9 +129,9 @@ Expo Web memerlukan **CORS proxy** yang sudah tersedia di [`src/proxy.ts`](../..
 | Akun | Role | PIN | Kegunaan |
 |---|---|---|---|
 | `admin@pos.test` | admin | `123456` | Akun seed; **wajib diganti di luar local** |
-| `qa.inactive@pos.test` | admin | `778899` | Buat manual lalu nonaktifkan; pengujian sesi mati |
+| `qa.inactive@pos.test` | admin | `778899` | Buat manual lewat `/api/users` lalu nonaktifkan; pengujian sesi mati |
 
-> Seed hanya membuat akun `admin@pos.test`. Tidak ada akun lain, paket, add-on, bank, atau transaksi contoh — siapkan data uji lewat UI/API sebelum menjalankan skenario.
+> Seed hanya membuat akun `admin@pos.test` (nama `testing`) dan satu outlet kosong. Tidak ada akun lain, paket, add-on, bank, atau transaksi contoh — siapkan data uji lewat API/mobile sebelum menjalankan skenario.
 
 > Role yang dikenal backend saat ini **hanya `admin`** (`roleSchema` di `src/lib/schemas.ts`). Tidak ada peran lain. PIN minimal 6 karakter; PRD §5.1/§9.3 masih menyebut PIN 4 angka — lihat §14 dan catatan implementasi di puncak `prd.md`.
 
@@ -196,9 +191,9 @@ Expo Web memerlukan **CORS proxy** yang sudah tersedia di [`src/proxy.ts`](../..
 | **P0** | Login, tema terang, dan tepat 4 tab (Kasir, Antrean, Laporan, Pengaturan) | Fondasi navigasi; salah satu saja gagal menghentikan operasi kasir |
 | **P0** | Pembayaran saat **Mulai Cuci** → status `proses`; order total 0 langsung `proses`; Kasir hanya "Buat antrean" | Alur inti dan titik serah terima Antrean; risiko order tanpa pembayaran |
 | **P0** | Aturan ROYALTY: Reguler gratis, paket lain `royaltyPrice`, add-on tetap bayar, `discount` tercatat sebagai piutang | Salah harga berdampak langsung ke kas/piutang |
-| **P1** | Aksi **Hapus** pada master data; daftar hanya record aktif; tab Motor/Mobil/Semua; form paket tanpa durasi | Konsistensi data master antar klien web dan mobile |
-| **P1** | `Nama Kendaraan` → `vehicleName` → `vehicles.brand`; struk modal terang; bar ringkasan mengambang; subtotal disembunyikan tanpa pajak/diskon | Kesesuaian UI dan data dengan web |
-| **P1** | CORS proxy Expo Web (`src/proxy.ts`) dan koneksi ke backend | Tanpa ini seluruh pengujian mobile web blokir |
+| **P1** | Aksi **Hapus** pada master data; daftar hanya record aktif; tab Motor/Mobil/Semua; form paket tanpa durasi | Konsistensi data master dengan kontrak API |
+| **P1** | `Nama Kendaraan` → `vehicleName` → `vehicles.brand`; struk modal terang; bar ringkasan mengambang; subtotal disembunyikan tanpa pajak/diskon | Kesesuaian field UI dengan kontrak API |
+| **P1** | CORS proxy (`src/proxy.ts`) dan koneksi ke backend; `EXPO_PUBLIC_API_BASE_URL` untuk produksi | Tanpa ini seluruh pengujian mobile web/produksi blokir |
 | **P2** | Sub-halaman Pengaturan (Paket Layanan, Add-on, Rekening Bank, Pengguna); konsistensi envelope `{ data }` / `{ error }` | Pendukung, bukan perilaku bisnis inti |
 
 **Prioritas ditentukan bersama PO/developer saat triage.** QA mengusulkan severity dan dampak, bukan memutuskan sendiri prioritas bisnis.
@@ -231,13 +226,13 @@ Expo Web memerlukan **CORS proxy** yang sudah tersedia di [`src/proxy.ts`](../..
 
 Mengacu pada Verifikasi Akhir Rencana 01:
 
-- [ ] `npm test` semua PASS, tidak ada test skip.
+- [ ] `npm test` semua PASS (27 file / 111 test), tidak ada test skip.
 - [ ] `npm run typecheck` exit 0.
 - [ ] `npm run lint` tanpa error.
-- [ ] `npm run build` sukses; `public/sw.js` terbentuk.
-- [ ] Login `admin@pos.test` / `admin123` berhasil setelah seed.
-- [ ] Web: `/kasir`, `/antrean`, `/laporan` terbuka; tab Pengaturan hanya admin. Mobile: tepat 4 tab.
-- [ ] 5 halaman master data berfungsi: tambah, edit, nonaktifkan tersimpan di database (web); di mobile memakai aksi **Hapus** (lihat regresi mobile §5).
+- [ ] `npm run build` sukses; semua route API terdeteksi.
+- [ ] Root `/` mengembalikan JSON status dan `GET /api/health` 200.
+- [ ] Login `admin@pos.test` / `123456` berhasil setelah seed (nama tampilan `testing`).
+- [ ] Endpoint master data berfungsi: tambah, edit, hapus (`active=false`) tersimpan di database; di mobile memakai aksi **Hapus** (lihat regresi mobile §5).
 - [ ] Review Focus 1–5 Rencana 01 terbukti (lihat test case F1).
 
 ---
@@ -298,7 +293,7 @@ Sebuah PR/fitur dianggap selesai dari sisi QA jika:
 
 | Fase | Fokus QA | Risiko utama |
 |---|---|---|
-| **F1 — Fondasi** | Auth, RBAC, master data, shell 5 tab, PWA install, seed | Sesi user nonaktif, eskalasi role, duplikasi master data, service key bocor |
+| **F1 — Fondasi** | Auth, RBAC, master data, kontrak API, seed | Sesi user nonaktif, eskalasi role, duplikasi master data, service key bocor |
 | **F2 — Kasir Inti** | Transaksi ≤ 30 detik, nomor antrean/invoice, pembayaran tunai/transfer, struk, buka/tutup kas | Invoice ganda, kembalian salah, price snapshot berubah, verifikasi transfer |
 | **F3 — Papan Status** | Timer, transisi status, filter, polling | Timer reset, status tidak sinkron, order lunas masih tampil |
 | **F4 — Laporan** | Rekonsiliasi omzet, filter periode, export CSV, cetak | Omzet tidak cocok, timezone, CSV rusak di Excel |
@@ -321,9 +316,9 @@ Sebuah PR/fitur dianggap selesai dari sisi QA jika:
 | **Timezone & reset harian** | Nomor/antrean salah hari | Uji sekitar tengah malam Asia/Jakarta |
 | **Mobile: pembayaran** | Order `menunggu` tanpa pembayaran, kasir bingung kapan bayar | Bayar di **Mulai Cuci**, status `proses`, order total 0 langsung `proses` |
 | **Mobile: ROYALTY** | Harga/potongan salah | Reguler gratis, `royaltyPrice`, add-on bayar, `discount` sebagai piutang |
-| **CORS Expo Web** | Semua request mobile web gagal | `src/proxy.ts`, origin `localhost`, preflight `OPTIONS /api/*` |
-| **Printer Bluetooth** | Struk tidak keluar | Koneksi, reprint, fallback browser |
-| **PWA iOS** | Tidak bisa install/offline | Safari 16+, add to home screen |
+| **CORS Expo Web & produksi** | Semua request mobile web gagal | `src/proxy.ts`, origin `localhost` + `WEB_ORIGIN`/`BETTER_AUTH_URL`, preflight `OPTIONS /api/*` |
+| **Base URL mobile** | Aplikasi produksi mengarah ke alamat localhost/LAN | `EXPO_PUBLIC_API_BASE_URL` saat build/EAS update |
+| **Printer Bluetooth** | Struk tidak keluar | Koneksi, reprint dari mobile |
 | **Supabase cold start** | Query pertama lambat | Ukur warm vs cold; cache master data |
 | **HP bersama & PIN** | Salah identitas/audit | Ganti operator, sesi berganti, PIN reset |
 | **CSV export** | Tidak terbuka di Excel | UTF-8, separator, angka Rupiah |
@@ -348,9 +343,10 @@ Dipantau per fase, bukan untuk menilai individu:
 |---|---|
 | Test plan | `docs/qa/test-plan.md` |
 | Test case F1 | `docs/qa/test-cases/f1-fondasi.md` |
-| Checklist regresi | `docs/qa/regression-checklist.md` (§5 Regresi Mobile) |
+| Checklist regresi | `docs/qa/regression-checklist.md` (§1–§4 API, §5 Regresi Mobile) |
+| Backend API | `src/app/api/**`, `src/lib/**` (kontrak di `docs/backend/README.md`) |
 | Klien mobile | `mobile/` (Expo SDK ~58, React Navigation v7) |
-| CORS proxy Expo Web | `src/proxy.ts` |
+| Proxy CORS | `src/proxy.ts` |
 | Template bug | `.github/ISSUE_TEMPLATE/bug_report.yml` |
 | Template PR | `.github/pull_request_template.md` |
 
@@ -375,7 +371,7 @@ Temuan dokumentasi/kontrak yang perlu dikonfirmasi sebelum atau selama F1–F2. 
 | 3 | **Cakupan endpoint `/api/settings`**: PRD §8 menyebut Pengaturan hanya Admin; Rencana 01 Task 8 membuka GET untuk semua peran | Kontrak endpoint kurang jelas | Pastikan hanya mengembalikan data outlet dan bank | Perlu keputusan |
 | 4 | **`GET /api/users?light=1`** tidak ada di kontrak API PRD §10 | Kontrak tidak lengkap; risiko field bocor | Dokumentasikan di PRD; pastikan hanya `id,name,role` | Perlu dokumentasi |
 | 5 | **Cakupan audit log**: Global Constraints mewajibkan semua endpoint sensitif; Rencana 01 hanya eksplisit untuk user | Perubahan harga/pajak/bank bisa tanpa jejak | Tentukan daftar aksi yang diaudit di F1/F2 | Perlu keputusan |
-| 6 | **Password admin seed** `admin123` | Risiko keamanan jika dipakai di production | Wajib ganti setelah seed di environment non-local | Mitigasi |
+| 6 | **PIN admin seed** `123456` (nama `testing`) | Risiko keamanan jika dipakai di production | Wajib ganti setelah seed di environment non-local | Mitigasi |
 | 7 | **Harga seed 1000** hanya placeholder | Data UAT tidak realistis | Ganti lewat Pengaturan sebelum UAT | Tindakan |
 | 8 | **Dokumentasi setup**: CONTRIBUTING mengarah ke `Najwan48/pos-cuci-steam`, remote aktual `irgifebry/pos-steam`; Node 20+ vs Rencana 01 Node ≥22 | QA/developer baru gagal setup | Perbaiki URL dan versi Node | Perlu perbaikan |
 | 9 | **PRD §9.1 masih menyebut "Express API"** padahal stack Next.js Route Handlers | Membingungkan kontributor | Perbarui teks PRD | Perlu perbaikan |
@@ -391,3 +387,4 @@ Temuan dokumentasi/kontrak yang perlu dikonfirmasi sebelum atau selama F1–F2. 
 |---|---|---|---|
 | 1.0 | 28/10/2026 | Dokumen awal | Dimas |
 | 1.1 | 21/11/2026 | Ruang lingkup dua klien (web + mobile), environment Expo & CORS proxy, verifikasi terkini, fokus prioritas mobile | Dimas |
+| 1.2 | 23/11/2026 | Hapus ruang lingkup klien web (frontend dihapus); fokus backend API + Expo, `EXPO_PUBLIC_API_BASE_URL`, CORS origin produksi, verifikasi 27 file/111 test | Dimas |

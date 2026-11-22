@@ -4,17 +4,17 @@ Dokumen ini khusus untuk **backend**: apa yang sudah dibangun, kontrak API, cara
 
 | | |
 |---|---|
-| **Fase** | F1–F2 — Fondasi backend + sinkronisasi transaksi (kasir, antrean, laporan, kas, struk publik) + dukungan klien mobile (harga ROYALTY, CORS Expo Web) |
-| **Status** | Selesai dan terverifikasi |
+| **Fase** | F1–F2 — Fondasi backend + sinkronisasi transaksi (kasir, antrean, laporan, kas, struk publik) + dukungan klien Expo (harga ROYALTY, CORS Expo Web & origin produksi) |
+| **Status** | Selesai dan terverifikasi; repo berisi **backend API saja** (tanpa UI web) |
 | **PIC Backend** | [Najwan48](https://github.com/Najwan48) |
 | **Branch** | `main` |
-| **Terakhir diperbarui** | 21 November 2026 |
+| **Terakhir diperbarui** | 23 November 2026 |
 
 ---
 
 ## 1. Ringkasan
 
-Backend F1 menyediakan fondasi aplikasi full-stack Next.js 16:
+Backend menyediakan fondasi aplikasi Next.js 16 sebagai **backend API saja** — frontend web sudah dihapus, satu-satunya klien adalah aplikasi Expo di `mobile/`:
 
 - Database PostgreSQL via Drizzle ORM: **18 tabel**, 4 migrasi (`0000`–`0003`).
 - Autentikasi **Better Auth**: email/PIN.
@@ -23,7 +23,8 @@ Backend F1 menyediakan fondasi aplikasi full-stack Next.js 16:
 - API manajemen pengguna: tambah, ubah, reset PIN, aktif/nonaktif.
 - API transaksi & operasional: order, antrean, pembayaran, pembatalan, struk publik, shift kas, laporan.
 - Harga ROYALTY per paket (`service_packages.royalty_price`) dengan aturan khusus di `services/orders.ts`.
-- Dukungan klien mobile Expo: base URL otomatis dan proxy CORS untuk Expo Web (`src/proxy.ts`).
+- Route `GET /` mengembalikan JSON status; health check di `GET /api/health`.
+- Dukungan klien Expo: `EXPO_PUBLIC_API_BASE_URL` untuk produksi dan CORS via `src/proxy.ts` (origin dev lokal + origin dari `WEB_ORIGIN`/`BETTER_AUTH_URL`).
 - Validasi Zod sebagai sumber tunggal (`src/lib/schemas.ts`).
 - Format error konsisten `{ error: { code, message } }`.
 - Audit log untuk perubahan pengguna.
@@ -34,14 +35,14 @@ Backend F1 menyediakan fondasi aplikasi full-stack Next.js 16:
 
 | Pemeriksaan | Hasil |
 |---|---|
-| `npm test` | 28 file, **116 test lulus** |
+| `npm test` | 27 file, **111 test lulus** (termasuk test CORS `src/proxy.test.ts`) |
 | `npm run lint` | Bersih |
 | `npx tsc --noEmit` | Bersih |
 | `npm run build` | Sukses, semua route API terdeteksi |
 | `npx expo-doctor` (mobile) | **20/20** |
 | `npx tsc --noEmit` (mobile) | Bersih |
 
-> Semua frontend (`/kasir`, `/antrean`, `/laporan`, `/pengaturan/*`, `r/[token]`) sudah tersambung ke API nyata. Mode demo, dummy data, dan fallback localStorage telah dihapus.
+> Tidak ada halaman web di repo ini. Klien tunggal adalah aplikasi Expo di `mobile/`; root `/` mengembalikan JSON status dan `GET /api/health` dipakai sebagai health check. Mode demo, dummy data, dan fallback localStorage telah dihapus.
 
 ---
 
@@ -68,9 +69,11 @@ Semua dependency di-`pin` tanpa `^` atau `~` sesuai aturan repo.
 ```text
 src/
   app/
+    route.ts                      # GET / → JSON status (bukan halaman UI)
     api/
       auth/[...all]/route.ts      # handler Better Auth
       health/route.ts             # health check publik
+      board/route.ts              # papan antrean hari ini + ringkasan status
       packages/route.ts           # GET, POST paket
       packages/[id]/route.ts      # PATCH, DELETE paket
       addons/route.ts             # GET, POST add-on
@@ -87,7 +90,6 @@ src/
       config.ts                   # konfigurasi Better Auth
       provider.ts                 # instance auth lazy + setter untuk test
       session.ts                  # getSessionUser, requireUser
-      client.ts                   # (belum dibuat — frontend)
     db/
       schema.ts                   # sumber tunggal skema (18 tabel)
       client.ts                   # koneksi pg
@@ -106,7 +108,8 @@ src/
     schemas.ts                    # semua skema Zod
     types.ts                      # tipe turunan Zod
     server-init.ts                # inisialisasi db + auth lazy
-  proxy.ts                        # proxy Next.js 16: CORS Expo Web untuk /api/*
+  proxy.ts                        # proxy Next.js 16: CORS Expo Web + origin env untuk /api/*
+  proxy.test.ts                   # test allow-origin (dev + WEB_ORIGIN/BETTER_AUTH_URL)
 drizzle/
   0000_optimal_morlun.sql
   0001_secret_grim_reaper.sql
@@ -233,9 +236,11 @@ Reset PIN oleh user yang login:
 
 ## 6. Kontrak API
 
-Base URL lokal: `http://localhost:3001`.
+Base URL lokal: `http://localhost:3001` (port `3000` dipakai proyek lain di mesin ini). Root `/` mengembalikan JSON status, bukan halaman UI.
 
-> **Expo Web & CORS:** web preview mobile berjalan di `localhost:8081` dan memanggil `localhost:3001`, sehingga browser melakukan preflight `OPTIONS`. `src/proxy.ts` (Proxy Next.js 16, menggantikan `middleware` yang sudah deprecated) menambahkan header CORS untuk origin dev `localhost`, `127.0.0.1`, dan IP LAN privat pada **semua** `/api/*`, termasuk response preflight `OPTIONS`. Aplikasi native tidak terkena CORS.
+> **Expo Web & CORS:** web preview mobile berjalan di `localhost:8081` dan memanggil `localhost:3001`, sehingga browser melakukan preflight `OPTIONS`. `src/proxy.ts` (Proxy Next.js 16, menggantikan `middleware` yang sudah deprecated) menambahkan header CORS pada **semua** `/api/*`, termasuk response preflight `OPTIONS` (204), untuk origin dev (`localhost`, `127.0.0.1`, IP LAN privat) **dan** origin yang tercantum di `WEB_ORIGIN` / `BETTER_AUTH_URL` (comma-separated didukung). Aplikasi native tidak terkena CORS.
+>
+> **Produksi:** deploy backend ke Vercel, set `BETTER_AUTH_URL`/`WEB_ORIGIN` ke domain backend yang di-deploy, lalu build Expo dengan `EXPO_PUBLIC_API_BASE_URL=https://<backend>.vercel.app`. Dengan begitu klien tidak lagi bergantung pada alamat LAN/dev.
 
 ### 6.1 Format response
 
@@ -276,6 +281,7 @@ Error:
 
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
+| GET | `/` | Publik | JSON status backend (`name`, `status`, `description`, `health`) |
 | GET | `/api/health` | Publik | Health check |
 | GET/POST | `/api/auth/[...all]` | Publik | Handler Better Auth (login, logout, session) |
 
@@ -287,7 +293,7 @@ curl -i -X POST http://localhost:3001/api/auth/sign-in/email \
   -d "{\"email\":\"admin@pos.test\",\"password\":\"123456\"}"
 ```
 
-Cookie sesi dikirim lewat header `set-cookie`. Frontend harus memakai `credentials: "include"`.
+Cookie sesi dikirim lewat header `set-cookie`. Klien harus memakai `credentials: "include"`.
 
 #### Paket
 
@@ -317,7 +323,7 @@ Aturan:
 
 - `price` integer > 0.
 - `royaltyPrice` opsional: integer >= 0 atau `null`; harga khusus untuk order dengan `royalty: true`. Schema update juga menerima field ini.
-- `durationMin` opsional dengan default `0`. Mobile tidak lagi mengirim field ini; web masih boleh mengirimnya.
+- `durationMin` opsional dengan default `0`; klien mobile tidak mengirim field ini.
 - Duplikat `(outletId, vehicleType, name)` -> `409 DUPLICATE`.
 - Nama sama untuk tipe kendaraan berbeda diperbolehkan.
 - Harga transaksi lama tidak berubah karena memakai `price_snapshot`.
@@ -386,6 +392,7 @@ Body POST:
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
 | GET | `/api/orders?date=...&from=...&to=...&includePaid=true\|false` | admin | Daftar order outlet dalam rentang tanggal; default hari ini |
+| GET | `/api/board` | admin | Papan antrean hari ini: `{ orders, summary: { menunggu, proses, selesai, total, cancelled } }` |
 | GET | `/api/orders/:id` | admin | Detail order termasuk item dan pembayaran |
 | PATCH | `/api/orders/:id` | admin | Ubah item & data pelanggan (hanya saat status `menunggu`) |
 | POST | `/api/orders` | admin | Buat order (server menghitung total, antrean, invoice, snapshot) |
@@ -417,7 +424,7 @@ Body POST `/api/orders`:
 
 Aturan order:
 
-- Server otoritatif: frontend hanya mengirim `packageId`, `addonId` + `qty`, data pelanggan/kendaraan, dan payment opsional. Server menghitung total, pajak, nomor antrean, invoice, dan snapshot harga.
+- Server otoritatif: klien hanya mengirim `packageId`, `addonId` + `qty`, data pelanggan/kendaraan, dan payment opsional. Server menghitung total, pajak, nomor antrean, invoice, dan snapshot harga.
 - `vehicleName` opsional dan disimpan ke `vehicles.brand`; bila kosong, brand kendaraan tidak diubah.
 - `payment` tetap opsional. `discount` juga diterima schema (integer >= 0, opsional), tetapi nilai yang tercatat dihitung server dari selisih harga, bukan dari input.
 - `royalty: true` mengaktifkan aturan ROYALTY: paket dengan nama cocok `/reguler/i` harganya `0`; paket lain memakai `pkg.royaltyPrice ?? pkg.price`; add-on tetap harga normal.
@@ -637,7 +644,7 @@ npm run test:watch  # mode watch
 
 Karakteristik:
 
-- Vitest 5 + jsdom.
+- Vitest 5 + environment `node`.
 - Database test memakai **PGlite in-memory**, bukan Postgres eksternal.
 - Migrasi dijalankan otomatis dari folder `drizzle/`.
 - `maxWorkers: 2`, `hookTimeout: 60_000`, `testTimeout: 30_000` karena PGlite berat di CPU/memori.
@@ -661,6 +668,8 @@ Cakupan saat ini:
 | Auth & session | `src/lib/auth/config.test.ts`, `src/lib/auth/session.test.ts` |
 | Schema & seed | `src/lib/db/schema.test.ts`, `src/lib/db/seed.test.ts` |
 | HTTP & validasi | `src/lib/http.test.ts`, `src/lib/schemas.test.ts` |
+| Audit & sync | `src/lib/services/audit.test.ts`, `src/lib/services/sync.test.ts`, `src/app/api/audit-logs/route.test.ts`, `src/app/api/sync/route.test.ts` |
+| CORS proxy | `src/proxy.test.ts` (origin dev + `WEB_ORIGIN`/`BETTER_AUTH_URL`, preflight `OPTIONS`) |
 
 ---
 
@@ -676,17 +685,17 @@ Cakupan saat ini:
 
 ```bash
 npm install
-cp .env.example .env.local
-# isi DATABASE_URL, DIRECT_URL, BETTER_AUTH_SECRET, dll.
+# buat .env.local berisi DATABASE_URL, DIRECT_URL, BETTER_AUTH_SECRET,
+# BETTER_AUTH_URL, WEB_ORIGIN (lihat tabel di bawah)
 
 # drizzle.config.ts membaca process.env, bukan .env.local otomatis:
 set -a; source .env.local; set +a
 npm run db:migrate
 npm run db:seed   # seed memuat .env.local sendiri lewat tsx --env-file=.env.local
-npm run dev
+npm run dev -- -p 3001
 ```
 
-Buka `http://localhost:3001`. Root mengarah ke `/kasir`; frontend web sudah tersambung ke API nyata. Untuk web preview mobile, backend harus berjalan di `localhost:3001` agar base URL dan cookie sesi sesuai.
+Root `/` mengembalikan JSON status dan `GET /api/health` mengembalikan 200; **tidak ada UI web** yang dibuka di browser. Port `3001` dipakai karena `3000` dipakai proyek lain di mesin ini. Untuk web preview Expo, backend harus berjalan di `localhost:3001` agar base URL dan cookie sesi sesuai.
 
 ### 12.3 Environment variable
 
@@ -696,10 +705,11 @@ Buka `http://localhost:3001`. Root mengarah ke `/kasir`; frontend web sudah ters
 | `DIRECT_URL` | Ya, untuk migrasi | Koneksi migrasi; wajib di-export ke shell sebelum `npm run db:migrate` karena `drizzle.config.ts` membaca `process.env` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Tidak | Disiapkan, belum dipakai backend F1 |
 | `BETTER_AUTH_SECRET` | Ya | Minimal 32 karakter |
-| `BETTER_AUTH_URL` | Ya | Base URL aplikasi, mis. `http://localhost:3001` |
-| `WEB_ORIGIN` | Ya | Origin yang diizinkan untuk CORS/trusted origin |
+| `BETTER_AUTH_URL` | Ya | Base URL backend, mis. `http://localhost:3001` (produksi: `https://<backend>.vercel.app`); juga jadi origin CORS yang diizinkan |
+| `WEB_ORIGIN` | Ya | Origin yang diizinkan untuk CORS/trusted origin; comma-separated didukung |
 | `NODE_ENV` | Tidak | `development` / `test` / `production` |
 | `SEED_OUTLET_NAME` | Tidak | Nama outlet saat `db:seed`; default `KYANE POS`. Seed tidak membuat data contoh lain |
+| `EXPO_PUBLIC_API_BASE_URL` | Ya, untuk build mobile | Base URL backend yang dipakai Expo, mis. `https://<backend>.vercel.app`; dibaca saat build/EAS update |
 
 ### 12.4 Script npm
 
@@ -731,18 +741,30 @@ Hal-hal berikut **belum** dikerjakan dan perlu diketahui tim:
 | 6 | Belum ada rate limiting login/PIN | F7 |
 | 7 | Belum ada observability/log terstruktur | F7 |
 | 8 | PIN admin masih `123456` | Sebelum produksi |
-| 9 | UI dan PWA sudah tersambung API; mode demo dihapus | Sudah dilakukan |
+| 9 | Frontend web sudah dihapus; repo hanya backend API + klien Expo | Sudah dilakukan |
 | 10 | Endpoint settings, dashboard hari ini, dan sync offline | Selesai |
-| 11 | Fallback base URL mobile `http://192.168.101.4:3001` di `mobile/src/lib/storage.ts` sudah usang | Ganti/konfigurasikan sebelum build native |
-| 12 | Proxy CORS hanya mengizinkan origin dev (localhost/127.0.0.1/IP LAN privat) | Tambahkan origin produksi di `src/proxy.ts` saat deploy |
+| 11 | Fallback base URL mobile `http://192.168.101.4:3001` di `mobile/src/lib/storage.ts` hanya untuk development | Set `EXPO_PUBLIC_API_BASE_URL` untuk produksi |
+| 12 | CORS origin dev saja | Selesai — `src/proxy.ts` juga membaca `WEB_ORIGIN`/`BETTER_AUTH_URL` (comma-separated) |
 
-Catatan klien mobile (Expo): `mobile/app.json` memakai `android.package` dan `ios.bundleIdentifier` = `com.kyane.pos` dengan `userInterfaceStyle: "light"` (tanpa dark mode); `expo-system-ui` sudah dihapus dari dependency. Base URL di `mobile/src/lib/storage.ts` adalah `http://localhost:3001` saat `Platform.OS === 'web'` (supaya cookie `SameSite=Lax` ikut terkirim); untuk native, URL diturunkan dari `hostUri` Expo dengan fallback hardcode `http://192.168.101.4:3001` yang **sudah usang** dan perlu diperbarui sesuai IP host.
+Catatan klien mobile (Expo): `mobile/app.json` memakai `android.package` dan `ios.bundleIdentifier` = `com.kyane.pos` dengan `userInterfaceStyle: "light"` (tanpa dark mode); `expo-system-ui` sudah dihapus dari dependency. Base URL di `mobile/src/lib/storage.ts` mengutamakan `EXPO_PUBLIC_API_BASE_URL`; bila kosong, `http://localhost:3001` saat `Platform.OS === 'web'` (supaya cookie `SameSite=Lax` ikut terkirim) dan untuk native diturunkan dari `hostUri` Expo dengan fallback hardcode `http://192.168.101.4:3001` yang hanya relevan untuk development.
 
 ---
 
-## 14. Jobdesk Backend Developer
+## 14. Checklist Deployment (Vercel + Supabase)
 
-### 14.1 Tanggung jawab utama
+- [ ] Project Supabase aktif; `DATABASE_URL` (transaction pooler) dan `DIRECT_URL` (direct) tersedia.
+- [ ] Environment variables Vercel terisi: `DATABASE_URL`, `DIRECT_URL`, `BETTER_AUTH_SECRET` (≥32 karakter), `BETTER_AUTH_URL=https://<backend>.vercel.app`, `WEB_ORIGIN=https://<backend>.vercel.app` (tambahkan origin lain dengan koma bila perlu), `NODE_ENV=production`.
+- [ ] Migrasi dijalankan dengan koneksi **direct**: export `DIRECT_URL` ke shell, lalu `npm run db:migrate`; dilanjutkan `npm run db:seed`.
+- [ ] PIN demo `123456` diganti di lingkungan produksi.
+- [ ] Deploy backend; verifikasi `GET /` → JSON status dan `GET /api/health` → 200.
+- [ ] Build/refresh Expo dengan `EXPO_PUBLIC_API_BASE_URL=https://<backend>.vercel.app`, lalu uji login dan satu transaksi dari aplikasi.
+- [ ] Preflight `OPTIONS /api/*` dari origin produksi balas 204 dengan header CORS yang benar.
+
+---
+
+## 15. Jobdesk Backend Developer
+
+### 15.1 Tanggung jawab utama
 
 1. **Skema & migrasi database**
    - Menjaga `src/lib/db/schema.ts` sebagai sumber tunggal.
@@ -781,7 +803,7 @@ Catatan klien mobile (Expo): `mobile/app.json` memakai `android.package` dan `io
 
 8. **Dokumentasi & integrasi**
    - Menjaga dokumen ini dan kontrak API tetap akurat.
-   - Berkoordinasi dengan frontend soal bentuk response/error.
+   - Berkoordinasi dengan tim mobile soal bentuk response/error.
    - Membantu QA mereproduksi bug backend.
 
 9. **Keamanan & operasional**
@@ -790,14 +812,14 @@ Catatan klien mobile (Expo): `mobile/app.json` memakai `android.package` dan `io
    - Merencanakan migrasi produksi dan rollback.
    - Menjaga dependency tetap di-pin dan memperbarui dengan sadar.
 
-### 14.2 Yang bukan jobdesk backend
+### 15.2 Yang bukan jobdesk backend
 
-- Membuat halaman, komponen visual, atau layout UI.
+- Membuat halaman/komponen visual atau layout UI (tidak ada UI web di repo ini).
 - Mengatur state client (TanStack Query/Zustand) dan cache IndexedDB.
 - Menulis test E2E UI atau mengatur desain PWA shell.
 - Menentukan harga/pajak bisnis; nilai tersebut dibaca dari database/Pengaturan.
 
-### 14.3 Jobdesk per fase
+### 15.3 Jobdesk per fase
 
 | Fase | Deliverable backend | Status |
 |---|---|---|
@@ -808,7 +830,7 @@ Catatan klien mobile (Expo): `mobile/app.json` memakai `android.package` dan `io
 | **F6 — Offline** | Sinkronisasi batch/idempotent, penanganan konflik, versi data, endpoint cache master data | Belum |
 | **F7 — Polish** | Audit penuh, rate limiting, observability, hardening keamanan, runbook backup/migrasi | Belum |
 
-### 14.4 Definition of Done backend
+### 15.4 Definition of Done backend
 
 Sebuah pekerjaan backend dianggap selesai bila:
 
@@ -822,17 +844,17 @@ Sebuah pekerjaan backend dianggap selesai bila:
 - [ ] Dokumen backend/kontrak API diperbarui bila ada perubahan.
 - [ ] PR direview minimal oleh satu anggota tim lain.
 
-### 14.5 Ritme kerja & kolaborasi
+### 15.5 Ritme kerja & kolaborasi
 
 - **Harian**: cek PR/issue, perbaiki bug backend, pastikan test tetap hijau.
-- **Sebelum mulai fitur**: baca PRD dan rencana fase terkait; konfirmasi kontrak API ke frontend.
+- **Sebelum mulai fitur**: baca PRD dan rencana fase terkait; konfirmasi kontrak API ke tim mobile.
 - **Saat menambah endpoint**: update dokumen ini + beri contoh request/response.
 - **Sebelum merge**: pastikan migrasi bisa dijalankan di database bersih dan tidak hanya di PGlite.
 - **Saat rilis**: koordinasi migrasi produksi, seed, dan environment variable dengan pemilik deploy.
 
 ---
 
-## 15. Referensi
+## 16. Referensi
 
 - [`prd.md`](../../prd.md) — spesifikasi produk.
 - [`CONTRIBUTING.md`](../../CONTRIBUTING.md) — aturan branch, commit, dan kode.
@@ -842,4 +864,4 @@ Sebuah pekerjaan backend dianggap selesai bila:
 
 ---
 
-Dokumen ini hidup. Setiap endpoint, aturan bisnis, atau keputusan teknis baru **wajib** memperbarui file ini agar frontend dan QA punya kontrak yang sama.
+Dokumen ini hidup. Setiap endpoint, aturan bisnis, atau keputusan teknis baru **wajib** memperbarui file ini agar tim mobile dan QA punya kontrak yang sama.
