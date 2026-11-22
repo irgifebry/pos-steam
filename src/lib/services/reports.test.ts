@@ -10,7 +10,7 @@ import {
   payments,
 } from "@/lib/db/schema";
 import { listReportTransactions, getTodayDashboard, getOmzetReport } from "./reports";
-import { createOrder, updateOrderStatus, addOrderPayment } from "./orders";
+import { createOrder, updateOrderStatus, addOrderPayment, jakartaDate } from "./orders";
 import type { SessionUser } from "@/lib/auth/session";
 
 const actorId = "actor-laporan";
@@ -27,7 +27,7 @@ const actor: SessionUser = {
 
 let pkgId: string;
 let addonId: string;
-const today = new Date().toISOString().slice(0, 10);
+const today = jakartaDate();
 
 describe("reports service", () => {
   let db: AppDatabase;
