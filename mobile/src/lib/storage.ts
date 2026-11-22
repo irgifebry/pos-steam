@@ -5,8 +5,17 @@ import type { Session, User } from '../types';
 
 const KEYS = { session: '@pos/session', user: '@pos/user' } as const;
 
+// Base URL produksi. Atur EXPO_PUBLIC_API_BASE_URL saat build untuk mengarahkan
+// aplikasi ke backend yang di-deploy (mis. https://pos-api.vercel.app).
+// Jika kosong, pakai alamat development di bawah.
+const PRODUCTION_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || '')
+  .trim()
+  .replace(/\/+$/, '');
+
 // Alamat server backend embedded (otomatis menyesuaikan host IP Expo atau default LAN)
 export function getEmbeddedBaseUrl(): string {
+  if (PRODUCTION_BASE_URL) return PRODUCTION_BASE_URL;
+
   // Ambil host IP dari Expo saat dibuka via Expo Go di HP atau simulator
   const hostUri =
     Constants.expoConfig?.hostUri ||
@@ -27,6 +36,8 @@ export function getEmbeddedBaseUrl(): string {
 export const EMBEDDED_BASE_URL = getEmbeddedBaseUrl();
 
 export async function getBaseUrl(): Promise<string> {
+  if (PRODUCTION_BASE_URL) return PRODUCTION_BASE_URL;
+
   // Di web preview, pakai localhost supaya cookie session SameSite=Lax ikut terkirim
   // (host berbeda di HP/native sudah ditangani getEmbeddedBaseUrl).
   if (Platform.OS === 'web') return 'http://localhost:3001';
