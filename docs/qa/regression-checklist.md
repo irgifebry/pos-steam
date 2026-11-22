@@ -184,13 +184,13 @@ Aturan ini berasal dari PRD dan Global Constraints Rencana 01. Jangan menunggu f
 
 ## 5. Regresi Mobile (Expo)
 
-Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobile. Prasyarat: backend di `http://localhost:3000`, Expo Web di `http://localhost:8081` (`npm run web` dari `mobile/`), dan CORS proxy `src/proxy.ts` aktif.
+Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobile. Prasyarat: backend di `http://localhost:3001`, Expo Web di `http://localhost:8081` (`npm run web` dari `mobile/`), dan CORS proxy `src/proxy.ts` aktif.
 
 ### 5.1 Setup & Kesehatan
 
 - [ ] `npx tsc --noEmit` di root dan `mobile/` bersih; `npx expo-doctor` 20/20
 - [ ] `npm test` root lulus (28 file / 116 test)
-- [ ] Expo Web `http://localhost:8081` terhubung ke backend `http://localhost:3000`
+- [ ] Expo Web `http://localhost:8081` terhubung ke backend `http://localhost:3001`
 - [ ] CORS proxy (`src/proxy.ts`, matcher `/api/:path*`) aktif: preflight `OPTIONS /api/*` dari origin Expo Web balas 204 dengan header CORS; tanpa ini request mobile web ditolak browser
 - [ ] Respons sukses `{ data: ... }` dan error `{ error: { code, message } }` konsisten di endpoint yang dipakai mobile
 

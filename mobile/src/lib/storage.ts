@@ -16,12 +16,12 @@ export function getEmbeddedBaseUrl(): string {
   if (hostUri) {
     const ip = hostUri.split(':')[0];
     if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
-      return `http://${ip}:3000`;
+      return `http://${ip}:3001`;
     }
   }
 
   // Fallback IP LAN mesin host tempat Next.js berjalan
-  return 'http://192.168.101.4:3000';
+  return 'http://192.168.101.4:3001';
 }
 
 export const EMBEDDED_BASE_URL = getEmbeddedBaseUrl();
@@ -29,7 +29,7 @@ export const EMBEDDED_BASE_URL = getEmbeddedBaseUrl();
 export async function getBaseUrl(): Promise<string> {
   // Di web preview, pakai localhost supaya cookie session SameSite=Lax ikut terkirim
   // (host berbeda di HP/native sudah ditangani getEmbeddedBaseUrl).
-  if (Platform.OS === 'web') return 'http://localhost:3000';
+  if (Platform.OS === 'web') return 'http://localhost:3001';
   return getEmbeddedBaseUrl();
 }
 

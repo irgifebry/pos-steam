@@ -44,5 +44,5 @@ Docs: https://docs.expo.dev/eas/index.md
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
 - `npx expo lint` requires an ESLint config that this project does not currently have; `npx tsc --noEmit` and `npx expo-doctor` are the enforced checks.
-- API base URL is resolved in `src/lib/storage.ts`: `http://localhost:3000` on web (cookie `SameSite=Lax`), otherwise derived from Expo `hostUri` with a hardcoded LAN fallback that must be updated when the network changes. The backend CORS proxy lives at `src/proxy.ts` in the repo root.
+- API base URL is resolved in `src/lib/storage.ts`: `http://localhost:3001` on web (cookie `SameSite=Lax`), otherwise derived from Expo `hostUri` with a hardcoded LAN fallback that must be updated when the network changes. The backend CORS proxy lives at `src/proxy.ts` in the repo root.
 - Current build config: `android.package` / `ios.bundleIdentifier` are `com.kyane.pos`; `userInterfaceStyle` is `light`. Native bottom tabs were tried and reverted — keep `createBottomTabNavigator`.

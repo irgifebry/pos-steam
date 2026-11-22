@@ -19,7 +19,7 @@ Sistem **Point of Sale** untuk outlet cuci steam (motor & mobil). Operasional di
 | **Web** | `src/app` | Next.js 16 App Router. Halaman: `/kasir`, `/antrean`, `/laporan`, `/pengaturan/*`, struk publik `/r/[token]` |
 | **Mobile** | [`mobile/`](./mobile/) | Expo SDK ~58 + React Navigation v7. Empat tab: **Kasir, Antrean, Laporan, Pengaturan** |
 
-Keduanya memanggil API yang sama. Untuk web preview mobile (`localhost:8081` → `localhost:3000`), backend memasang header CORS lewat [`src/proxy.ts`](./src/proxy.ts) (Next.js 16 Proxy, pengganti `middleware.ts`).
+Keduanya memanggil API yang sama. Untuk web preview mobile (`localhost:8081` → `localhost:3001`), backend memasang header CORS lewat [`src/proxy.ts`](./src/proxy.ts) (Next.js 16 Proxy, pengganti `middleware.ts`).
 
 ---
 
@@ -132,8 +132,8 @@ Seed hanya membuat **satu akun demo**: `admin@pos.test` / `123456` dengan nama t
 DATABASE_URL=postgresql://...pooler.supabase.com:5432/postgres
 DIRECT_URL=postgresql://...:5432/postgres
 BETTER_AUTH_SECRET=...
-BETTER_AUTH_URL=http://localhost:3000
-WEB_ORIGIN=http://localhost:3000
+BETTER_AUTH_URL=http://localhost:3001
+WEB_ORIGIN=http://localhost:3001
 SEED_OUTLET_NAME=Nama Outlet Anda   # opsional, dipakai saat db:seed
 ```
 
@@ -153,8 +153,10 @@ npm run db:seed     # tsx --env-file=.env.local (env dimuat sendiri)
 ### Menjalankan backend & web
 
 ```bash
-npm run dev          # http://localhost:3000
+npm run dev          # http://localhost:3001
 ```
+
+> **Catatan port:** di mesin ini port `3000` dipakai proyek lain, sehingga backend POS berjalan di `3001`. Nilai ini tersinkron di `.env.local` (`BETTER_AUTH_URL`, `WEB_ORIGIN`), `mobile/src/lib/storage.ts`, dan perintah `npm run dev -- -p 3001`. Jika ingin kembali ke `3000` (saat port kosong), ubah ketiganya secara bersamaan.
 
 ### Menjalankan mobile
 
@@ -163,7 +165,7 @@ cd mobile
 npx expo start       # Expo Go / web preview http://localhost:8081
 ```
 
-- Base URL otomatis: `localhost:3000` di web; di native diambil dari `hostUri` Expo (fallback hardcoded `http://192.168.101.4:3000` perlu diperbarui jika IP berubah).
+- Base URL otomatis: `localhost:3001` di web; di native diambil dari `hostUri` Expo (fallback hardcoded `http://192.168.101.4:3001` perlu diperbarui jika IP berubah).
 - Ekspor `DIRECT_URL` **wajib** sebelum `npm run db:migrate`.
 - CORS untuk web preview sudah ditangani `src/proxy.ts`.
 

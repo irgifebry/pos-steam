@@ -83,14 +83,14 @@ Sesuai PRD §4.2, dengan penyesuaian karena klien mobile kini masuk ruang lingku
 
 ```bash
 # Terminal 1 — backend + web (dari root repo)
-npm run dev                # http://localhost:3000
+npm run dev                # http://localhost:3001
 
 # Terminal 2 — mobile web preview (dari folder mobile/)
 cd mobile
 npm run web                # Expo Web → http://localhost:8081
 ```
 
-Expo Web memerlukan **CORS proxy** yang sudah tersedia di [`src/proxy.ts`](../../src/proxy.ts) (matcher `/api/:path*`): proxy menambahkan header CORS untuk origin `localhost`/IP jaringan lokal pada preflight `OPTIONS` maupun response. Tanpa ini, request dari `http://localhost:8081` ke `http://localhost:3000` ditolak browser. Aplikasi native (Expo Go/dev build) tidak terkena CORS, tetapi tetap memakai backend yang sama.
+Expo Web memerlukan **CORS proxy** yang sudah tersedia di [`src/proxy.ts`](../../src/proxy.ts) (matcher `/api/:path*`): proxy menambahkan header CORS untuk origin `localhost`/IP jaringan lokal pada preflight `OPTIONS` maupun response. Tanpa ini, request dari `http://localhost:8081` ke `http://localhost:3001` ditolak browser. Aplikasi native (Expo Go/dev build) tidak terkena CORS, tetapi tetap memakai backend yang sama.
 
 **Verifikasi terkini (lokal):**
 
@@ -99,7 +99,7 @@ Expo Web memerlukan **CORS proxy** yang sudah tersedia di [`src/proxy.ts`](../..
 | `npm test` (root) | 28 file / 116 test lulus |
 | `npx tsc --noEmit` (root & `mobile/`) | bersih |
 | `npx expo-doctor` (`mobile/`) | 20/20 |
-| Preview | Expo Web `http://localhost:8081` ↔ backend `http://localhost:3000` |
+| Preview | Expo Web `http://localhost:8081` ↔ backend `http://localhost:3001` |
 
 **Matriks perangkat:**
 

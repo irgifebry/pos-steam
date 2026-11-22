@@ -233,9 +233,9 @@ Reset PIN oleh user yang login:
 
 ## 6. Kontrak API
 
-Base URL lokal: `http://localhost:3000`.
+Base URL lokal: `http://localhost:3001`.
 
-> **Expo Web & CORS:** web preview mobile berjalan di `localhost:8081` dan memanggil `localhost:3000`, sehingga browser melakukan preflight `OPTIONS`. `src/proxy.ts` (Proxy Next.js 16, menggantikan `middleware` yang sudah deprecated) menambahkan header CORS untuk origin dev `localhost`, `127.0.0.1`, dan IP LAN privat pada **semua** `/api/*`, termasuk response preflight `OPTIONS`. Aplikasi native tidak terkena CORS.
+> **Expo Web & CORS:** web preview mobile berjalan di `localhost:8081` dan memanggil `localhost:3001`, sehingga browser melakukan preflight `OPTIONS`. `src/proxy.ts` (Proxy Next.js 16, menggantikan `middleware` yang sudah deprecated) menambahkan header CORS untuk origin dev `localhost`, `127.0.0.1`, dan IP LAN privat pada **semua** `/api/*`, termasuk response preflight `OPTIONS`. Aplikasi native tidak terkena CORS.
 
 ### 6.1 Format response
 
@@ -282,7 +282,7 @@ Error:
 Login email/PIN:
 
 ```bash
-curl -i -X POST http://localhost:3000/api/auth/sign-in/email \
+curl -i -X POST http://localhost:3001/api/auth/sign-in/email \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"admin@pos.test\",\"password\":\"123456\"}"
 ```
@@ -686,7 +686,7 @@ npm run db:seed   # seed memuat .env.local sendiri lewat tsx --env-file=.env.loc
 npm run dev
 ```
 
-Buka `http://localhost:3000`. Root mengarah ke `/kasir`; frontend web sudah tersambung ke API nyata. Untuk web preview mobile, backend harus berjalan di `localhost:3000` agar base URL dan cookie sesi sesuai.
+Buka `http://localhost:3001`. Root mengarah ke `/kasir`; frontend web sudah tersambung ke API nyata. Untuk web preview mobile, backend harus berjalan di `localhost:3001` agar base URL dan cookie sesi sesuai.
 
 ### 12.3 Environment variable
 
@@ -696,7 +696,7 @@ Buka `http://localhost:3000`. Root mengarah ke `/kasir`; frontend web sudah ters
 | `DIRECT_URL` | Ya, untuk migrasi | Koneksi migrasi; wajib di-export ke shell sebelum `npm run db:migrate` karena `drizzle.config.ts` membaca `process.env` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Tidak | Disiapkan, belum dipakai backend F1 |
 | `BETTER_AUTH_SECRET` | Ya | Minimal 32 karakter |
-| `BETTER_AUTH_URL` | Ya | Base URL aplikasi, mis. `http://localhost:3000` |
+| `BETTER_AUTH_URL` | Ya | Base URL aplikasi, mis. `http://localhost:3001` |
 | `WEB_ORIGIN` | Ya | Origin yang diizinkan untuk CORS/trusted origin |
 | `NODE_ENV` | Tidak | `development` / `test` / `production` |
 | `SEED_OUTLET_NAME` | Tidak | Nama outlet saat `db:seed`; default `KYANE POS`. Seed tidak membuat data contoh lain |
@@ -733,10 +733,10 @@ Hal-hal berikut **belum** dikerjakan dan perlu diketahui tim:
 | 8 | PIN admin masih `123456` | Sebelum produksi |
 | 9 | UI dan PWA sudah tersambung API; mode demo dihapus | Sudah dilakukan |
 | 10 | Endpoint settings, dashboard hari ini, dan sync offline | Selesai |
-| 11 | Fallback base URL mobile `http://192.168.101.4:3000` di `mobile/src/lib/storage.ts` sudah usang | Ganti/konfigurasikan sebelum build native |
+| 11 | Fallback base URL mobile `http://192.168.101.4:3001` di `mobile/src/lib/storage.ts` sudah usang | Ganti/konfigurasikan sebelum build native |
 | 12 | Proxy CORS hanya mengizinkan origin dev (localhost/127.0.0.1/IP LAN privat) | Tambahkan origin produksi di `src/proxy.ts` saat deploy |
 
-Catatan klien mobile (Expo): `mobile/app.json` memakai `android.package` dan `ios.bundleIdentifier` = `com.kyane.pos` dengan `userInterfaceStyle: "light"` (tanpa dark mode); `expo-system-ui` sudah dihapus dari dependency. Base URL di `mobile/src/lib/storage.ts` adalah `http://localhost:3000` saat `Platform.OS === 'web'` (supaya cookie `SameSite=Lax` ikut terkirim); untuk native, URL diturunkan dari `hostUri` Expo dengan fallback hardcode `http://192.168.101.4:3000` yang **sudah usang** dan perlu diperbarui sesuai IP host.
+Catatan klien mobile (Expo): `mobile/app.json` memakai `android.package` dan `ios.bundleIdentifier` = `com.kyane.pos` dengan `userInterfaceStyle: "light"` (tanpa dark mode); `expo-system-ui` sudah dihapus dari dependency. Base URL di `mobile/src/lib/storage.ts` adalah `http://localhost:3001` saat `Platform.OS === 'web'` (supaya cookie `SameSite=Lax` ikut terkirim); untuk native, URL diturunkan dari `hostUri` Expo dengan fallback hardcode `http://192.168.101.4:3001` yang **sudah usang** dan perlu diperbarui sesuai IP host.
 
 ---
 
