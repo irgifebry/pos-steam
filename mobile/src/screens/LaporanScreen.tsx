@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Banknote, CarFront, Clock3, CreditCard, Motorbike, ReceiptText } from 'lucide-react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Banknote, CarFront, Clock3, CreditCard, FileSpreadsheet, Motorbike, ReceiptText } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatCard } from '../components/StatCard';
 import { api } from '../lib/api';
+import { downloadReportExcel } from '../lib/report-export';
 import type { Order } from '../types';
 import { useTheme } from '../theme/ThemeContext';
 import { useStyles } from '../theme/useStyles';
@@ -45,6 +46,7 @@ export function LaporanScreen() {
   const [transactions, setTransactions] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
   const today = useMemo(() => dateKey(new Date()), []);
 
@@ -69,6 +71,18 @@ export function LaporanScreen() {
   }, [today]);
 
   useEffect(() => { void load(); }, [load]);
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      await downloadReportExcel('transactions', today, today);
+      Alert.alert('Excel siap', 'Laporan Excel berhasil diunduh.');
+    } catch (cause) {
+      Alert.alert('Gagal mengekspor', cause instanceof Error ? cause.message : 'Silakan coba lagi.');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const paidTransactions = useMemo(() => transactions.filter((order) => order.paid), [transactions]);
   const packageBreakdown = useMemo(() => {
@@ -96,20 +110,36 @@ export function LaporanScreen() {
             <Text style={styles.eyebrow}>RINGKASAN BISNIS</Text>
             <Text style={styles.title}>Laporan Omzet</Text>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Export laporan ke Excel"
+            disabled={exporting}
+            onPress={() => void handleExport()}
+            style={[styles.exportButton, exporting && styles.exportDisabled]}
+          >
+            {exporting ? (
+              <ActivityIndicator size="small" color={colors.night} />
+            ) : (
+              <FileSpreadsheet size={16} color={colors.night} />
+            )}
+            <Text style={styles.exportText}>{exporting ? 'Mengekspor…' : 'Export Excel'}</Text>
+          </Pressable>
+        </View>
+        <View style={styles.dateRow}>
+          <Text style={styles.dateText}>
+            {new Date(`${today}T12:00:00+07:00`).toLocaleDateString('id-ID', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+              timeZone: 'Asia/Jakarta',
+            })}
+          </Text>
           <View style={styles.todayPill}>
             <Clock3 size={14} color={colors.brandDark} />
             <Text style={styles.todayText}>Hari ini</Text>
           </View>
         </View>
-        <Text style={styles.dateText}>
-          {new Date(`${today}T12:00:00+07:00`).toLocaleDateString('id-ID', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            timeZone: 'Asia/Jakarta',
-          })}
-        </Text>
         {error ? (
           <View style={styles.errorBox}>
             <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text>
@@ -225,7 +255,11 @@ function buildStyles(colors: Palette) {
   title: { color: colors.ink, fontSize: 24, fontWeight: '800' },
   todayPill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.brandSoft, borderRadius: 20, paddingHorizontal: 11, paddingVertical: 6, borderWidth: 1, borderColor: colors.line },
   todayText: { color: colors.brandDark, fontSize: 12, fontWeight: '800' },
-  dateText: { color: colors.muted, fontSize: 13, fontWeight: '600', marginTop: -9 },
+  exportButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.brand, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 1, borderColor: colors.brandDark },
+  exportDisabled: { opacity: 0.6 },
+  exportText: { color: colors.night, fontSize: 12, fontWeight: '800' },
+  dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: -9 },
+  dateText: { color: colors.muted, fontSize: 13, fontWeight: '600', flexShrink: 1 },
   errorBox: { backgroundColor: colors.dangerSoft, borderRadius: 10, padding: 11, gap: 5 },
   errorText: { color: colors.dangerDark, fontSize: 13 },
   retry: { color: colors.brandDark, fontWeight: '800' },

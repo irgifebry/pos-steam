@@ -218,7 +218,15 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 - [ ] Tab status (Semua / Menunggu / Proses / Selesai / Dibatalkan) dan filter kendaraan (Semua Kendaraan / Motor / Mobil) menyaring daftar dengan benar
 - [ ] Aksi Selesai dan Batalkan pesanan (dengan alasan) bekerja dan daftar memperbarui otomatis
 
-### 5.6 Koneksi Produksi
+### 5.6 Laporan & Export
+
+- [ ] Tab **Laporan** menampilkan tombol **Export Excel** di sebelah judul "Laporan Omzet"
+- [ ] Menekan **Export Excel** mengunduh file `.xlsx` dengan 6 sheet (Ringkasan, Transaksi, Paket, Add-on, Metode Pembayaran, Kas)
+- [ ] Nama file mengikuti periode hari ini, mis. `laporan-transactions-2026-11-23.xlsx`
+- [ ] Di native, file dibuka lewat share sheet; di Expo Web, file langsung terunduh lewat browser
+- [ ] Tombol berubah menjadi "Mengekspor…" saat request berjalan dan menampilkan alert jika gagal
+
+### 5.7 Koneksi Produksi
 
 - [ ] Build/EAS update memakai `EXPO_PUBLIC_API_BASE_URL=https://<backend>.vercel.app` (bukan alamat LAN)
 - [ ] Login dan sesi tetap bertahan setelah aplikasi direstart

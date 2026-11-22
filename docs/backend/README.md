@@ -458,7 +458,7 @@ Aturan order:
 | GET | `/api/reports/export.csv?from=...&to=...&type=...` | admin | Ekspor CSV (`transactions`, `paket`, `addon`, `payment-method`) |
 | GET | `/api/reports/export.xlsx?from=...&to=...&type=...` | admin | Ekspor Excel `.xlsx` (6 sheet: Ringkasan, Transaksi, Paket, Add-on, Metode Pembayaran, Kas). Sheet aktif mengikuti `type` |
 
-> **Format Excel:** generator ada di `src/lib/services/report-export.ts` (exceljs). Font Arial, header biru brand, baris bergaris, filter, freeze header, lebar kolom diatur, dan format mata uang Rupiah. Setiap sheet memakai header di baris 6, data mulai baris 7, serta baris **TOTAL** berupa formula `SUM(...)` (bukan nilai statis). Sheet **Ringkasan** memakai formula lintas sheet (`COUNT`, `SUM`, `IF`). Catatan asumsi ditaruh di bawah tabel dan sebagai catatan sel.
+> **Format Excel:** generator ada di `src/lib/services/report-export.ts` (exceljs). Font Arial, header biru brand, baris bergaris, filter, freeze header, lebar kolom diatur, dan format mata uang Rupiah. Setiap sheet memakai header di baris 6, data mulai baris 7, serta baris **TOTAL** berupa formula `SUM(...)` (bukan nilai statis). Sheet **Ringkasan** memakai formula lintas sheet (`COUNT`, `SUM`, `IF`). Catatan asumsi ditaruh di bawah tabel dan sebagai catatan sel. Di aplikasi Expo, tombol **Export Excel** pada tab **Laporan** memanggil endpoint ini untuk periode hari ini (`type=transactions`); file disimpan lewat `expo-file-system` lalu dibuka dengan share sheet di native, atau langsung diunduh browser di Expo Web.
 
 #### Audit & Offline Sync
 
