@@ -2,32 +2,32 @@
 
 Gunakan checklist ini untuk memastikan perubahan baru tidak merusak fitur yang sudah berjalan. Centang hanya jika sudah diverifikasi, bukan hanya "sepertinya aman".
 
-- **Smoke test PR:** wajib untuk setiap Pull Request.
+- **Smoke test:** wajib sebelum push perubahan ke `main`.
 - **Regression F1 lengkap:** sebelum F1 dinyatakan selesai atau sebelum rilis besar.
 - **Invariant lintas fase:** wajib dijalankan di setiap fase, karena aturan ini berlaku kumulatif.
 - **Regresi Mobile (Expo):** wajib jika perubahan menyentuh `mobile/` atau kontrak API yang dipakai mobile.
 - **Release checklist:** sebelum deploy ke production.
 
-> **Role:** satu-satunya peran yang dikenal adalah `admin` (`roleSchema`). Istilah lama `kasir`/`operator` pada butir historis dibaca sebagai `admin`. Butir §1–§4 berlaku untuk web/backend; check mobile ada di §5.
+> **Role:** satu-satunya peran yang dikenal adalah `admin` (`roleSchema`). Istilah lama `kasir`/`operator` pada butir historis dibaca sebagai `admin`. Butir §1–§4 berlaku untuk backend API; check mobile ada di §5. Tidak ada klien web Next.js.
 
 ---
 
-## 1. Smoke Test PR (±10 menit)
+## 1. Smoke Test (±10 menit)
 
 | # | Cek | Test Case | Lulus |
 |---|---|---|---|
-| 1 | Health endpoint 200 | F1-001 | [ ] |
-| 2 | Typecheck, lint, test, build | F1-002 | [ ] |
-| 3 | Signup user default kasir | F1-030 | [ ] |
-| 4 | Login email + PIN | F1-033 | [ ] |
-| 5 | Endpoint tanpa sesi → 401 | F1-035 | [ ] |
-| 6 | Kasir tidak bisa menulis master data/user | F1-042 | [ ] |
-| 7 | Buat paket dan tampil di daftar | F1-050 | [ ] |
-| 8 | BottomNav sesuai role | F1-070 | [ ] |
-| 9 | Login admin seed | F1-091 | [ ] |
+| 1 | Root `/` JSON status dan `GET /api/health` 200 | F1-001 | [ ] |
+| 2 | Typecheck, lint, test (27 file/111 test), build | F1-002 | [ ] |
+| 3 | Login email + PIN seed `admin@pos.test` / `123456` | F1-033 | [ ] |
+| 4 | Endpoint tanpa sesi → 401 `UNAUTHENTICATED` | F1-035 | [ ] |
+| 5 | Envelope error `{ error: { code, message } }` konsisten | F1-035 | [ ] |
+| 6 | User nonaktif tidak bisa memakai sesi lama | F1-042 | [ ] |
+| 7 | Buat paket via API dan tampil di daftar | F1-050 | [ ] |
+| 8 | Buat order → nomor antrean/invoice otomatis | F2 | [ ] |
+| 9 | Preflight `OPTIONS /api/*` → 204 + header CORS | proxy CORS | [ ] |
 | 10 | Tidak ada secret di bundle/repo | F1-094 | [ ] |
 
-Jika salah satu gagal: **jangan merge**. Buat bug issue dan tandai PR sebagai blocked.
+Jika salah satu gagal: **jangan push**. Perbaiki dulu dan ulangi smoke test.
 
 ---
 
@@ -39,13 +39,13 @@ Jika salah satu gagal: **jangan merge**. Buat bug issue dan tandai PR sebagai bl
 - [ ] `npm run lint` tanpa error
 - [ ] `npm test` semua PASS, tidak ada skip
 - [ ] `npm run build` sukses
+- [ ] `GET /` mengembalikan JSON status (bukan redirect/halaman)
 - [ ] `GET /api/health` 200
 - [ ] Dependency tetap pinned (tidak ada `^`/`~`)
-- [ ] Root redirect dan auth redirect benar
 
 ### 2.2 Skema & Validasi
 
-- [ ] 17 tabel terbentuk setelah migrasi
+- [ ] 18 tabel terbentuk setelah migrasi (`0000`–`0003`)
 - [ ] Unique constraint `(outlet_id, vehicle_type, name)` pada `service_packages`
 - [ ] Unique `(outlet_id, name)` pada `addons`
 - [ ] Unique `client_id` dan `(outlet_id, invoice_no)` pada `orders`
@@ -62,7 +62,6 @@ Jika salah satu gagal: **jangan merge**. Buat bug issue dan tandai PR sebagai bl
 - [ ] Signup tidak bisa mengisi `role`/`active`
 - [ ] PIN <6 ditolak, 6 diterima
 - [ ] Login email + PIN valid/salah
-- [ ] Login Google (jika OAuth tersedia)
 - [ ] Tanpa sesi → 401 `UNAUTHENTICATED`
 - [ ] Role salah → 403 `FORBIDDEN`
 - [ ] User nonaktif tidak bisa login dan sesi lama mati
@@ -75,49 +74,39 @@ Jika salah satu gagal: **jangan merge**. Buat bug issue dan tandai PR sebagai bl
 - [ ] Envelope error konsisten dan Bahasa Indonesia
 - [ ] Service key/DB driver tidak ada di client bundle
 
-### 2.4 Master Data
+### 2.4 Master Data (via API)
 
-> Catatan: di web, data dinonaktifkan. Di mobile, data master **dihapus** lewat tombol **Hapus** (DELETE) dan daftar hanya menampilkan record aktif — lihat §5. Jangan menguji mobile dengan asumsi "nonaktifkan".
+> Data master dikelola lewat endpoint `/api/packages`, `/api/addons`, `/api/outlets`, `/api/banks`, `/api/settings`, dan `/api/users`. "Hapus" = soft delete (`active=false`); daftar hanya memuat record aktif kecuali `includeInactive=true` — lihat §5 untuk check di mobile.
 
-- [ ] Paket motor/mobil bisa dibuat, diedit, dinonaktifkan (web); di mobile paket dihapus via tombol "Hapus"
+- [ ] Paket motor/mobil bisa dibuat, diedit, dihapus (`DELETE` → `active=false`)
 - [ ] Nama sama beda tipe kendaraan diperbolehkan
-- [ ] Nama sama tipe sama ditolak 409
+- [ ] Nama sama tipe sama ditolak 409 `DUPLICATE`
 - [ ] `price_snapshot` transaksi lama tidak berubah saat harga master diedit
-- [ ] Paket nonaktif tersembunyi dari list default (web & mobile hanya memuat record aktif)
+- [ ] `royaltyPrice` tersimpan dan dipakai saat order `royalty: true`
 - [ ] Urutan `sortOrder` lalu nama
-- [ ] Add-on filter tipe kendaraan benar
-- [ ] Add-on duplikat ditolak
+- [ ] Add-on filter tipe kendaraan benar; duplikat ditolak
 - [ ] Outlet (nama, alamat, HP, footer, pajak) tersimpan
 - [ ] Bank (nama, nomor rekening, pemilik, aktif) tersimpan
-- [ ] Settings mengembalikan data yang benar; field sensitif tidak bocor ke kasir
-- [ ] User CRUD, reset PIN, aktif/nonaktif bekerja (web); di mobile lewat sub-halaman Pengguna dengan aksi "Hapus"
-- [ ] Validasi client sama dengan validasi server
-- [ ] Data tetap ada setelah reload
+- [ ] `GET /api/settings` mengembalikan outlet + bank aktif; field sensitif tidak bocor
+- [ ] User CRUD, reset PIN, aktif/nonaktif bekerja; admin terakhir dilindungi `409 LAST_ADMIN`
+- [ ] Data tersimpan di database (verifikasi ulang dengan `GET`)
 
-### 2.5 UI, Shell, PWA
+### 2.5 Kontrak API & CORS
 
-- [ ] Web: semua user (role `admin`) melihat 5 tab termasuk Pengaturan. Mobile: tepat 4 tab (lihat §5)
-- [ ] Navigasi dan active state benar
-- [ ] Header menampilkan outlet/user; logout bekerja
-- [ ] Login: validasi kosong, PIN <6, PIN salah, PIN valid
-- [ ] Operator switcher: daftar aktif, PIN, ganti sesi, audit actor
-- [ ] Redirect unauthenticated dan akses `/pengaturan` oleh kasir
-- [ ] Manifest PWA benar
-- [ ] Install PWA di Android Chrome
-- [ ] Service worker terdaftar; app shell offline
-- [ ] iOS Safari 16+ bisa login dan install
-- [ ] Format Rupiah `Rp 65.000` dan tanggal `dd/MM/yyyy`
-- [ ] Layout 360x640 tanpa horizontal scroll; tap target ≥44px
-- [ ] Aksesibilitas dasar (label, focus, kontras)
+- [ ] Semua response sukses memakai `{ data: ... }`; error `{ error: { code, message } }`
+- [ ] Kode error sesuai kontrak: `VALIDATION_ERROR`, `INVALID_JSON`, `OUTLET_REQUIRED`, `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`, `DUPLICATE`, `LAST_ADMIN`, `INTERNAL_ERROR`
+- [ ] Root `/` mengembalikan JSON status; `GET /api/health` 200
+- [ ] Preflight `OPTIONS /api/*` → 204 dengan header CORS; origin dari `WEB_ORIGIN`/`BETTER_AUTH_URL` diterima (comma-separated)
+- [ ] Cookie sesi `httpOnly`; klien memakai `credentials: "include"`; tidak ada token di `localStorage`
+- [ ] Pesan error Bahasa Indonesia; format Rupiah tanpa desimal di export
 
 ### 2.6 Seed, Deploy, Non-Fungsional
 
-- [ ] Seed idempotent: 1 outlet, 6 paket, 4 add-on, 3 bank, 1 admin
-- [ ] Clean setup: migrate + seed + dev + login admin
+- [ ] Seed idempotent: **1 outlet kosong, 1 admin (`admin@pos.test` / `123456`, nama `testing`), 0 paket, 0 add-on, 0 bank, 0 transaksi**
+- [ ] Clean setup: migrate (export `DIRECT_URL`) + seed + `npm run dev -- -p 3001` + login admin
 - [ ] Build produksi dan Vercel preview sukses
-- [ ] Login Google di domain deploy
 - [ ] Tidak ada secret di repo/bundle; `.env.local` ignored
-- [ ] API <500ms (warm), halaman <2s di HP mid-range
+- [ ] API <500ms (warm)
 - [ ] Semua teks/error Bahasa Indonesia
 - [ ] Tidak ada nilai bisnis hardcoded
 - [ ] Audit log untuk aksi sensitif
@@ -133,16 +122,16 @@ Aturan ini berasal dari PRD dan Global Constraints Rencana 01. Jangan menunggu f
 - [ ] **Harga integer Rupiah** — tidak ada float/sen di tabel transaksi.
 - [ ] **Price snapshot** — harga transaksi lama tidak berubah saat master berubah.
 - [ ] **Tidak ada hardcoded business value** — paket, add-on, pajak, bank dari database.
-- [ ] **Otorisasi di Route Handler** — UI bukan pengganti pengecekan server.
+- [ ] **Otorisasi di Route Handler** — klien bukan pengganti pengecekan server.
 - [ ] **Service role key hanya di server** — tidak pernah di client bundle.
-- [ ] **Akses DB hanya lewat server** — browser tidak bicara langsung ke Supabase.
+- [ ] **Akses DB hanya lewat server** — klien tidak bicara langsung ke Supabase.
 - [ ] **Audit log** — void, ubah harga, edit user tercatat.
 - [ ] **Idempotensi `client_id`** — pengiriman ulang tidak menggandakan order (F2+).
 - [ ] **Offline tidak kehilangan/menggandakan data** — uji airplane mode (F6).
 - [ ] **Nomor invoice unik** — `S-YYYYMMDD-NNN`, tidak dipakai ulang.
 - [ ] **Nomor antrean unik per tipe/hari** — `M-001`/`C-001`.
 - [ ] **Timezone konsisten** — reset harian memakai `Asia/Jakarta`.
-- [ ] **Bahasa & format** — UI/error Indonesia; Rupiah tanpa desimal; tanggal `dd/MM/yyyy`.
+- [ ] **Bahasa & format** — pesan error API Indonesia; Rupiah tanpa desimal; tanggal `dd/MM/yyyy`.
 - [ ] **Dependency pinned** — tidak ada `^`/`~`.
 - [ ] **Test API tidak butuh DB eksternal** — memakai PGlite.
 - [ ] **Skema hanya dari `src/lib/db/schema.ts`** — migrasi lewat `drizzle-kit generate`.
@@ -160,20 +149,17 @@ Aturan ini berasal dari PRD dan Global Constraints Rencana 01. Jangan menunggu f
 - [ ] Regresi Mobile (Expo) §5 lulus jika rilis menyentuh `mobile/` atau kontrak API
 - [ ] UAT sign-off dari PO/pemilik outlet
 - [ ] Environment variables production lengkap dan benar
-- [ ] `BETTER_AUTH_URL` dan `WEB_ORIGIN` sesuai domain production
-- [ ] Google OAuth redirect URI production benar
-- [ ] Migrasi database sudah dijalankan
-- [ ] Seed production tidak memakai password default
+- [ ] `BETTER_AUTH_URL` dan `WEB_ORIGIN` sesuai domain production (origin CORS tambahan dipisah koma)
+- [ ] Migrasi database sudah dijalankan dengan `DIRECT_URL`
+- [ ] PIN admin seed `123456` sudah diganti di production
 - [ ] Backup Supabase aktif
 - [ ] Rollback plan disiapkan (commit/versi sebelumnya)
 - [ ] Test summary report diperbarui
 
 ### Setelah Deploy
 
-- [ ] `GET /api/health` 200
-- [ ] Login admin berhasil
-- [ ] Login Google berhasil
-- [ ] Bottom nav sesuai role
+- [ ] `GET /` mengembalikan JSON status dan `GET /api/health` 200
+- [ ] Login admin dari aplikasi Expo berhasil (mengarah ke `EXPO_PUBLIC_API_BASE_URL` produksi)
 - [ ] Satu transaksi uji end-to-end (F2+)
 - [ ] Struk cetak/fallback bekerja (F2+)
 - [ ] Tidak ada error di log Vercel
@@ -184,15 +170,16 @@ Aturan ini berasal dari PRD dan Global Constraints Rencana 01. Jangan menunggu f
 
 ## 5. Regresi Mobile (Expo)
 
-Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobile. Prasyarat: backend di `http://localhost:3001`, Expo Web di `http://localhost:8081` (`npm run web` dari `mobile/`), dan CORS proxy `src/proxy.ts` aktif.
+Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobile. Prasyarat lokal: backend di `http://localhost:3001`, Expo Web di `http://localhost:8081` (`npm run web` dari `mobile/`), dan CORS proxy `src/proxy.ts` aktif. Untuk produksi, build Expo dengan `EXPO_PUBLIC_API_BASE_URL=https://<backend>.vercel.app`.
 
 ### 5.1 Setup & Kesehatan
 
 - [ ] `npx tsc --noEmit` di root dan `mobile/` bersih; `npx expo-doctor` 20/20
-- [ ] `npm test` root lulus (28 file / 116 test)
+- [ ] `npm test` root lulus (**27 file / 111 test**)
 - [ ] Expo Web `http://localhost:8081` terhubung ke backend `http://localhost:3001`
-- [ ] CORS proxy (`src/proxy.ts`, matcher `/api/:path*`) aktif: preflight `OPTIONS /api/*` dari origin Expo Web balas 204 dengan header CORS; tanpa ini request mobile web ditolak browser
+- [ ] CORS proxy (`src/proxy.ts`, matcher `/api/:path*`) aktif: preflight `OPTIONS /api/*` dari origin Expo Web balas 204 dengan header CORS; origin produksi dari `WEB_ORIGIN`/`BETTER_AUTH_URL` juga diterima (comma-separated)
 - [ ] Respons sukses `{ data: ... }` dan error `{ error: { code, message } }` konsisten di endpoint yang dipakai mobile
+- [ ] `GET /` mengembalikan JSON status dan `GET /api/health` 200
 
 ### 5.2 Tampilan & Navigasi
 
@@ -221,7 +208,7 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 - [ ] Tombol aksi Kasir bertuliskan **Buat antrean** dan **tidak meminta pembayaran**; order baru berstatus `menunggu`
 - [ ] Ringkasan total berada di **bar mengambang di bawah** (floating), tidak mengikuti scroll
 - [ ] **Subtotal disembunyikan** ketika tidak ada pajak dan tidak ada diskon ROYALTY; muncul saat ada pajak/diskon
-- [ ] Modal struk bertema **terang** (light), menampilkan nomor invoice/antrean dan tautan `/r/{id}` yang bisa dibagikan
+- [ ] Modal struk bertema **terang** (light), menampilkan nomor invoice/antrean dan tombol **Bagikan struk via WhatsApp** (`Share.share`)
 
 ### 5.5 Antrean & Pembayaran
 
@@ -231,12 +218,21 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 - [ ] Tab status (Semua / Menunggu / Proses / Selesai / Dibatalkan) dan filter kendaraan (Semua Kendaraan / Motor / Mobil) menyaring daftar dengan benar
 - [ ] Aksi Selesai dan Batalkan pesanan (dengan alasan) bekerja dan daftar memperbarui otomatis
 
+### 5.6 Koneksi Produksi
+
+- [ ] Build/EAS update memakai `EXPO_PUBLIC_API_BASE_URL=https://<backend>.vercel.app` (bukan alamat LAN)
+- [ ] Login dan sesi tetap bertahan setelah aplikasi direstart
+- [ ] Permintaan ke `/api/*` dari origin produksi diizinkan CORS; preflight `OPTIONS` balas 204
+- [ ] Tidak ada URL `localhost:3001` atau IP LAN yang tersisa di aplikasi produksi
+- [ ] Berbagi struk dari Kasir mengirim teks (invoice, antrean, paket, plat, total) tanpa tautan web; tidak ada lagi halaman `/r/{id}`
+
 ---
 
 ## 6. Sign-off
 
 | Fase | Tanggal | QA | Hasil | Catatan |
 |---|---|---|---|---|
+| Backend API |  | Dimas |  |  |
 | F1 |  | Dimas |  |  |
 | F2 |  | Dimas |  |  |
 | F3 |  | Dimas |  |  |

@@ -5,7 +5,6 @@ import { useAuth } from '../context/AuthContext';
 import { PackageList, formatIDR } from '../components/PackageList';
 import { VehicleSelector } from '../components/VehicleSelector';
 import { api } from '../lib/api';
-import { getBaseUrl } from '../lib/storage';
 import { useTheme } from '../theme/ThemeContext';
 import { useStyles } from '../theme/useStyles';
 import type { Palette } from '../theme/palettes';
@@ -30,7 +29,7 @@ export function KasirScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [receipt, setReceipt] = useState<{ order: Order; url: string } | null>(null);
+  const [receipt, setReceipt] = useState<{ order: Order } | null>(null);
   const [shareBusy, setShareBusy] = useState(false);
 
   const loadMasterData = useCallback(async () => {
@@ -78,8 +77,7 @@ export function KasirScreen() {
         plate: plate.trim().toUpperCase() || undefined,
         royalty: royalty || undefined,
       });
-      const baseUrl = (await getBaseUrl()).replace(/\/$/, '');
-      setReceipt({ order, url: `${baseUrl}/r/${order.id}` });
+      setReceipt({ order });
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Antrean gagal dibuat. Silakan coba lagi.'); }
     finally { setSubmitting(false); }
   }
@@ -87,8 +85,16 @@ export function KasirScreen() {
   async function shareReceipt() {
     if (!receipt) return;
     setShareBusy(true);
-    try { await Share.share({ message: `Struk ${receipt.order.invoiceNo} · ${formatIDR(receipt.order.grandTotal)}\n${receipt.url}`, url: receipt.url, title: 'Struk digital' }); }
-    catch (cause) { Alert.alert('Gagal membagikan struk', cause instanceof Error ? cause.message : 'Silakan salin tautan struk.'); }
+    const message = [
+      `Struk ${receipt.order.invoiceNo}`,
+      `Antrean ${receipt.order.queueNo}`,
+      `Paket ${receipt.order.packageName}`,
+      `Plat ${receipt.order.plate || '-'}`,
+      `Total ${formatIDR(receipt.order.grandTotal ?? 0)}`,
+      `Terima kasih telah mencuci di ${activeOutlet?.name ?? 'KYANE POS'}.`,
+    ].join('\n');
+    try { await Share.share({ message, title: 'Struk digital' }); }
+    catch (cause) { Alert.alert('Gagal membagikan struk', cause instanceof Error ? cause.message : 'Silakan coba lagi.'); }
     finally { setShareBusy(false); }
   }
 
@@ -146,7 +152,7 @@ export function KasirScreen() {
     </View>
     </View>
     <Modal visible={Boolean(receipt)} transparent animationType="fade" onRequestClose={() => setReceipt(null)}>
-      <View style={styles.modalBackdrop}><View style={styles.receiptCard}><Text style={styles.success}>Antrean berhasil dibuat</Text><Text style={styles.receiptTitle}>{receipt?.order.invoiceNo}</Text><Text style={styles.queue}>Antrean {receipt?.order.queueNo} · {receipt?.order.vehicleType === 'motor' ? 'Motor' : 'Mobil'}</Text><View style={styles.divider} /><Text style={styles.receiptLine}>Paket · {receipt?.order.packageName}</Text><Text style={styles.receiptLine}>Plat · {receipt?.order.plate || '—'}</Text><Text style={styles.receiptTotal}>{formatIDR(receipt?.order.grandTotal ?? 0)}</Text><Text selectable style={styles.receiptUrl}>{receipt?.url}</Text>
+      <View style={styles.modalBackdrop}><View style={styles.receiptCard}><Text style={styles.success}>Antrean berhasil dibuat</Text><Text style={styles.receiptTitle}>{receipt?.order.invoiceNo}</Text><Text style={styles.queue}>Antrean {receipt?.order.queueNo} · {receipt?.order.vehicleType === 'motor' ? 'Motor' : 'Mobil'}</Text><View style={styles.divider} /><Text style={styles.receiptLine}>Paket · {receipt?.order.packageName}</Text><Text style={styles.receiptLine}>Plat · {receipt?.order.plate || '—'}</Text><Text style={styles.receiptTotal}>{formatIDR(receipt?.order.grandTotal ?? 0)}</Text><Text style={styles.receiptNote}>Tunjukkan nomor antrean ini ke pelanggan.</Text>
         <Pressable accessibilityRole="button" disabled={shareBusy} onPress={() => void shareReceipt()} style={styles.submit}>{shareBusy ? <ActivityIndicator color={colors.night} /> : <Text style={styles.submitText}>Bagikan struk via WhatsApp</Text>}</Pressable>
         <Pressable accessibilityRole="button" onPress={() => { setReceipt(null); setVehicleType('motor'); setPlate(''); setVehicleName(''); setNotes(''); setRoyalty(false); setAddonIds([]); }} style={styles.done}><Text style={styles.doneText}>Transaksi baru</Text></Pressable>
       </View></View>
@@ -222,7 +228,7 @@ function buildStyles(colors: Palette) {
   divider: { borderTopWidth: 1, borderColor: colors.line, marginVertical: 3 },
   receiptLine: { color: colors.ink, fontSize: 14 },
   receiptTotal: { color: colors.brand, fontWeight: '800', fontSize: 22, textAlign: 'right' },
-  receiptUrl: { color: colors.muted, fontSize: 12, textAlign: 'center' },
+  receiptNote: { color: colors.muted, fontSize: 12, textAlign: 'center' },
   done: { alignItems: 'center', padding: 12 },
   doneText: { color: colors.brand, fontWeight: '700' }
   });
