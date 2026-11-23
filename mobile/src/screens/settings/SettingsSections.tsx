@@ -20,6 +20,8 @@ import { useStyles } from '../../theme/useStyles';
 import type { Palette } from '../../theme/palettes';
 
 const rupiah = (amount: number) => `Rp ${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(amount)}`;
+const digitsOnly = (value: string) => value.replace(/\D/g, '');
+const groupNumber = (value: string) => digitsOnly(value).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const roleName = (_role: string) => 'Admin';
 const vehicleLabel = (vehicleType: string) => (vehicleType === 'mobil' ? 'Mobil' : 'Motor');
 
@@ -258,14 +260,14 @@ export function PaketSection() {
           </View>
         </Field>
         <Field label="Harga (Rp)">
-          <TextInput value={form.price} onChangeText={(v) => setForm({ ...form, price: v.replace(/\D/g, '') })} style={styles.input} keyboardType="number-pad" placeholder="25000" />
+          <TextInput value={groupNumber(form.price)} onChangeText={(v) => setForm({ ...form, price: digitsOnly(v) })} style={styles.input} keyboardType="number-pad" placeholder="25.000" />
         </Field>
         <Field label="Harga ROYALTY (Rp)">
-          <TextInput value={form.royaltyPrice} onChangeText={(v) => setForm({ ...form, royaltyPrice: v.replace(/\D/g, '') })} style={styles.input} keyboardType="number-pad" placeholder="Kosongkan jika tidak ada" />
+          <TextInput value={groupNumber(form.royaltyPrice)} onChangeText={(v) => setForm({ ...form, royaltyPrice: digitsOnly(v) })} style={styles.input} keyboardType="number-pad" placeholder="Kosongkan jika tidak ada" />
           <Text style={styles.royaltyFormHint}>Harga khusus pelanggan ROYALTY. Paket Reguler tetap gratis.</Text>
         </Field>
         <Field label="Harga OJOL (Rp)">
-          <TextInput value={form.ojolPrice} onChangeText={(v) => setForm({ ...form, ojolPrice: v.replace(/\D/g, '') })} style={styles.input} keyboardType="number-pad" placeholder="Kosongkan jika tidak ada" />
+          <TextInput value={groupNumber(form.ojolPrice)} onChangeText={(v) => setForm({ ...form, ojolPrice: digitsOnly(v) })} style={styles.input} keyboardType="number-pad" placeholder="Kosongkan jika tidak ada" />
           <Text style={styles.royaltyFormHint}>Harga khusus pengemudi ojol. Kosongkan untuk memakai harga normal.</Text>
         </Field>
         <Field label="Deskripsi (opsional)">
@@ -381,9 +383,9 @@ function SpecialPriceSection({ field }: { field: SpecialPriceField }) {
                     <View style={styles.specialInputWrap}>
                       <Text style={styles.label}>{config.label}</Text>
                       <TextInput
-                        value={draft[item.id] ?? ''}
+                        value={groupNumber(draft[item.id] ?? '')}
                         onChangeText={(v) => {
-                          const digits = v.replace(/\D/g, '');
+                          const digits = digitsOnly(v);
                           setDraft((prev) => ({ ...prev, [item.id]: digits }));
                           setRowError((prev) => ({ ...prev, [item.id]: '' }));
                         }}
@@ -538,7 +540,7 @@ export function AddonSection() {
         <View style={styles.row2}>
           <View style={{ flex: 1 }}>
             <Field label="Harga (Rp)">
-              <TextInput value={form.price} onChangeText={(v) => setForm({ ...form, price: v.replace(/\D/g, '') })} style={styles.input} keyboardType="number-pad" placeholder="15000" />
+              <TextInput value={groupNumber(form.price)} onChangeText={(v) => setForm({ ...form, price: digitsOnly(v) })} style={styles.input} keyboardType="number-pad" placeholder="15.000" />
             </Field>
           </View>
           <View style={{ flex: 1 }}>
