@@ -398,7 +398,7 @@ Body POST:
 | PATCH | `/api/orders/:id` | admin | Ubah item & data pelanggan (hanya saat status `menunggu`) |
 | POST | `/api/orders` | admin | Buat order (server menghitung total, antrean, invoice, snapshot) |
 | PATCH | `/api/orders/:id/status` | admin | Ubah status `menunggu` → `proses` → `selesai` |
-| POST | `/api/orders/:id/payments` | admin | Catat pembayaran pada order selesai → otomatis `paid` |
+| POST | `/api/orders/:id/payments` | admin | Catat pembayaran (bisa saat `menunggu`/`proses`/`selesai`). Jika `selesai` → otomatis `paid`; jika lebih awal, status tetap sampai order mencapai `selesai` |
 | POST | `/api/orders/:id/cancel` | admin | Batalkan order |
 | GET | `/api/receipts/:token` | Publik | Struk publik berbasis UUID order (tidak perlu login) |
 
@@ -432,6 +432,7 @@ Aturan order:
 - `ojol: true` mengaktifkan harga OJOL: `pkg.ojolPrice ?? pkg.price` (tanpa aturan Reguler gratis otomatis); add-on tetap harga normal. Jika `royalty` dan `ojol` sama-sama `true`, ROYALTY menang.
 - Selisih `discount = pkg.price - effectivePrice` dicatat pada order sebagai piutang (`orders.discount`). Pajak dihitung dari subtotal setelah diskon tersebut.
 - Order baru selalu status `menunggu`; pembayaran saat pembuatan tetap disimpan.
+- Pembayaran dapat dicatat kapan saja (mis. dari tombol **Mulai Cuci** di Antrean saat status masih `menunggu`). Status tidak diubah saat bayar lebih awal, agar alur `menunggu` → `proses` → `selesai` tetap berjalan.
 - Order `selesai` dengan pembayaran otomatis menjadi `paid`; tanpa pembayaran tetap `selesai` sampai dibayar lewat endpoint payment.
 - `paid` dan `dibatalkan` tidak dapat diubah/dibatalkan lagi.
 - UUID order dipakai sebagai token struk publik; tidak ada kolom receipt token terpisah.

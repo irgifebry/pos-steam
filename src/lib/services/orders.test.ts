@@ -209,11 +209,33 @@ describe("order service", () => {
     expect(dibayar.paid).toBe(true);
   });
 
-  it("menolak pembayaran pada order yang belum selesai", async () => {
-    const order = await createOrder(db, outletId, actor, orderInput({ customerName: "Belum Selesai" }));
+  it("membayar saat Mulai Cuci (status menunggu) tanpa mengubah status, lalu otomatis paid saat selesai", async () => {
+    const order = await createOrder(db, outletId, actor, orderInput({ customerName: "Bayar di Awal" }));
+
+    const dibayar = await addOrderPayment(db, order.id, outletId, actor, {
+      method: "tunai",
+      cashReceived: order.grandTotal,
+    });
+    expect(dibayar.status).toBe("menunggu");
+    expect(dibayar.paid).toBe(true);
+
+    const proses = await updateOrderStatus(db, order.id, outletId, actor, { status: "proses" });
+    expect(proses.status).toBe("proses");
+
+    const selesai = await updateOrderStatus(db, order.id, outletId, actor, { status: "selesai" });
+    expect(selesai.status).toBe("paid");
+    expect(selesai.paid).toBe(true);
+  });
+
+  it("menolak pembayaran ganda", async () => {
+    const order = await createOrder(db, outletId, actor, orderInput({ customerName: "Bayar Dua Kali" }));
+    await addOrderPayment(db, order.id, outletId, actor, {
+      method: "tunai",
+      cashReceived: order.grandTotal,
+    });
     await expect(
-      addOrderPayment(db, order.id, outletId, actor, { method: "tunai", cashReceived: 100000 }),
-    ).rejects.toMatchObject({ status: 409 });
+      addOrderPayment(db, order.id, outletId, actor, { method: "tunai", cashReceived: order.grandTotal }),
+    ).rejects.toMatchObject({ status: 409, code: "ALREADY_PAID" });
   });
 
   it("membatalkan order menunggu", async () => {

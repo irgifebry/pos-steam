@@ -910,8 +910,8 @@ export async function addOrderPayment(
   if (order.status === "dibatalkan") {
     throw new HttpError(409, "INVALID_STATUS", "Transaksi sudah dibatalkan");
   }
-  if (order.status !== "selesai") {
-    throw new HttpError(409, "INVALID_STATUS", "Pembayaran hanya bisa setelah cuci selesai");
+  if (order.status === "paid") {
+    throw new HttpError(409, "ALREADY_PAID", "Transaksi sudah dibayar");
   }
 
   const [existing] = await db
@@ -927,7 +927,11 @@ export async function addOrderPayment(
 
   await db.transaction(async (tx) => {
     await tx.insert(payments).values({ orderId, ...payment });
-    await tx.update(orders).set({ status: "paid" }).where(eq(orders.id, orderId));
+    // Pembayaran saat "Mulai Cuci" (status menunggu/proses) tidak mengubah status,
+    // agar alur menunggu → proses → selesai tetap berjalan. Status otomatis menjadi
+    // "paid" saat order mencapai "selesai" (lihat updateOrderStatus).
+    const nextStatus = order.status === "selesai" ? "paid" : order.status;
+    await tx.update(orders).set({ status: nextStatus }).where(eq(orders.id, orderId));
     await tx.insert(auditLogs).values({
       outletId,
       userId: actor.id,
