@@ -371,7 +371,7 @@ export function LaporanScreen() {
                     <Text style={styles.navText}>›</Text>
                   </Pressable>
                 </View>
-                <Text style={styles.rangeSubtitle}>Pilih tanggal {calendarTarget === 'from' ? 'awal' : 'akhir'}</Text>
+                <Text style={styles.calendarHint}>Pilih tanggal {calendarTarget === 'from' ? 'awal' : 'akhir'}</Text>
                 <View style={styles.weekRow}>
                   {WEEKDAYS.map((day) => <Text key={day} style={styles.weekDay}>{day}</Text>)}
                 </View>
@@ -390,8 +390,8 @@ export function LaporanScreen() {
                     <View key={`blank-${index}`} style={styles.dayCell} />
                   ))}
                 </View>
-                <Pressable accessibilityRole="button" onPress={() => setCalendarTarget(null)} style={styles.rangeCancel}>
-                  <Text style={styles.rangeCancelText}>Selesai</Text>
+                <Pressable accessibilityRole="button" onPress={() => setCalendarTarget(null)} style={styles.calendarDone}>
+                  <Text style={styles.calendarDoneText}>Selesai</Text>
                 </Pressable>
               </Animated.View>
             ) : (
@@ -468,6 +468,9 @@ function buildStyles(colors: Palette) {
   rangeSubtitle: { color: colors.muted, fontSize: 12, marginTop: -6 },
   rangeCancel: { alignItems: 'center', paddingVertical: 6 },
   rangeCancelText: { color: colors.brandDark, fontWeight: '800', fontSize: 13 },
+  calendarHint: { color: colors.muted, fontSize: 12, fontWeight: '600', marginTop: 8, marginBottom: 10 },
+  calendarDone: { backgroundColor: colors.brand, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
+  calendarDoneText: { color: colors.night, fontSize: 13, fontWeight: '800' },
   resultActions: { flexDirection: 'row', gap: 10 },
   resultButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 10, paddingVertical: 12, borderWidth: 1 },
   resultButtonPrimary: { backgroundColor: colors.brand, borderColor: colors.brandDark },
