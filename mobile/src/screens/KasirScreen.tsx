@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { PackageList, formatIDR } from '../components/PackageList';
 import { VehicleSelector } from '../components/VehicleSelector';
@@ -41,7 +42,11 @@ export function KasirScreen() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Gagal memuat paket dan add-on.'); }
     finally { setLoading(false); }
   }, []);
-  useEffect(() => { void loadMasterData(); }, [loadMasterData]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadMasterData();
+    }, [loadMasterData]),
+  );
   useEffect(() => {
     const available = packages.find((item) => item.active && item.vehicleType === vehicleType);
     setPackageId(available?.id ?? '');

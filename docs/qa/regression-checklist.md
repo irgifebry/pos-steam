@@ -196,6 +196,7 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 - [ ] Form Paket Layanan mobile **tidak memiliki field durasi**; harga, `royaltyPrice`, dan `ojolPrice` tersimpan dengan benar
 - [ ] Data baru aktif secara default dan langsung muncul di daftar
 - [ ] Daftar hanya menampilkan record aktif; record nonaktif tidak muncul
+- [ ] Setelah menghapus paket di Pengaturan, kembali ke tab Kasir memuat ulang daftar (`useFocusEffect`) sehingga paket yang dihapus tidak masih tampil
 - [ ] Aksi hapus bertuliskan **Hapus** (bukan "Nonaktifkan"), memunculkan konfirmasi destruktif, dan data benar-benar terhapus
 - [ ] Add-on hanya muncul pada tab tipe kendaraan yang sesuai (`vehicleTypes`); tab "Semua" menampilkan keduanya
 
