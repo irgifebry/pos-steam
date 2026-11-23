@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Banknote, CarFront, Clock3, CreditCard, FileSpreadsheet, Motorbike, ReceiptText } from 'lucide-react-native';
+import { Banknote, CarFront, Clock3, CreditCard, FileSpreadsheet, FolderOpen, Motorbike, ReceiptText, Share2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatCard } from '../components/StatCard';
 import { api } from '../lib/api';
@@ -378,22 +378,7 @@ export function LaporanScreen() {
             ) : (
               <>
                 <Text style={styles.rangeTitle}>Pilih Jangka Waktu</Text>
-                <Text style={styles.rangeSubtitle}>Pilih periode cepat atau tentukan tanggal sendiri.</Text>
-                {exportRanges.map((range) => (
-                  <Pressable
-                    key={range.key}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Export ${range.label}`}
-                    onPress={() => void handleExport(range.from, range.to)}
-                    style={({ pressed }) => [styles.rangeOption, pressed && styles.rangeOptionPressed]}
-                  >
-                    <View style={styles.rangeCopy}>
-                      <Text style={styles.rangeLabel}>{range.label}</Text>
-                      <Text style={styles.rangeHint}>{range.hint}</Text>
-                    </View>
-                    <FileSpreadsheet size={17} color={colors.brandDark} />
-                  </Pressable>
-                ))}
+                <Text style={styles.rangeSubtitle}>Tentukan tanggal awal dan akhir laporan.</Text>
                 <View style={styles.modalDivider} />
                 <Pressable accessibilityRole="button" onPress={() => setCalendarTarget('from')} style={styles.dateField}>
                   <Text style={styles.dateFieldLabel}>Dari tanggal</Text>
@@ -424,12 +409,16 @@ export function LaporanScreen() {
               <Text style={styles.pathLabel}>Lokasi file</Text>
               <Text selectable style={styles.pathValue}>{exportResult?.location}</Text>
             </View>
-            <Pressable accessibilityRole="button" onPress={() => void handleOpenFile()} style={styles.rangePrimary}>
-              <Text style={styles.rangePrimaryText}>Buka file</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => void handleShareFile()} style={styles.rangeOption}>
-              <Text style={styles.rangeLabel}>Bagikan file</Text>
-            </Pressable>
+            <View style={styles.resultActions}>
+              <Pressable accessibilityRole="button" onPress={() => void handleOpenFile()} style={[styles.resultButton, styles.resultButtonPrimary]}>
+                <FolderOpen size={16} color={colors.night} />
+                <Text style={styles.resultButtonPrimaryText}>Buka file</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => void handleShareFile()} style={[styles.resultButton, styles.resultButtonSecondary]}>
+                <Share2 size={16} color={colors.brandDark} />
+                <Text style={styles.resultButtonSecondaryText}>Bagikan file</Text>
+              </Pressable>
+            </View>
             {!exportResult?.uri ? (
               <Text style={styles.rangeSubtitle}>Di Expo Web, file juga masuk ke folder Unduhan browser.</Text>
             ) : null}
@@ -461,13 +450,14 @@ function buildStyles(colors: Palette) {
   rangeCard: { width: '100%', maxWidth: 420, backgroundColor: colors.surface, borderRadius: 18, padding: 20, gap: 12, borderWidth: 1, borderColor: colors.line },
   rangeTitle: { color: colors.ink, fontSize: 17, fontWeight: '800' },
   rangeSubtitle: { color: colors.muted, fontSize: 12, marginTop: -6 },
-  rangeOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderWidth: 1, borderColor: colors.line, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: colors.bg },
-  rangeOptionPressed: { opacity: 0.7 },
-  rangeCopy: { gap: 2 },
-  rangeLabel: { color: colors.ink, fontSize: 14, fontWeight: '800' },
-  rangeHint: { color: colors.muted, fontSize: 11 },
   rangeCancel: { alignItems: 'center', paddingVertical: 6 },
   rangeCancelText: { color: colors.brandDark, fontWeight: '800', fontSize: 13 },
+  resultActions: { flexDirection: 'row', gap: 10 },
+  resultButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 10, paddingVertical: 12, borderWidth: 1 },
+  resultButtonPrimary: { backgroundColor: colors.brand, borderColor: colors.brandDark },
+  resultButtonSecondary: { backgroundColor: colors.surface, borderColor: colors.line },
+  resultButtonPrimaryText: { color: colors.night, fontSize: 12, fontWeight: '800' },
+  resultButtonSecondaryText: { color: colors.brandDark, fontSize: 12, fontWeight: '800' },
   modalDivider: { height: 1, backgroundColor: colors.line, marginVertical: 2 },
   dateField: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: colors.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: colors.bg },
   dateFieldLabel: { color: colors.muted, fontSize: 12, fontWeight: '700' },

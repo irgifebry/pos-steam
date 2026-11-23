@@ -224,9 +224,9 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 ### 5.6 Laporan & Export
 
 - [ ] Tab **Laporan** menampilkan tombol **Export Excel** di sebelah judul "Laporan Omzet"
-- [ ] Menekan **Export Excel** membuka popup **Pilih Jangka Waktu** dengan opsi cepat: Hari ini, 7 hari terakhir, Minggu ini, Bulan ini
-- [ ] Popup menyediakan field **Dari tanggal** dan **Sampai tanggal**; mengetuknya membuka kalender bulanan (navigasi bulan ‹/›) untuk memilih tanggal mulai lalu tanggal akhir
-- [ ] Memilih periode cepat atau rentang custom mengunduh file `.xlsx` dengan 6 sheet (Ringkasan, Transaksi, Paket, Add-on, Metode Pembayaran, Kas)
+- [ ] Menekan **Export Excel** membuka popup **Pilih Jangka Waktu** berisi hanya field **Dari tanggal** dan **Sampai tanggal** (tanpa preset jangka waktu)
+- [ ] Mengetuk field tanggal membuka kalender bulanan (navigasi bulan ‹/›) untuk memilih tanggal mulai lalu tanggal akhir
+- [ ] Menentukan rentang tanggal mengunduh file `.xlsx` dengan 6 sheet (Ringkasan, Transaksi, Paket, Add-on, Metode Pembayaran, Kas)
 - [ ] Nama file mengikuti periode yang dipilih, mis. `laporan-transactions-2026-11-01_2026-11-23.xlsx`; tombol **Batal** menutup popup tanpa mengunduh
 - [ ] Setelah unduhan muncul popup **Excel siap** berisi nama file dan **Lokasi file** (path di native, "Folder Unduhan browser" di Expo Web)
 - [ ] Popup **Excel siap** memiliki tombol **Buka file** dan **Bagikan file** di semua platform: native memakai `File.preview` dan `expo-sharing`; Expo Web memakai object URL serta Web Share API (dengan pesan jika browser tidak mendukung)
