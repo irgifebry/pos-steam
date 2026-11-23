@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Banknote, CarFront, Clock3, CreditCard, FileSpreadsheet, FolderOpen, Motorbike, ReceiptText, Share2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatCard } from '../components/StatCard';
@@ -103,6 +103,25 @@ export function LaporanScreen() {
     return new Date(Date.UTC(year, month - 1, 1));
   });
   const cells = useMemo(() => calendarCells(viewMonth), [viewMonth]);
+  const [slideDirection, setSlideDirection] = useState(1);
+  const calendarFade = useRef(new Animated.Value(0)).current;
+  const calendarSlide = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!calendarTarget) return;
+    calendarFade.setValue(0);
+    Animated.timing(calendarFade, { toValue: 1, duration: 160, useNativeDriver: false }).start();
+  }, [calendarTarget, calendarFade]);
+
+  useEffect(() => {
+    calendarSlide.setValue(slideDirection * 28);
+    Animated.timing(calendarSlide, { toValue: 0, duration: 150, useNativeDriver: false }).start();
+  }, [viewMonth, slideDirection, calendarSlide]);
+
+  function changeMonth(delta: number) {
+    setSlideDirection(delta);
+    setViewMonth((current) => shiftMonth(current, delta));
+  }
 
   const load = useCallback(async (background = false) => {
     if (background) setRefreshing(true); else setLoading(true);
@@ -342,13 +361,13 @@ export function LaporanScreen() {
         <Pressable style={styles.modalBackdrop} onPress={() => setRangeModal(false)}>
           <Pressable style={styles.rangeCard} onPress={(event) => event.stopPropagation()}>
             {calendarTarget ? (
-              <>
+              <Animated.View style={{ opacity: calendarFade, transform: [{ translateX: calendarSlide }] }}>
                 <View style={styles.calendarHeader}>
-                  <Pressable accessibilityRole="button" accessibilityLabel="Bulan sebelumnya" onPress={() => setViewMonth(shiftMonth(viewMonth, -1))} style={styles.navButton}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Bulan sebelumnya" onPress={() => changeMonth(-1)} style={styles.navButton}>
                     <Text style={styles.navText}>‹</Text>
                   </Pressable>
                   <Text style={styles.calendarTitle}>{monthName(viewMonth)}</Text>
-                  <Pressable accessibilityRole="button" accessibilityLabel="Bulan berikutnya" onPress={() => setViewMonth(shiftMonth(viewMonth, 1))} style={styles.navButton}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Bulan berikutnya" onPress={() => changeMonth(1)} style={styles.navButton}>
                     <Text style={styles.navText}>›</Text>
                   </Pressable>
                 </View>
@@ -374,7 +393,7 @@ export function LaporanScreen() {
                 <Pressable accessibilityRole="button" onPress={() => setCalendarTarget(null)} style={styles.rangeCancel}>
                   <Text style={styles.rangeCancelText}>Selesai</Text>
                 </Pressable>
-              </>
+              </Animated.View>
             ) : (
               <>
                 <Text style={styles.rangeTitle}>Pilih Jangka Waktu</Text>
