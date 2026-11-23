@@ -63,6 +63,7 @@ function calendarCells(month: Date): Array<string | null> {
   for (let day = 1; day <= total; day += 1) {
     cells.push(isoDay(new Date(Date.UTC(year, index, day))));
   }
+  while (cells.length % 7 !== 0) cells.push(null);
   return cells;
 }
 function shiftMonth(month: Date, delta: number): Date {
@@ -167,7 +168,7 @@ export function LaporanScreen() {
   function pickDate(iso: string) {
     if (calendarTarget === 'from') {
       setCustomFrom(iso);
-      if (iso > customTo) setCustomTo(iso);
+      setCustomTo(iso);
       setCalendarTarget('to');
     } else if (calendarTarget === 'to') {
       if (iso < customFrom) {
@@ -387,7 +388,7 @@ export function LaporanScreen() {
                       <Text style={[(iso === customFrom || iso === customTo) ? styles.daySelectedText : styles.dayText]}>{Number(iso.slice(8))}</Text>
                     </Pressable>
                   ) : (
-                    <View key={`blank-${index}`} style={styles.dayCell} />
+                    <View key={`blank-${index}`} style={styles.dayBlank} />
                   ))}
                 </View>
                 <Pressable accessibilityRole="button" onPress={() => setCalendarTarget(null)} style={styles.calendarDone}>
@@ -463,7 +464,7 @@ function buildStyles(colors: Palette) {
   dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: -9 },
   dateText: { color: colors.muted, fontSize: 13, fontWeight: '600', flexShrink: 1 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  rangeCard: { width: '100%', maxWidth: 420, backgroundColor: colors.surface, borderRadius: 18, padding: 20, gap: 12, borderWidth: 1, borderColor: colors.line },
+  rangeCard: { width: '100%', maxWidth: 360, backgroundColor: colors.surface, borderRadius: 18, padding: 20, gap: 12, borderWidth: 1, borderColor: colors.line },
   rangeTitle: { color: colors.ink, fontSize: 17, fontWeight: '800' },
   rangeSubtitle: { color: colors.muted, fontSize: 12, marginTop: -6 },
   rangeCancel: { alignItems: 'center', paddingVertical: 6 },
@@ -487,11 +488,12 @@ function buildStyles(colors: Palette) {
   calendarTitle: { color: colors.ink, fontSize: 16, fontWeight: '800' },
   navButton: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   navText: { color: colors.brandDark, fontSize: 20, fontWeight: '800', lineHeight: 20 },
-  weekRow: { flexDirection: 'row' },
-  weekDay: { flex: 1, textAlign: 'center', color: colors.muted, fontSize: 11, fontWeight: '800', paddingVertical: 6 },
-  dayGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell: { width: '14.285%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
-  daySelected: { backgroundColor: colors.brand },
+  weekRow: { flexDirection: 'row', justifyContent: 'center', gap: 4 },
+  weekDay: { width: 40, textAlign: 'center', color: colors.muted, fontSize: 11, fontWeight: '800', paddingVertical: 6 },
+  dayGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 4 },
+  dayCell: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 8, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
+  daySelected: { backgroundColor: colors.brand, borderColor: colors.brandDark },
+  dayBlank: { width: 40, height: 40 },
   dayText: { color: colors.ink, fontSize: 13, fontWeight: '700' },
   daySelectedText: { color: colors.night, fontSize: 13, fontWeight: '800' },
   pathBox: { backgroundColor: colors.bg, borderRadius: 10, borderWidth: 1, borderColor: colors.line, padding: 12, gap: 4 },
