@@ -4,7 +4,7 @@ import { Banknote, CarFront, Clock3, CreditCard, FileSpreadsheet, Motorbike, Rec
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatCard } from '../components/StatCard';
 import { api } from '../lib/api';
-import { downloadReportExcel } from '../lib/report-export';
+import { downloadReportExcel, openExportedFile, shareExportedFile, type ExportResult } from '../lib/report-export';
 import type { Order } from '../types';
 import { useTheme } from '../theme/ThemeContext';
 import { useStyles } from '../theme/useStyles';
@@ -48,6 +48,26 @@ function buildExportRanges(today: string) {
     { key: 'month', label: 'Bulan ini', hint: `${monthStart} – ${today}`, from: monthStart, to: today },
   ];
 }
+const WEEKDAYS = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+const displayDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('id-ID', {
+  day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC',
+});
+const monthName = (date: Date) => new Intl.DateTimeFormat('id-ID', {
+  month: 'long', year: 'numeric', timeZone: 'UTC',
+}).format(date);
+function calendarCells(month: Date): Array<string | null> {
+  const year = month.getUTCFullYear();
+  const index = month.getUTCMonth();
+  const cells: Array<string | null> = Array(new Date(Date.UTC(year, index, 1)).getUTCDay()).fill(null);
+  const total = new Date(Date.UTC(year, index + 1, 0)).getUTCDate();
+  for (let day = 1; day <= total; day += 1) {
+    cells.push(isoDay(new Date(Date.UTC(year, index, day))));
+  }
+  return cells;
+}
+function shiftMonth(month: Date, delta: number): Date {
+  return new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + delta, 1));
+}
 export function LaporanScreen() {
   const { colors } = useTheme();
   const styles = useStyles(buildStyles);
@@ -66,9 +86,19 @@ export function LaporanScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [rangeModal, setRangeModal] = useState(false);
+  const [resultModal, setResultModal] = useState(false);
+  const [exportResult, setExportResult] = useState<ExportResult | null>(null);
   const [error, setError] = useState('');
   const today = useMemo(() => dateKey(new Date()), []);
   const exportRanges = useMemo(() => buildExportRanges(today), [today]);
+  const [customFrom, setCustomFrom] = useState(today);
+  const [customTo, setCustomTo] = useState(today);
+  const [calendarTarget, setCalendarTarget] = useState<'from' | 'to' | null>(null);
+  const [viewMonth, setViewMonth] = useState(() => {
+    const [year, month] = today.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, 1));
+  });
+  const cells = useMemo(() => calendarCells(viewMonth), [viewMonth]);
 
   const load = useCallback(async (background = false) => {
     if (background) setRefreshing(true); else setLoading(true);
@@ -92,16 +122,54 @@ export function LaporanScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
-  async function handleExport(from: string, to: string, label: string) {
+  async function handleExport(from: string, to: string) {
+    if (to < from) {
+      Alert.alert('Periode tidak valid', 'Tanggal akhir harus sama atau setelah tanggal awal.');
+      return;
+    }
     setRangeModal(false);
     setExporting(true);
     try {
-      await downloadReportExcel('transactions', from, to);
-      Alert.alert('Excel siap', `Laporan ${label} (${from} – ${to}) berhasil diunduh.`);
+      setExportResult(await downloadReportExcel('transactions', from, to));
+      setResultModal(true);
     } catch (cause) {
       Alert.alert('Gagal mengekspor', cause instanceof Error ? cause.message : 'Silakan coba lagi.');
     } finally {
       setExporting(false);
+    }
+  }
+
+  function pickDate(iso: string) {
+    if (calendarTarget === 'from') {
+      setCustomFrom(iso);
+      if (iso > customTo) setCustomTo(iso);
+      setCalendarTarget('to');
+    } else if (calendarTarget === 'to') {
+      if (iso < customFrom) {
+        setCustomFrom(iso);
+        setCustomTo(iso);
+      } else {
+        setCustomTo(iso);
+      }
+      setCalendarTarget(null);
+    }
+  }
+
+  async function handleOpenFile() {
+    if (!exportResult?.uri) return;
+    try {
+      await openExportedFile(exportResult.uri);
+    } catch (cause) {
+      Alert.alert('Gagal membuka file', cause instanceof Error ? cause.message : 'Silakan coba lagi.');
+    }
+  }
+
+  async function handleShareFile() {
+    if (!exportResult?.uri) return;
+    try {
+      await shareExportedFile(exportResult.uri, exportResult.fileName);
+    } catch (cause) {
+      Alert.alert('Gagal membagikan', cause instanceof Error ? cause.message : 'Silakan coba lagi.');
     }
   }
 
@@ -267,25 +335,103 @@ export function LaporanScreen() {
       <Modal visible={rangeModal} transparent animationType="fade" onRequestClose={() => setRangeModal(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setRangeModal(false)}>
           <Pressable style={styles.rangeCard} onPress={(event) => event.stopPropagation()}>
-            <Text style={styles.rangeTitle}>Pilih Jangka Waktu</Text>
-            <Text style={styles.rangeSubtitle}>Laporan Excel akan diunduh sesuai periode berikut.</Text>
-            {exportRanges.map((range) => (
-              <Pressable
-                key={range.key}
-                accessibilityRole="button"
-                accessibilityLabel={`Export ${range.label}`}
-                onPress={() => void handleExport(range.from, range.to, range.label.toLowerCase())}
-                style={({ pressed }) => [styles.rangeOption, pressed && styles.rangeOptionPressed]}
-              >
-                <View style={styles.rangeCopy}>
-                  <Text style={styles.rangeLabel}>{range.label}</Text>
-                  <Text style={styles.rangeHint}>{range.hint}</Text>
+            {calendarTarget ? (
+              <>
+                <View style={styles.calendarHeader}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Bulan sebelumnya" onPress={() => setViewMonth(shiftMonth(viewMonth, -1))} style={styles.navButton}>
+                    <Text style={styles.navText}>‹</Text>
+                  </Pressable>
+                  <Text style={styles.calendarTitle}>{monthName(viewMonth)}</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Bulan berikutnya" onPress={() => setViewMonth(shiftMonth(viewMonth, 1))} style={styles.navButton}>
+                    <Text style={styles.navText}>›</Text>
+                  </Pressable>
                 </View>
-                <FileSpreadsheet size={17} color={colors.brandDark} />
-              </Pressable>
-            ))}
-            <Pressable accessibilityRole="button" onPress={() => setRangeModal(false)} style={styles.rangeCancel}>
-              <Text style={styles.rangeCancelText}>Batal</Text>
+                <Text style={styles.rangeSubtitle}>Pilih tanggal {calendarTarget === 'from' ? 'awal' : 'akhir'}</Text>
+                <View style={styles.weekRow}>
+                  {WEEKDAYS.map((day) => <Text key={day} style={styles.weekDay}>{day}</Text>)}
+                </View>
+                <View style={styles.dayGrid}>
+                  {cells.map((iso, index) => iso ? (
+                    <Pressable
+                      key={iso}
+                      accessibilityRole="button"
+                      accessibilityLabel={displayDate(iso)}
+                      onPress={() => pickDate(iso)}
+                      style={[styles.dayCell, (iso === customFrom || iso === customTo) && styles.daySelected]}
+                    >
+                      <Text style={[(iso === customFrom || iso === customTo) ? styles.daySelectedText : styles.dayText]}>{Number(iso.slice(8))}</Text>
+                    </Pressable>
+                  ) : (
+                    <View key={`blank-${index}`} style={styles.dayCell} />
+                  ))}
+                </View>
+                <Pressable accessibilityRole="button" onPress={() => setCalendarTarget(null)} style={styles.rangeCancel}>
+                  <Text style={styles.rangeCancelText}>Selesai</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={styles.rangeTitle}>Pilih Jangka Waktu</Text>
+                <Text style={styles.rangeSubtitle}>Pilih periode cepat atau tentukan tanggal sendiri.</Text>
+                {exportRanges.map((range) => (
+                  <Pressable
+                    key={range.key}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Export ${range.label}`}
+                    onPress={() => void handleExport(range.from, range.to)}
+                    style={({ pressed }) => [styles.rangeOption, pressed && styles.rangeOptionPressed]}
+                  >
+                    <View style={styles.rangeCopy}>
+                      <Text style={styles.rangeLabel}>{range.label}</Text>
+                      <Text style={styles.rangeHint}>{range.hint}</Text>
+                    </View>
+                    <FileSpreadsheet size={17} color={colors.brandDark} />
+                  </Pressable>
+                ))}
+                <View style={styles.modalDivider} />
+                <Pressable accessibilityRole="button" onPress={() => setCalendarTarget('from')} style={styles.dateField}>
+                  <Text style={styles.dateFieldLabel}>Dari tanggal</Text>
+                  <Text style={styles.dateFieldValue}>{displayDate(customFrom)}</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" onPress={() => setCalendarTarget('to')} style={styles.dateField}>
+                  <Text style={styles.dateFieldLabel}>Sampai tanggal</Text>
+                  <Text style={styles.dateFieldValue}>{displayDate(customTo)}</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" disabled={exporting} onPress={() => void handleExport(customFrom, customTo)} style={styles.rangePrimary}>
+                  <Text style={styles.rangePrimaryText}>Export periode ini</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" onPress={() => setRangeModal(false)} style={styles.rangeCancel}>
+                  <Text style={styles.rangeCancelText}>Batal</Text>
+                </Pressable>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={resultModal} transparent animationType="fade" onRequestClose={() => setResultModal(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setResultModal(false)}>
+          <Pressable style={styles.rangeCard} onPress={(event) => event.stopPropagation()}>
+            <Text style={styles.rangeTitle}>Excel siap</Text>
+            <Text style={styles.rangeSubtitle}>{exportResult?.fileName} berhasil diunduh.</Text>
+            <View style={styles.pathBox}>
+              <Text style={styles.pathLabel}>Lokasi file</Text>
+              <Text selectable style={styles.pathValue}>{exportResult?.location}</Text>
+            </View>
+            {exportResult?.uri ? (
+              <>
+                <Pressable accessibilityRole="button" onPress={() => void handleOpenFile()} style={styles.rangePrimary}>
+                  <Text style={styles.rangePrimaryText}>Buka file</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" onPress={() => void handleShareFile()} style={styles.rangeOption}>
+                  <Text style={styles.rangeLabel}>Bagikan file</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Text style={styles.rangeSubtitle}>Di Expo Web, file masuk ke folder Unduhan browser. Buka atau bagikan file dari sana.</Text>
+            )}
+            <Pressable accessibilityRole="button" onPress={() => setResultModal(false)} style={styles.rangeCancel}>
+              <Text style={styles.rangeCancelText}>Tutup</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -319,6 +465,26 @@ function buildStyles(colors: Palette) {
   rangeHint: { color: colors.muted, fontSize: 11 },
   rangeCancel: { alignItems: 'center', paddingVertical: 6 },
   rangeCancelText: { color: colors.brandDark, fontWeight: '800', fontSize: 13 },
+  modalDivider: { height: 1, backgroundColor: colors.line, marginVertical: 2 },
+  dateField: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: colors.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: colors.bg },
+  dateFieldLabel: { color: colors.muted, fontSize: 12, fontWeight: '700' },
+  dateFieldValue: { color: colors.ink, fontSize: 13, fontWeight: '800' },
+  rangePrimary: { backgroundColor: colors.brand, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 2 },
+  rangePrimaryText: { color: colors.night, fontSize: 13, fontWeight: '800' },
+  calendarHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  calendarTitle: { color: colors.ink, fontSize: 16, fontWeight: '800' },
+  navButton: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  navText: { color: colors.brandDark, fontSize: 20, fontWeight: '800', lineHeight: 20 },
+  weekRow: { flexDirection: 'row' },
+  weekDay: { flex: 1, textAlign: 'center', color: colors.muted, fontSize: 11, fontWeight: '800', paddingVertical: 6 },
+  dayGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  dayCell: { width: '14.285%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  daySelected: { backgroundColor: colors.brand },
+  dayText: { color: colors.ink, fontSize: 13, fontWeight: '700' },
+  daySelectedText: { color: colors.night, fontSize: 13, fontWeight: '800' },
+  pathBox: { backgroundColor: colors.bg, borderRadius: 10, borderWidth: 1, borderColor: colors.line, padding: 12, gap: 4 },
+  pathLabel: { color: colors.muted, fontSize: 11, fontWeight: '800' },
+  pathValue: { color: colors.ink, fontSize: 12, fontWeight: '600' },
   errorBox: { backgroundColor: colors.dangerSoft, borderRadius: 10, padding: 11, gap: 5 },
   errorText: { color: colors.dangerDark, fontSize: 13 },
   retry: { color: colors.brandDark, fontWeight: '800' },

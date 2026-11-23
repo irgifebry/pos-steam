@@ -1,7 +1,15 @@
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { getBaseUrl, getSession } from './storage';
 
 export type ReportExportType = 'transactions' | 'paket' | 'addon' | 'payment-method' | 'cash';
+
+export type ExportResult = {
+  fileName: string;
+  /** Uri lokal hanya tersedia di native. */
+  uri?: string;
+  /** Keterangan lokasi file untuk ditampilkan ke pengguna. */
+  location: string;
+};
 
 const EXCEL_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -22,8 +30,8 @@ async function errorMessage(response: Response): Promise<string> {
   return 'Gagal mengunduh laporan Excel';
 }
 
-/** Mengunduh laporan Excel dari backend. Di native file dibuka lewat share sheet. */
-export async function downloadReportExcel(type: ReportExportType, from: string, to: string): Promise<void> {
+/** Mengunduh laporan Excel dari backend dan mengembalikan info file hasil unduhan. */
+export async function downloadReportExcel(type: ReportExportType, from: string, to: string): Promise<ExportResult> {
   const baseUrl = (await getBaseUrl()).replace(/\/$/, '');
   const params = new URLSearchParams({ type, from, to });
   const headers = new Headers();
@@ -51,18 +59,31 @@ export async function downloadReportExcel(type: ReportExportType, from: string, 
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    return;
+    return { fileName, location: 'Folder Unduhan browser' };
   }
 
   const bytes = new Uint8Array(await response.arrayBuffer());
   const { File, Paths } = await import('expo-file-system');
   const file = new File(Paths.cache, fileName);
   await file.write(bytes);
+  return { fileName, uri: file.uri, location: file.uri };
+}
 
-  const Sharing = await import('expo-sharing');
-  if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(file.uri, { mimeType: EXCEL_MIME, dialogTitle: 'Laporan Excel' });
-    return;
+/** Membuka file Excel hasil export dengan aplikasi bawaan perangkat. */
+export async function openExportedFile(uri: string): Promise<void> {
+  const { File } = await import('expo-file-system');
+  const file = new File(uri);
+  if (!(await File.canPreview(file, { mimeType: EXCEL_MIME }))) {
+    throw new Error('Tidak ada aplikasi yang bisa membuka file ini.');
   }
-  Alert.alert('Tersimpan', `File disimpan di ${file.uri}`);
+  await File.preview(file, { mimeType: EXCEL_MIME });
+}
+
+/** Membagi file Excel hasil export lewat share sheet. */
+export async function shareExportedFile(uri: string, fileName: string): Promise<void> {
+  const Sharing = await import('expo-sharing');
+  if (!(await Sharing.isAvailableAsync())) {
+    throw new Error('Berbagi file tidak tersedia di perangkat ini.');
+  }
+  await Sharing.shareAsync(uri, { mimeType: EXCEL_MIME, dialogTitle: fileName });
 }
