@@ -2,7 +2,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronRight, Package, Users, Wallet, Wrench } from 'lucide-react-native';
+import { Bike, ChevronRight, Crown, Package, Users, Wallet, Wrench } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
 import { useStyles } from '../theme/useStyles';
@@ -33,6 +33,8 @@ export function PengaturanScreen() {
 
   const menu = [
     { label: 'Paket Layanan', hint: 'Harga dan durasi cuci', icon: Package, route: 'Paket' },
+    { label: 'ROYALTY', hint: 'Harga khusus pelanggan ROYALTY', icon: Crown, route: 'Royalty' },
+    { label: 'OJOL', hint: 'Harga khusus pengemudi ojol', icon: Bike, route: 'Ojol' },
     { label: 'Add-on', hint: 'Layanan tambahan', icon: Wrench, route: 'Addon' },
     { label: 'Rekening Bank', hint: 'Tujuan transfer', icon: Wallet, route: 'Bank' },
     { label: 'Pengguna', hint: 'Kelola akun dan akses', icon: Users, route: 'Pengguna' },

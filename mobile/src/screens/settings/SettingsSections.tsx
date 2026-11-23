@@ -130,7 +130,7 @@ function VehicleTabs({
 
 // ─── Paket Layanan ────────────────────────────────────────────────────────────
 
-const emptyPaket = { name: '', vehicleType: 'motor' as 'motor' | 'mobil', price: '', royaltyPrice: '', description: '', sortOrder: '0' };
+const emptyPaket = { name: '', vehicleType: 'motor' as 'motor' | 'mobil', price: '', royaltyPrice: '', ojolPrice: '', description: '', sortOrder: '0' };
 
 export function PaketSection() {
   const { colors } = useTheme();
@@ -169,6 +169,7 @@ export function PaketSection() {
       vehicleType: item.vehicleType,
       price: String(item.price),
       royaltyPrice: item.royaltyPrice == null ? '' : String(item.royaltyPrice),
+      ojolPrice: item.ojolPrice == null ? '' : String(item.ojolPrice),
       description: item.description ?? '',
       sortOrder: String(item.sortOrder ?? 0),
     });
@@ -187,7 +188,12 @@ export function PaketSection() {
       setFormError('Harga ROYALTY harus angka bulat atau kosong');
       return;
     }
-    const body = { name: form.name.trim(), vehicleType: form.vehicleType, price, royaltyPrice, description: form.description.trim(), sortOrder: sort };
+    const ojolPrice = form.ojolPrice.trim() === '' ? null : Number(form.ojolPrice);
+    if (ojolPrice !== null && (!Number.isInteger(ojolPrice) || ojolPrice < 0)) {
+      setFormError('Harga OJOL harus angka bulat atau kosong');
+      return;
+    }
+    const body = { name: form.name.trim(), vehicleType: form.vehicleType, price, royaltyPrice, ojolPrice, description: form.description.trim(), sortOrder: sort };
     setSaving(true);
     try {
       if (editing) await api.packages.update(editing.id, body);
@@ -258,6 +264,10 @@ export function PaketSection() {
           <TextInput value={form.royaltyPrice} onChangeText={(v) => setForm({ ...form, royaltyPrice: v.replace(/\D/g, '') })} style={styles.input} keyboardType="number-pad" placeholder="Kosongkan jika tidak ada" />
           <Text style={styles.royaltyFormHint}>Harga khusus pelanggan ROYALTY. Paket Reguler tetap gratis.</Text>
         </Field>
+        <Field label="Harga OJOL (Rp)">
+          <TextInput value={form.ojolPrice} onChangeText={(v) => setForm({ ...form, ojolPrice: v.replace(/\D/g, '') })} style={styles.input} keyboardType="number-pad" placeholder="Kosongkan jika tidak ada" />
+          <Text style={styles.royaltyFormHint}>Harga khusus pengemudi ojol. Kosongkan untuk memakai harga normal.</Text>
+        </Field>
         <Field label="Deskripsi (opsional)">
           <TextInput value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} style={styles.input} placeholder="Opsional" />
         </Field>
@@ -273,6 +283,142 @@ export function PaketSection() {
       </CrudModal>
     </View>
   );
+}
+
+// ─── Harga khusus (ROYALTY / OJOL) ───────────────────────────────────────────
+
+type SpecialPriceField = 'royaltyPrice' | 'ojolPrice';
+
+const specialPriceConfig: Record<SpecialPriceField, { title: string; label: string; banner: string }> = {
+  royaltyPrice: {
+    title: 'Harga ROYALTY',
+    label: 'Harga ROYALTY (Rp)',
+    banner: 'Paket Reguler gratis, paket lain sesuai harga ROYALTY, add-on tetap bayar penuh.',
+  },
+  ojolPrice: {
+    title: 'Harga OJOL',
+    label: 'Harga OJOL (Rp)',
+    banner: 'Harga khusus ojol dipakai jika tersedia, jika kosong pakai harga normal. Add-on tetap bayar penuh.',
+  },
+};
+
+function SpecialPriceSection({ field }: { field: SpecialPriceField }) {
+  const config = specialPriceConfig[field];
+  const { colors } = useTheme();
+  const styles = useStyles(buildStyles);
+  const [items, setItems] = useState<ServicePackage[]>([]);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [rowError, setRowError] = useState<Record<string, string>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [vehicleTab, setVehicleTab] = useState<VehicleTabKey>('motor');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const rows = await api.packages.list();
+      setItems(rows);
+      setDraft(Object.fromEntries(rows.map((item) => [item.id, item[field] == null ? '' : String(item[field])])));
+      setRowError({});
+    } catch {
+      setItems([]);
+      setDraft({});
+    } finally {
+      setLoading(false);
+    }
+  }, [field]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function handleSave(item: ServicePackage) {
+    const raw = (draft[item.id] ?? '').trim();
+    if (raw !== '') {
+      const value = Number(raw);
+      if (!Number.isInteger(value) || value < 0) {
+        setRowError((prev) => ({ ...prev, [item.id]: 'Harga harus angka bulat atau kosong' }));
+        return;
+      }
+    }
+    const value = raw === '' ? null : Number(raw);
+    const body: Partial<ServicePackage> = field === 'royaltyPrice' ? { royaltyPrice: value } : { ojolPrice: value };
+    setSavingId(item.id);
+    setRowError((prev) => ({ ...prev, [item.id]: '' }));
+    try {
+      await api.packages.update(item.id, body);
+      await load();
+    } catch (e) {
+      setRowError((prev) => ({ ...prev, [item.id]: e instanceof Error ? e.message : 'Gagal menyimpan' }));
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{config.title} <Text style={styles.count}>({items.length})</Text></Text>
+      </View>
+      <View style={styles.banner}>
+        <Text style={styles.bannerText}>{config.banner}</Text>
+      </View>
+      {loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: 8 }} /> : items.length === 0 ? (
+        <Text style={styles.muted}>Belum ada paket layanan.</Text>
+      ) : (
+        <>
+          <VehicleTabs
+            value={vehicleTab}
+            onChange={setVehicleTab}
+            motorCount={items.filter((item) => item.vehicleType === 'motor').length}
+            mobilCount={items.filter((item) => item.vehicleType === 'mobil').length}
+          />
+          <View style={styles.tabRows}>
+            {items.filter((item) => item.vehicleType === vehicleTab).map((item) => (
+              <View key={item.id} style={styles.listRow}>
+                <View style={styles.rowDetails}>
+                  <Text style={styles.rowTitle}>{item.name}</Text>
+                  <Text style={styles.price}>Normal {rupiah(item.price)}</Text>
+                  <View style={styles.specialInputRow}>
+                    <View style={styles.specialInputWrap}>
+                      <Text style={styles.label}>{config.label}</Text>
+                      <TextInput
+                        value={draft[item.id] ?? ''}
+                        onChangeText={(v) => {
+                          const digits = v.replace(/\D/g, '');
+                          setDraft((prev) => ({ ...prev, [item.id]: digits }));
+                          setRowError((prev) => ({ ...prev, [item.id]: '' }));
+                        }}
+                        style={[styles.input, styles.specialInput]}
+                        keyboardType="number-pad"
+                        placeholder="Kosongkan jika tidak ada harga khusus"
+                      />
+                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={savingId === item.id}
+                      onPress={() => void handleSave(item)}
+                      style={[styles.saveBtn, styles.specialSaveBtn, savingId === item.id && styles.disabled]}
+                    >
+                      {savingId === item.id ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Simpan</Text>}
+                    </Pressable>
+                  </View>
+                  <Text style={styles.specialHint}>Kosongkan jika tidak ada harga khusus.</Text>
+                  {!!rowError[item.id] && <Text style={styles.formError}>{rowError[item.id]}</Text>}
+                </View>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
+export function RoyaltySection() {
+  return <SpecialPriceSection field="royaltyPrice" />;
+}
+
+export function OjolSection() {
+  return <SpecialPriceSection field="ojolPrice" />;
 }
 
 // ─── Add-on ───────────────────────────────────────────────────────────────────
@@ -765,6 +911,13 @@ function buildStyles(colors: Palette) {
     },
     deleteBtnText: { color: colors.dangerDark, fontSize: 13, fontWeight: '800' },
     royaltyFormHint: { color: colors.muted, fontSize: 11, lineHeight: 15 },
+    banner: { backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.line, borderRadius: 12, padding: 12 },
+    bannerText: { color: colors.brandDeep, fontSize: 12, lineHeight: 17 },
+    specialInputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginTop: 6 },
+    specialInputWrap: { flex: 1, gap: 5 },
+    specialInput: { minHeight: 42, fontSize: 13 },
+    specialSaveBtn: { minHeight: 42 },
+    specialHint: { color: colors.muted, fontSize: 11, lineHeight: 15 },
     rowActions2: { flexDirection: 'row', gap: 6 },
     saveBtn: { minHeight: 46, backgroundColor: colors.brand, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
     saveBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },

@@ -26,6 +26,7 @@ export function KasirScreen() {
   const [vehicleName, setVehicleName] = useState('');
   const [notes, setNotes] = useState('');
   const [royalty, setRoyalty] = useState(false);
+  const [ojol, setOjol] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -52,19 +53,34 @@ export function KasirScreen() {
     () => addons.filter((addon) => addonIds.includes(addon.id)).reduce((sum, addon) => sum + addon.price, 0),
     [addons, addonIds],
   );
-  // ROYALTY: paket Reguler gratis; paket lain pakai harga ROYALTY dari admin. Add-on tetap bayar penuh.
+  // ROYALTY menang jika kedua toggle aktif. OJOL pakai ojolPrice bila ada, jika kosong pakai harga normal.
+  // Add-on tetap bayar penuh.
   const basePackagePrice = selectedPackage?.price ?? 0;
   const isReguler = /reguler/i.test(selectedPackage?.name ?? '');
   const packagePrice = royalty
     ? isReguler
       ? 0
       : (selectedPackage?.royaltyPrice ?? basePackagePrice)
-    : basePackagePrice;
-  const discount = royalty ? basePackagePrice - packagePrice : 0;
+    : ojol
+      ? (selectedPackage?.ojolPrice ?? basePackagePrice)
+      : basePackagePrice;
+  const discount = royalty || ojol ? basePackagePrice - packagePrice : 0;
+  const discountLabel = royalty ? 'Diskon ROYALTY' : ojol ? 'Diskon OJOL' : '';
   const subtotal = packagePrice + addonTotal;
   const tax = Math.round((subtotal * (activeOutlet?.taxPercent ?? 0)) / 100);
   const total = subtotal + tax;
   const canSubmit = Boolean(selectedPackage && !loading && !submitting);
+
+  // Kedua toggle saling meniadakan agar harga yang dipakai tidak ambigu.
+  function handleRoyaltyChange(value: boolean) {
+    setRoyalty(value);
+    if (value) setOjol(false);
+  }
+
+  function handleOjolChange(value: boolean) {
+    setOjol(value);
+    if (value) setRoyalty(false);
+  }
 
   async function completeOrder() {
     if (!selectedPackage) { setError('Pilih paket cuci terlebih dahulu.'); return; }
@@ -76,6 +92,7 @@ export function KasirScreen() {
         vehicleName: vehicleName.trim() || undefined,
         plate: plate.trim().toUpperCase() || undefined,
         royalty: royalty || undefined,
+        ojol: ojol || undefined,
       });
       setReceipt({ order });
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Antrean gagal dibuat. Silakan coba lagi.'); }
@@ -112,7 +129,14 @@ export function KasirScreen() {
             <Text style={styles.royaltyLabel}>Pelanggan ROYALTY</Text>
             <Text style={styles.royaltyHint}>Reguler gratis · paket lain sesuai harga ROYALTY · add-on tetap bayar</Text>
           </View>
-          <Switch value={royalty} onValueChange={setRoyalty} trackColor={{ false: colors.lineMuted, true: colors.brand }} thumbColor={colors.surface} />
+          <Switch value={royalty} onValueChange={handleRoyaltyChange} trackColor={{ false: colors.lineMuted, true: colors.brand }} thumbColor={colors.surface} />
+        </View>
+        <View style={styles.royaltyRow}>
+          <View style={styles.royaltyCopy}>
+            <Text style={styles.royaltyLabel}>Pelanggan OJOL</Text>
+            <Text style={styles.royaltyHint}>Harga khusus ojol per paket · add-on tetap bayar</Text>
+          </View>
+          <Switch value={ojol} onValueChange={handleOjolChange} trackColor={{ false: colors.lineMuted, true: colors.brand }} thumbColor={colors.surface} />
         </View>
       </View>
       <View style={styles.section}><Text style={styles.sectionTitle}>Paket & add-on</Text>
@@ -123,7 +147,7 @@ export function KasirScreen() {
 
     <View style={[styles.floatBar, { paddingBottom: Math.max(insets.bottom, 12) + 12 }]}>
       <View style={styles.floatTotals}>
-        {(tax > 0 || royalty) && (
+        {(tax > 0 || royalty || ojol) && (
           <>
             <View style={styles.summaryLine}>
               <Text style={styles.summaryLabel}>Subtotal</Text>
@@ -135,15 +159,15 @@ export function KasirScreen() {
                 <Text style={styles.summaryValue}>{formatIDR(tax)}</Text>
               </View>
             )}
-            {royalty && (
+            {(royalty || ojol) && (
               <View style={styles.summaryLine}>
-                <Text style={[styles.summaryLabel, styles.discountLabel]}>Diskon ROYALTY</Text>
+                <Text style={[styles.summaryLabel, styles.discountLabel]}>{discountLabel}</Text>
                 <Text style={[styles.summaryValue, styles.discountLabel]}>−{formatIDR(discount)}</Text>
               </View>
             )}
           </>
         )}
-        <View style={[styles.summaryLine, (tax > 0 || royalty) && styles.totalLine]}>
+        <View style={[styles.summaryLine, (tax > 0 || royalty || ojol) && styles.totalLine]}>
           <Text style={styles.totalLabel}>Total</Text>
           <Text style={styles.totalValue}>{formatIDR(total)}</Text>
         </View>
@@ -154,7 +178,7 @@ export function KasirScreen() {
     <Modal visible={Boolean(receipt)} transparent animationType="fade" onRequestClose={() => setReceipt(null)}>
       <View style={styles.modalBackdrop}><View style={styles.receiptCard}><Text style={styles.success}>Antrean berhasil dibuat</Text><Text style={styles.receiptTitle}>{receipt?.order.invoiceNo}</Text><Text style={styles.queue}>Antrean {receipt?.order.queueNo} · {receipt?.order.vehicleType === 'motor' ? 'Motor' : 'Mobil'}</Text><View style={styles.divider} /><Text style={styles.receiptLine}>Paket · {receipt?.order.packageName}</Text><Text style={styles.receiptLine}>Plat · {receipt?.order.plate || '—'}</Text><Text style={styles.receiptTotal}>{formatIDR(receipt?.order.grandTotal ?? 0)}</Text><Text style={styles.receiptNote}>Tunjukkan nomor antrean ini ke pelanggan.</Text>
         <Pressable accessibilityRole="button" disabled={shareBusy} onPress={() => void shareReceipt()} style={styles.submit}>{shareBusy ? <ActivityIndicator color={colors.night} /> : <Text style={styles.submitText}>Bagikan struk via WhatsApp</Text>}</Pressable>
-        <Pressable accessibilityRole="button" onPress={() => { setReceipt(null); setVehicleType('motor'); setPlate(''); setVehicleName(''); setNotes(''); setRoyalty(false); setAddonIds([]); }} style={styles.done}><Text style={styles.doneText}>Transaksi baru</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => { setReceipt(null); setVehicleType('motor'); setPlate(''); setVehicleName(''); setNotes(''); setRoyalty(false); setOjol(false); setAddonIds([]); }} style={styles.done}><Text style={styles.doneText}>Transaksi baru</Text></Pressable>
       </View></View>
     </Modal>
   </KeyboardAvoidingView>;

@@ -5,6 +5,8 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/LoginScreen';
 import { PaketSettingsScreen } from '../screens/settings/PaketSettingsScreen';
+import { RoyaltySettingsScreen } from '../screens/settings/RoyaltySettingsScreen';
+import { OjolSettingsScreen } from '../screens/settings/OjolSettingsScreen';
 import { AddonSettingsScreen } from '../screens/settings/AddonSettingsScreen';
 import { BankSettingsScreen } from '../screens/settings/BankSettingsScreen';
 import { PenggunaSettingsScreen } from '../screens/settings/PenggunaSettingsScreen';
@@ -49,6 +51,8 @@ export function RootNavigator() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Main" component={BottomTabNavigator} />
         <Stack.Screen name="Paket" component={PaketSettingsScreen} options={{ headerShown: true, title: 'Paket Layanan' }} />
+        <Stack.Screen name="Royalty" component={RoyaltySettingsScreen} options={{ headerShown: true, title: 'Pelanggan ROYALTY' }} />
+        <Stack.Screen name="Ojol" component={OjolSettingsScreen} options={{ headerShown: true, title: 'Pelanggan OJOL' }} />
         <Stack.Screen name="Addon" component={AddonSettingsScreen} options={{ headerShown: true, title: 'Add-on' }} />
         <Stack.Screen name="Bank" component={BankSettingsScreen} options={{ headerShown: true, title: 'Rekening Bank' }} />
         <Stack.Screen name="Pengguna" component={PenggunaSettingsScreen} options={{ headerShown: true, title: 'Pengguna' }} />

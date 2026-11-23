@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Banknote, CarFront, Clock3, CreditCard, FileSpreadsheet, Motorbike, ReceiptText } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatCard } from '../components/StatCard';
@@ -30,6 +30,24 @@ const dateKey = (date: Date) => {
   const part = (type: string) => parts.find((item) => item.type === type)?.value ?? '';
   return `${part('year')}-${part('month')}-${part('day')}`;
 };
+const isoDay = (date: Date) => date.toISOString().slice(0, 10);
+function buildExportRanges(today: string) {
+  const [year, month, day] = today.split('-').map(Number);
+  const base = new Date(Date.UTC(year, month - 1, day));
+  const daysAgo = (count: number) => {
+    const copy = new Date(base);
+    copy.setUTCDate(copy.getUTCDate() - count);
+    return isoDay(copy);
+  };
+  const weekStart = daysAgo((base.getUTCDay() + 6) % 7);
+  const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+  return [
+    { key: 'today', label: 'Hari ini', hint: today, from: today, to: today },
+    { key: '7days', label: '7 hari terakhir', hint: `${daysAgo(6)} – ${today}`, from: daysAgo(6), to: today },
+    { key: 'week', label: 'Minggu ini', hint: `${weekStart} – ${today}`, from: weekStart, to: today },
+    { key: 'month', label: 'Bulan ini', hint: `${monthStart} – ${today}`, from: monthStart, to: today },
+  ];
+}
 export function LaporanScreen() {
   const { colors } = useTheme();
   const styles = useStyles(buildStyles);
@@ -47,8 +65,10 @@ export function LaporanScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [rangeModal, setRangeModal] = useState(false);
   const [error, setError] = useState('');
   const today = useMemo(() => dateKey(new Date()), []);
+  const exportRanges = useMemo(() => buildExportRanges(today), [today]);
 
   const load = useCallback(async (background = false) => {
     if (background) setRefreshing(true); else setLoading(true);
@@ -72,11 +92,12 @@ export function LaporanScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
-  async function handleExport() {
+  async function handleExport(from: string, to: string, label: string) {
+    setRangeModal(false);
     setExporting(true);
     try {
-      await downloadReportExcel('transactions', today, today);
-      Alert.alert('Excel siap', 'Laporan Excel berhasil diunduh.');
+      await downloadReportExcel('transactions', from, to);
+      Alert.alert('Excel siap', `Laporan ${label} (${from} – ${to}) berhasil diunduh.`);
     } catch (cause) {
       Alert.alert('Gagal mengekspor', cause instanceof Error ? cause.message : 'Silakan coba lagi.');
     } finally {
@@ -114,7 +135,7 @@ export function LaporanScreen() {
             accessibilityRole="button"
             accessibilityLabel="Export laporan ke Excel"
             disabled={exporting}
-            onPress={() => void handleExport()}
+            onPress={() => setRangeModal(true)}
             style={[styles.exportButton, exporting && styles.exportDisabled]}
           >
             {exporting ? (
@@ -242,6 +263,33 @@ export function LaporanScreen() {
           </>
         )}
       </ScrollView>
+
+      <Modal visible={rangeModal} transparent animationType="fade" onRequestClose={() => setRangeModal(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setRangeModal(false)}>
+          <Pressable style={styles.rangeCard} onPress={(event) => event.stopPropagation()}>
+            <Text style={styles.rangeTitle}>Pilih Jangka Waktu</Text>
+            <Text style={styles.rangeSubtitle}>Laporan Excel akan diunduh sesuai periode berikut.</Text>
+            {exportRanges.map((range) => (
+              <Pressable
+                key={range.key}
+                accessibilityRole="button"
+                accessibilityLabel={`Export ${range.label}`}
+                onPress={() => void handleExport(range.from, range.to, range.label.toLowerCase())}
+                style={({ pressed }) => [styles.rangeOption, pressed && styles.rangeOptionPressed]}
+              >
+                <View style={styles.rangeCopy}>
+                  <Text style={styles.rangeLabel}>{range.label}</Text>
+                  <Text style={styles.rangeHint}>{range.hint}</Text>
+                </View>
+                <FileSpreadsheet size={17} color={colors.brandDark} />
+              </Pressable>
+            ))}
+            <Pressable accessibilityRole="button" onPress={() => setRangeModal(false)} style={styles.rangeCancel}>
+              <Text style={styles.rangeCancelText}>Batal</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -260,6 +308,17 @@ function buildStyles(colors: Palette) {
   exportText: { color: colors.night, fontSize: 12, fontWeight: '800' },
   dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: -9 },
   dateText: { color: colors.muted, fontSize: 13, fontWeight: '600', flexShrink: 1 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  rangeCard: { width: '100%', maxWidth: 420, backgroundColor: colors.surface, borderRadius: 18, padding: 20, gap: 12, borderWidth: 1, borderColor: colors.line },
+  rangeTitle: { color: colors.ink, fontSize: 17, fontWeight: '800' },
+  rangeSubtitle: { color: colors.muted, fontSize: 12, marginTop: -6 },
+  rangeOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderWidth: 1, borderColor: colors.line, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: colors.bg },
+  rangeOptionPressed: { opacity: 0.7 },
+  rangeCopy: { gap: 2 },
+  rangeLabel: { color: colors.ink, fontSize: 14, fontWeight: '800' },
+  rangeHint: { color: colors.muted, fontSize: 11 },
+  rangeCancel: { alignItems: 'center', paddingVertical: 6 },
+  rangeCancelText: { color: colors.brandDark, fontWeight: '800', fontSize: 13 },
   errorBox: { backgroundColor: colors.dangerSoft, borderRadius: 10, padding: 11, gap: 5 },
   errorText: { color: colors.dangerDark, fontSize: 13 },
   retry: { color: colors.brandDark, fontWeight: '800' },
