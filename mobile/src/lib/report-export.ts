@@ -7,6 +7,8 @@ export type ExportResult = {
   fileName: string;
   /** Uri lokal hanya tersedia di native. */
   uri?: string;
+  /** Blob hasil unduhan di Expo Web, dipakai untuk membuka/berbagi. */
+  blob?: Blob;
   /** Keterangan lokasi file untuk ditampilkan ke pengguna. */
   location: string;
 };
@@ -59,7 +61,7 @@ export async function downloadReportExcel(type: ReportExportType, from: string, 
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    return { fileName, location: 'Folder Unduhan browser' };
+    return { fileName, blob, location: 'Folder Unduhan browser' };
   }
 
   const bytes = new Uint8Array(await response.arrayBuffer());
@@ -69,21 +71,43 @@ export async function downloadReportExcel(type: ReportExportType, from: string, 
   return { fileName, uri: file.uri, location: file.uri };
 }
 
+function webFile(result: ExportResult): File {
+  if (!result.blob) throw new Error('File hasil unduhan tidak tersedia.');
+  return new globalThis.File([result.blob], result.fileName, { type: EXCEL_MIME });
+}
+
 /** Membuka file Excel hasil export dengan aplikasi bawaan perangkat. */
-export async function openExportedFile(uri: string): Promise<void> {
+export async function openExportedFile(result: ExportResult): Promise<void> {
+  if (Platform.OS === 'web') {
+    const url = URL.createObjectURL(result.blob!);
+    const opened = window.open(url, '_blank', 'noopener,noreferrer');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    if (!opened) throw new Error('Browser memblokir pembukaan file. Izinkan pop-up untuk situs ini.');
+    return;
+  }
+  if (!result.uri) throw new Error('File hasil unduhan tidak tersedia.');
   const { File } = await import('expo-file-system');
-  const file = new File(uri);
+  const file = new File(result.uri);
   if (!(await File.canPreview(file, { mimeType: EXCEL_MIME }))) {
     throw new Error('Tidak ada aplikasi yang bisa membuka file ini.');
   }
   await File.preview(file, { mimeType: EXCEL_MIME });
 }
 
-/** Membagi file Excel hasil export lewat share sheet. */
-export async function shareExportedFile(uri: string, fileName: string): Promise<void> {
+/** Membagi file Excel hasil export lewat share sheet (native) atau Web Share API. */
+export async function shareExportedFile(result: ExportResult): Promise<void> {
+  if (Platform.OS === 'web') {
+    const file = webFile(result);
+    if (typeof navigator === 'undefined' || typeof navigator.share !== 'function' || !navigator.canShare?.({ files: [file] })) {
+      throw new Error('Browser ini tidak mendukung berbagi file.');
+    }
+    await navigator.share({ files: [file], title: result.fileName });
+    return;
+  }
+  if (!result.uri) throw new Error('File hasil unduhan tidak tersedia.');
   const Sharing = await import('expo-sharing');
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('Berbagi file tidak tersedia di perangkat ini.');
   }
-  await Sharing.shareAsync(uri, { mimeType: EXCEL_MIME, dialogTitle: fileName });
+  await Sharing.shareAsync(result.uri, { mimeType: EXCEL_MIME, dialogTitle: result.fileName });
 }

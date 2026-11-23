@@ -79,7 +79,7 @@ export function LaporanScreen() {
     dibatalkan: { label: 'Dibatalkan', color: colors.dangerDark, background: colors.dangerSoft },
   };
   const insets = useSafeAreaInsets();
-  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [periodIndex, setPeriodIndex] = useState(0);
   const [omzet, setOmzet] = useState<OmzetSummary | null>(null);
   const [transactions, setTransactions] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +91,10 @@ export function LaporanScreen() {
   const [error, setError] = useState('');
   const today = useMemo(() => dateKey(new Date()), []);
   const exportRanges = useMemo(() => buildExportRanges(today), [today]);
+  const periodKeys = ['today', 'week', 'month'] as const;
+  const periodRange = exportRanges.find((range) => range.key === periodKeys[periodIndex]) ?? exportRanges[0];
+  const periodLabel = ['Hari ini', 'Minggu ini', 'Bulan ini'][periodIndex];
+  const periodTitle = ['Hari Ini', 'Minggu Ini', 'Bulan Ini'][periodIndex];
   const [customFrom, setCustomFrom] = useState(today);
   const [customTo, setCustomTo] = useState(today);
   const [calendarTarget, setCalendarTarget] = useState<'from' | 'to' | null>(null);
@@ -104,12 +108,10 @@ export function LaporanScreen() {
     if (background) setRefreshing(true); else setLoading(true);
     setError('');
     try {
-      const [todayReport, omzetReport, orders] = await Promise.all([
-        api.reports.today(),
-        api.reports.omzet(today, today),
-        api.orders.list({ date: today, includePaid: true }),
+      const [omzetReport, orders] = await Promise.all([
+        api.reports.omzet(periodRange.from, periodRange.to),
+        api.orders.list({ from: periodRange.from, to: periodRange.to, includePaid: true }),
       ]);
-      setDashboard(todayReport as Dashboard);
       setOmzet(omzetReport as OmzetSummary);
       setTransactions(orders);
     } catch (cause) {
@@ -118,9 +120,13 @@ export function LaporanScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [today]);
+  }, [periodRange.from, periodRange.to]);
 
   useEffect(() => { void load(); }, [load]);
+
+  function cyclePeriod() {
+    setPeriodIndex((index) => (index + 1) % 3);
+  }
 
   async function handleExport(from: string, to: string) {
     if (to < from) {
@@ -156,18 +162,18 @@ export function LaporanScreen() {
   }
 
   async function handleOpenFile() {
-    if (!exportResult?.uri) return;
+    if (!exportResult) return;
     try {
-      await openExportedFile(exportResult.uri);
+      await openExportedFile(exportResult);
     } catch (cause) {
       Alert.alert('Gagal membuka file', cause instanceof Error ? cause.message : 'Silakan coba lagi.');
     }
   }
 
   async function handleShareFile() {
-    if (!exportResult?.uri) return;
+    if (!exportResult) return;
     try {
-      await shareExportedFile(exportResult.uri, exportResult.fileName);
+      await shareExportedFile(exportResult);
     } catch (cause) {
       Alert.alert('Gagal membagikan', cause instanceof Error ? cause.message : 'Silakan coba lagi.');
     }
@@ -180,10 +186,10 @@ export function LaporanScreen() {
     const rows = Array.from(counts, ([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
     return rows.slice(0, 5).map((row) => ({ ...row, percent: paidTransactions.length ? Math.round(row.count / paidTransactions.length * 100) : 0 }));
   }, [paidTransactions]);
-  const revenue = dashboard?.totalRevenue ?? omzet?.totalRevenue ?? 0;
-  const transactionCount = dashboard?.totalTransactions ?? omzet?.totalTransactions ?? 0;
-  const cash = dashboard?.cashRevenue ?? omzet?.items?.reduce((sum, item) => sum + item.cash, 0) ?? 0;
-  const transfer = dashboard?.transferRevenue ?? omzet?.items?.reduce((sum, item) => sum + item.transfer, 0) ?? 0;
+  const revenue = omzet?.totalRevenue ?? 0;
+  const transactionCount = omzet?.totalTransactions ?? 0;
+  const cash = omzet?.items?.reduce((sum, item) => sum + item.cash, 0) ?? 0;
+  const transfer = omzet?.items?.reduce((sum, item) => sum + item.transfer, 0) ?? 0;
   const paymentTotal = cash + transfer;
   const formatTime = (createdAt: string) => new Date(createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
@@ -226,7 +232,7 @@ export function LaporanScreen() {
           </Text>
           <View style={styles.todayPill}>
             <Clock3 size={14} color={colors.brandDark} />
-            <Text style={styles.todayText}>Hari ini</Text>
+            <Text style={styles.todayText}>{periodLabel}</Text>
           </View>
         </View>
         {error ? (
@@ -235,15 +241,15 @@ export function LaporanScreen() {
             <Pressable onPress={() => void load()}><Text style={styles.retry}>Coba lagi</Text></Pressable>
           </View>
         ) : null}
-        {loading && !dashboard && !omzet ? (
+        {loading && !omzet ? (
           <ActivityIndicator style={styles.loading} size="large" color={colors.brand} />
         ) : (
           <>
             <View style={styles.metricGrid}>
-              <StatCard title="Total Omzet Hari Ini" value={rupiah(revenue)} subtitle="Transaksi lunas" icon={Banknote} accentColor={colors.brandDark} />
+              <StatCard title={`Total Omzet ${periodTitle}`} value={rupiah(revenue)} subtitle="Transaksi lunas · ketuk ganti periode" icon={Banknote} accentColor={colors.brandDark} onPress={cyclePeriod} />
               <StatCard title="Jumlah Transaksi" value={transactionCount} subtitle="Transaksi lunas" icon={ReceiptText} accentColor={colors.brand} />
-              <StatCard title="Total Motor" value={dashboard?.motorCount ?? transactions.filter((item) => item.vehicleType === 'motor').length} subtitle="Kendaraan hari ini" icon={Motorbike} accentColor={colors.brand} />
-              <StatCard title="Total Mobil" value={dashboard?.mobilCount ?? transactions.filter((item) => item.vehicleType === 'mobil').length} subtitle="Kendaraan hari ini" icon={CarFront} accentColor={colors.brandDark} />
+              <StatCard title="Total Motor" value={transactions.filter((item) => item.vehicleType === 'motor').length} subtitle="Kendaraan periode ini" icon={Motorbike} accentColor={colors.brand} />
+              <StatCard title="Total Mobil" value={transactions.filter((item) => item.vehicleType === 'mobil').length} subtitle="Kendaraan periode ini" icon={CarFront} accentColor={colors.brandDark} />
             </View>
             <View style={styles.section}>
               <View style={styles.sectionHeading}>
@@ -299,7 +305,7 @@ export function LaporanScreen() {
             </View>
             <View style={styles.section}>
               <View style={styles.sectionHeading}>
-                <Text style={styles.sectionTitle}>Transaksi Hari Ini</Text>
+                <Text style={styles.sectionTitle}>Transaksi {periodTitle}</Text>
                 <Text style={styles.muted}>{transactions.length} transaksi</Text>
               </View>
               {transactions.length ? (
@@ -325,7 +331,7 @@ export function LaporanScreen() {
                   );
                 })
               ) : (
-                <Text style={styles.muted}>{loading ? 'Memuat transaksi…' : 'Belum ada transaksi hari ini.'}</Text>
+                <Text style={styles.muted}>{loading ? 'Memuat transaksi…' : `Belum ada transaksi ${periodLabel.toLowerCase()}.`}</Text>
               )}
             </View>
           </>
@@ -418,18 +424,15 @@ export function LaporanScreen() {
               <Text style={styles.pathLabel}>Lokasi file</Text>
               <Text selectable style={styles.pathValue}>{exportResult?.location}</Text>
             </View>
-            {exportResult?.uri ? (
-              <>
-                <Pressable accessibilityRole="button" onPress={() => void handleOpenFile()} style={styles.rangePrimary}>
-                  <Text style={styles.rangePrimaryText}>Buka file</Text>
-                </Pressable>
-                <Pressable accessibilityRole="button" onPress={() => void handleShareFile()} style={styles.rangeOption}>
-                  <Text style={styles.rangeLabel}>Bagikan file</Text>
-                </Pressable>
-              </>
-            ) : (
-              <Text style={styles.rangeSubtitle}>Di Expo Web, file masuk ke folder Unduhan browser. Buka atau bagikan file dari sana.</Text>
-            )}
+            <Pressable accessibilityRole="button" onPress={() => void handleOpenFile()} style={styles.rangePrimary}>
+              <Text style={styles.rangePrimaryText}>Buka file</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => void handleShareFile()} style={styles.rangeOption}>
+              <Text style={styles.rangeLabel}>Bagikan file</Text>
+            </Pressable>
+            {!exportResult?.uri ? (
+              <Text style={styles.rangeSubtitle}>Di Expo Web, file juga masuk ke folder Unduhan browser.</Text>
+            ) : null}
             <Pressable accessibilityRole="button" onPress={() => setResultModal(false)} style={styles.rangeCancel}>
               <Text style={styles.rangeCancelText}>Tutup</Text>
             </Pressable>

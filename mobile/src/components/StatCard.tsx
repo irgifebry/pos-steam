@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { useStyles } from '../theme/useStyles';
@@ -10,18 +10,20 @@ export function StatCard({
   subtitle,
   icon: Icon,
   accentColor: accentColorProp,
+  onPress,
 }: {
   title: string;
   value: string | number;
   subtitle?: string;
   icon: LucideIcon;
   accentColor?: string;
+  onPress?: () => void;
 }) {
   const { colors } = useTheme();
   const styles = useStyles(buildStyles);
   const accentColor = accentColorProp ?? colors.brand;
-  return (
-    <View style={styles.card}>
+  const content = (
+    <>
       <View style={[styles.iconBox, { backgroundColor: `${accentColor}18` }]}>
         <Icon color={accentColor} size={19} strokeWidth={2.3} />
       </View>
@@ -30,7 +32,19 @@ export function StatCard({
         {value}
       </Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-    </View>
+    </>
+  );
+  return onPress ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. Ketuk untuk ganti periode`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+    >
+      {content}
+    </Pressable>
+  ) : (
+    <View style={styles.card}>{content}</View>
   );
 }
 
@@ -46,6 +60,7 @@ function buildStyles(colors: Palette) {
     padding: 14,
     gap: 6,
   },
+  cardPressed: { opacity: 0.75 },
   iconBox: {
     width: 36,
     height: 36,
