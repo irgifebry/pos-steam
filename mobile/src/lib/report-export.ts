@@ -61,7 +61,7 @@ export async function downloadReportExcel(type: ReportExportType, from: string, 
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    return { fileName, blob, location: 'Folder Unduhan browser' };
+    return { fileName, blob, location: 'Folder Unduhan' };
   }
 
   const bytes = new Uint8Array(await response.arrayBuffer());

@@ -419,9 +419,6 @@ export function LaporanScreen() {
                 <Text style={styles.resultButtonSecondaryText}>Bagikan file</Text>
               </Pressable>
             </View>
-            {!exportResult?.uri ? (
-              <Text style={styles.rangeSubtitle}>Di Expo Web, file juga masuk ke folder Unduhan browser.</Text>
-            ) : null}
             <Pressable accessibilityRole="button" onPress={() => setResultModal(false)} style={styles.rangeCancel}>
               <Text style={styles.rangeCancelText}>Tutup</Text>
             </Pressable>

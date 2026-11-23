@@ -228,7 +228,7 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 - [ ] Mengetuk field tanggal membuka kalender bulanan (navigasi bulan ‹/›) untuk memilih tanggal mulai lalu tanggal akhir
 - [ ] Menentukan rentang tanggal mengunduh file `.xlsx` dengan 6 sheet (Ringkasan, Transaksi, Paket, Add-on, Metode Pembayaran, Kas)
 - [ ] Nama file mengikuti periode yang dipilih, mis. `laporan-transactions-2026-11-01_2026-11-23.xlsx`; tombol **Batal** menutup popup tanpa mengunduh
-- [ ] Setelah unduhan muncul popup **Excel siap** berisi nama file dan **Lokasi file** (path di native, "Folder Unduhan browser" di Expo Web)
+- [ ] Setelah unduhan muncul popup **Excel siap** berisi nama file dan **Lokasi file** (path di native, "Folder Unduhan" di Expo Web)
 - [ ] Popup **Excel siap** memiliki tombol **Buka file** dan **Bagikan file** di semua platform: native memakai `File.preview` dan `expo-sharing`; Expo Web memakai object URL serta Web Share API (dengan pesan jika browser tidak mendukung)
 - [ ] Kartu **Total Omzet** bisa diketuk untuk berganti periode: Hari Ini → Minggu Ini → Bulan Ini → kembali Hari Ini; judul kartu, pill periode, dan judul daftar transaksi ikut berubah
 - [ ] Perpindahan periode memanggil `/api/reports/omzet` dengan rentang tanggal yang sesuai (mis. Bulan Ini → `from=2026-11-01`)
