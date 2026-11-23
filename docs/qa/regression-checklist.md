@@ -17,7 +17,7 @@ Gunakan checklist ini untuk memastikan perubahan baru tidak merusak fitur yang s
 | # | Cek | Test Case | Lulus |
 |---|---|---|---|
 | 1 | Root `/` JSON status dan `GET /api/health` 200 | F1-001 | [ ] |
-| 2 | Typecheck, lint, test (27 file/111 test), build | F1-002 | [ ] |
+| 2 | Typecheck, lint, test (27 file/119 test), build | F1-002 | [ ] |
 | 3 | Login email + PIN seed `admin@pos.test` / `123456` | F1-033 | [ ] |
 | 4 | Endpoint tanpa sesi → 401 `UNAUTHENTICATED` | F1-035 | [ ] |
 | 5 | Envelope error `{ error: { code, message } }` konsisten | F1-035 | [ ] |
@@ -175,7 +175,7 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 ### 5.1 Setup & Kesehatan
 
 - [ ] `npx tsc --noEmit` di root dan `mobile/` bersih; `npx expo-doctor` 20/20
-- [ ] `npm test` root lulus (**27 file / 111 test**)
+- [ ] `npm test` root lulus (**27 file / 119 test**)
 - [ ] Expo Web `http://localhost:8081` terhubung ke backend `http://localhost:3001`
 - [ ] CORS proxy (`src/proxy.ts`, matcher `/api/:path*`) aktif: preflight `OPTIONS /api/*` dari origin Expo Web balas 204 dengan header CORS; origin produksi dari `WEB_ORIGIN`/`BETTER_AUTH_URL` juga diterima (comma-separated)
 - [ ] Respons sukses `{ data: ... }` dan error `{ error: { code, message } }` konsisten di endpoint yang dipakai mobile
@@ -187,13 +187,13 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 - [ ] Seluruh layar memakai **tema terang** (light mode only): tidak ada toggle/halaman dark mode, tidak ada warna gelap yang tertinggal
 - [ ] Bottom tab tepat **4**: Kasir, Antrean, Laporan, Pengaturan
 - [ ] Tidak ada tab atau halaman tambahan di luar keempat tab di mobile; manajemen pengguna ada di Pengaturan → Pengguna
-- [ ] Pengaturan terbuka sebagai menu yang mengarah ke 4 sub-halaman: **Paket Layanan, Add-on, Rekening Bank, Pengguna**; tombol kembali bekerja
+- [ ] Pengaturan terbuka sebagai menu yang mengarah ke 6 sub-halaman: **Paket Layanan, ROYALTY, OJOL, Add-on, Rekening Bank, Pengguna**; tombol kembali bekerja
 - [ ] Pengaturan → Pengguna **tidak menampilkan pilihan role**: semua user berperan `admin` (label "Admin")
 
 ### 5.3 Master Data Mobile
 
 - [ ] Paket Layanan dan Add-on memakai tab kartu **Motor / Mobil**; Add-on juga punya tab **Semua** (berlaku untuk kedua tipe kendaraan)
-- [ ] Form Paket Layanan mobile **tidak memiliki field durasi**; harga dan `royaltyPrice` tersimpan dengan benar
+- [ ] Form Paket Layanan mobile **tidak memiliki field durasi**; harga, `royaltyPrice`, dan `ojolPrice` tersimpan dengan benar
 - [ ] Data baru aktif secara default dan langsung muncul di daftar
 - [ ] Daftar hanya menampilkan record aktif; record nonaktif tidak muncul
 - [ ] Aksi hapus bertuliskan **Hapus** (bukan "Nonaktifkan"), memunculkan konfirmasi destruktif, dan data benar-benar terhapus
@@ -202,9 +202,12 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 ### 5.4 Kasir & ROYALTY
 
 - [ ] Form Kasir memakai label **Nama Kendaraan** (mis. Avanza/Fortuner), bukan "Nama Pelanggan"; nilai dikirim sebagai `vehicleName` dan tersimpan ke `vehicles.brand`
-- [ ] Toggle **Pelanggan ROYALTY** tersedia di Kasir
+- [ ] Toggle **Pelanggan ROYALTY** dan **Pelanggan OJOL** tersedia di Kasir
 - [ ] Saat ROYALTY aktif: paket **Reguler gratis (Rp 0)**, paket lain memakai `royaltyPrice` yang dikonfigurasi admin, **add-on tetap bayar penuh**
 - [ ] Selisih harga ROYALTY tercatat di backend sebagai `discount` (piutang), bukan mengubah harga master paket
+- [ ] Saat OJOL aktif: paket memakai `ojolPrice` jika diisi, otherwise harga normal; **add-on tetap bayar penuh**; diskon OJOL tercatat sebagai `discount`
+- [ ] Jika ROYALTY dan OJOL aktif bersamaan, **ROYALTY menang** (harga dan label diskon sesuai ROYALTY)
+- [ ] Pengaturan → ROYALTY dan → OJOL menampilkan daftar paket per tipe kendaraan dan menyimpan harga khusus per paket; mengosongkan harga berarti `null`
 - [ ] Tombol aksi Kasir bertuliskan **Buat antrean** dan **tidak meminta pembayaran**; order baru berstatus `menunggu`
 - [ ] Ringkasan total berada di **bar mengambang di bawah** (floating), tidak mengikuti scroll
 - [ ] **Subtotal disembunyikan** ketika tidak ada pajak dan tidak ada diskon ROYALTY; muncul saat ada pajak/diskon
@@ -221,8 +224,9 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 ### 5.6 Laporan & Export
 
 - [ ] Tab **Laporan** menampilkan tombol **Export Excel** di sebelah judul "Laporan Omzet"
-- [ ] Menekan **Export Excel** mengunduh file `.xlsx` dengan 6 sheet (Ringkasan, Transaksi, Paket, Add-on, Metode Pembayaran, Kas)
-- [ ] Nama file mengikuti periode hari ini, mis. `laporan-transactions-2026-11-23.xlsx`
+- [ ] Menekan **Export Excel** membuka popup **Pilih Jangka Waktu** dengan opsi: Hari ini, 7 hari terakhir, Minggu ini, Bulan ini
+- [ ] Memilih salah satu periode mengunduh file `.xlsx` dengan 6 sheet (Ringkasan, Transaksi, Paket, Add-on, Metode Pembayaran, Kas)
+- [ ] Nama file mengikuti periode yang dipilih, mis. `laporan-transactions-2026-11-23.xlsx`; tombol **Batal** menutup popup tanpa mengunduh
 - [ ] Di native, file dibuka lewat share sheet; di Expo Web, file langsung terunduh lewat browser
 - [ ] Tombol berubah menjadi "Mengekspor…" saat request berjalan dan menampilkan alert jika gagal
 

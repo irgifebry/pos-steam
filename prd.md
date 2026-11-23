@@ -16,15 +16,16 @@
 | Aspek | Spesifikasi Awal | Implementasi Saat Ini |
 |---|---|---|
 | **Peran** | Satu peran `admin` untuk semua operasional; RBAC dihapus. | Tetap **satu peran `admin`** (role `karyawan` sudah dihapus). Seed hanya membuat satu akun demo admin. Halaman **Karyawan/Absensi**, payroll/gaji, dan rekap karyawan sudah dihapus dari web maupun mobile; yang tersisa adalah manajemen akun admin dan kas harian. |
-| **Klien mobile** | PWA mobile-first (tanpa aplikasi native). | Klien Expo ada di `mobile/` (Expo SDK 58, React Navigation v7): 4 tab — Kasir, Antrean, Laporan, Pengaturan. **Light mode saja**; Pengaturan dipecah ke sub-halaman; native bottom tabs dibatalkan (*reverted*). |
+| **Klien mobile** | PWA mobile-first (tanpa aplikasi native). | Klien Expo ada di `mobile/` (Expo SDK 58, React Navigation v7): 4 tab — Kasir, Antrean, Laporan, Pengaturan. **Light mode saja**; Pengaturan dipecah ke 6 sub-halaman (Paket Layanan, ROYALTY, OJOL, Add-on, Rekening Bank, Pengguna); native bottom tabs dibatalkan (*reverted*). |
 | **Frontend web** | Aplikasi Next.js web untuk kasir/antrean/laporan/pengaturan. | **Dihapus** — repo sekarang berisi **backend API saja** (`src/app/api/**`) untuk klien Expo di `mobile/`; root `/` mengembalikan JSON status, bukan halaman. |
 | **Waktu pembayaran** | Pembayaran saat membuat order di Kasir. | Pembayaran terjadi saat menekan **"Mulai Cuci"** di tab Antrean, bukan saat order dibuat di Kasir. |
 | **Royalty** | Diskon tetap 50%. | `Reguler` gratis; paket lain memakai `royaltyPrice` yang diatur admin; add-on selalu berbayar. Dicatat sebagai diskon/piutang — **bukan flat 50%**. |
+| **OJOL** | Tidak ada dalam spesifikasi awal. | Harga khusus ojol per paket lewat `ojolPrice` (kosong = harga normal); add-on tetap bayar penuh; toggle **Pelanggan OJOL** di Kasir. Jika ROYALTY dan OJOL aktif bersamaan, **ROYALTY menang**. Pengaturan memiliki halaman khusus ROYALTY dan OJOL. |
 | **Input order (mobile)** | Nama pelanggan saat buat order. | Order create menerima `vehicleName` (**"Nama Kendaraan"**, mis. Avanza) alih-alih nama pelanggan; menyertakan `discount`, `royalty`, dan opsional `payment`. |
 | **Durasi paket** | Durasi paket dipakai untuk estimasi. | Durasi paket **tidak dipakai** mobile (disimpan di DB/web sebagai default `0`). |
 | **Hapus data** | Nonaktifkan data. | "**Hapus**" = *soft delete* (`active=false`); tidak ada UI "Nonaktifkan" di mobile. |
-| **Backend & DB** | — | `src/proxy.ts` menangani CORS untuk Expo Web; migrasi `0003` menambah `service_packages.royalty_price`. |
-| **Verifikasi** | — | 111 test lolos (27 file, termasuk test CORS), `tsc` bersih, `expo-doctor` 20/20. |
+| **Backend & DB** | — | `src/proxy.ts` menangani CORS untuk Expo Web; migrasi `0003` menambah `service_packages.royalty_price`; migrasi terbaru menambah `service_packages.ojol_price`. |
+| **Verifikasi** | — | 119 test lolos (27 file, termasuk test CORS), `tsc` bersih, `expo-doctor` 20/20. |
 | **Absensi, Payroll & Gaji** | Modul absensi, payroll, dan rekap karyawan pada spesifikasi asli (§5.4, §6, §10, §12). | **Dihapus** — tidak ada lagi absensi, payroll, gaji/`dailyRate`, atau rekap karyawan, termasuk endpoint `/api/attendance`, `/api/payroll`, dan `/api/reports/employee`. Pengelolaan pengguna admin tetap tersedia di Pengaturan → Pengguna. |
 
 ---

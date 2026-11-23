@@ -35,7 +35,7 @@ Perbedaan yang perlu diingat saat menguji:
 
 - **F1 — Fondasi:** test case sudah tersedia; implementasi berjalan dan sebagian sudah terverifikasi (lihat verifikasi terkini di bawah).
 - **F2–F7:** test case ditulis setelah fase sebelumnya selesai dan terverifikasi (sesuai aturan di [`docs/superpowers/plans/README.md`](../superpowers/plans/README.md)).
-- **Verifikasi terkini (lokal):** `npm test` root lulus (**27 file / 111 test**); `npx tsc --noEmit` root dan mobile bersih; `npx expo-doctor` **20/20**. Backend `http://localhost:3001`; Expo Web `http://localhost:8081` memerlukan CORS `src/proxy.ts`, yang kini juga mengizinkan origin dari `WEB_ORIGIN`/`BETTER_AUTH_URL` untuk produksi.
+- **Verifikasi terkini (lokal):** `npm test` root lulus (**27 file / 119 test**); `npx tsc --noEmit` root dan mobile bersih; `npx expo-doctor` **20/20**. Backend `http://localhost:3001`; Expo Web `http://localhost:8081` memerlukan CORS `src/proxy.ts`, yang kini juga mengizinkan origin dari `WEB_ORIGIN`/`BETTER_AUTH_URL` untuk produksi.
 
 ## Alur Cepat QA
 

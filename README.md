@@ -46,11 +46,12 @@ Semua data diakses lewat Route Handler; browser/klien tidak pernah bicara langsu
 | Urutan status | `MENUNGGU` → `PROSES` → `SELESAI` → lunas / `DIBATALKAN` |
 | Pembayaran | Dilakukan saat **Mulai Cuci** di Antrean. Order dengan total `0` langsung masuk `PROSES` tanpa pembayaran |
 | ROYALTY | Paket **Reguler gratis**; paket lain memakai **harga ROYALTY** yang diatur admin per paket (`service_packages.royalty_price`); **add-on tetap dibayar penuh**. Selisih harga dicatat sebagai diskon/piutang |
+| OJOL | Harga khusus per paket dari `service_packages.ojol_price`; jika kosong pakai harga normal. **Add-on tetap dibayar penuh**. Jika ROYALTY dan OJOL sama-sama aktif, **ROYALTY yang dipakai** |
 | Nama kendaraan | Klien mengirim `vehicleName` (contoh: Avanza); disimpan ke `vehicles.brand` |
 | Durasi cuci | Tidak dipakai klien; kolom `duration_min` tetap ada dengan default `0` |
 | Hapus data | Penghapusan bersifat **soft delete** (`active = false`) lewat API |
 | Harga | Master boleh berubah, harga transaksi tidak (`price_snapshot` di `order_items`) |
-| Pajak | Default 0%, configurable per outlet; dihitung dari subtotal setelah diskon ROYALTY |
+| Pajak | Default 0%, configurable per outlet; dihitung dari subtotal setelah diskon ROYALTY/OJOL |
 | Idempotensi | `orders.client_id` UNIQUE — pengiriman ulang tidak menghasilkan transaksi ganda |
 | PIN | Diperlakukan sebagai password (minimal 6 karakter) |
 
@@ -182,7 +183,7 @@ npx expo start       # Expo Go / web preview http://localhost:8081
 
 | Perintah | Hasil terkini |
 |---|---|
-| `npm test` | 27 file, **111 test lulus** |
+| `npm test` | 27 file, **119 test lulus** |
 | `npx tsc --noEmit` (root) | Bersih |
 | `npx tsc --noEmit` (mobile) | Bersih |
 | `npx expo-doctor` | **20/20** |

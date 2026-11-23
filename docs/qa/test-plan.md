@@ -94,7 +94,7 @@ Expo Web memerlukan **CORS proxy** di [`src/proxy.ts`](../../src/proxy.ts) (matc
 
 | Perintah / item | Hasil |
 |---|---|
-| `npm test` (root) | **27 file / 111 test lulus** (termasuk test CORS proxy) |
+| `npm test` (root) | **27 file / 119 test lulus** (termasuk test CORS proxy) |
 | `npx tsc --noEmit` (root & `mobile/`) | bersih |
 | `npx expo-doctor` (`mobile/`) | **20/20** |
 | Preview | Expo Web `http://localhost:8081` ↔ backend `http://localhost:3001` |
@@ -226,7 +226,7 @@ Expo Web memerlukan **CORS proxy** di [`src/proxy.ts`](../../src/proxy.ts) (matc
 
 Mengacu pada Verifikasi Akhir Rencana 01:
 
-- [ ] `npm test` semua PASS (27 file / 111 test), tidak ada test skip.
+- [ ] `npm test` semua PASS (27 file / 119 test), tidak ada test skip.
 - [ ] `npm run typecheck` exit 0.
 - [ ] `npm run lint` tanpa error.
 - [ ] `npm run build` sukses; semua route API terdeteksi.
@@ -387,4 +387,4 @@ Temuan dokumentasi/kontrak yang perlu dikonfirmasi sebelum atau selama F1–F2. 
 |---|---|---|---|
 | 1.0 | 28/10/2026 | Dokumen awal | Dimas |
 | 1.1 | 21/11/2026 | Ruang lingkup dua klien (web + mobile), environment Expo & CORS proxy, verifikasi terkini, fokus prioritas mobile | Dimas |
-| 1.2 | 23/11/2026 | Hapus ruang lingkup klien web (frontend dihapus); fokus backend API + Expo, `EXPO_PUBLIC_API_BASE_URL`, CORS origin produksi, verifikasi 27 file/111 test | Dimas |
+| 1.2 | 23/11/2026 | Hapus ruang lingkup klien web (frontend dihapus); fokus backend API + Expo, `EXPO_PUBLIC_API_BASE_URL`, CORS origin produksi, verifikasi 27 file/119 test | Dimas |

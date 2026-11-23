@@ -4,7 +4,7 @@ Dokumen ini khusus untuk **backend**: apa yang sudah dibangun, kontrak API, cara
 
 | | |
 |---|---|
-| **Fase** | F1–F2 — Fondasi backend + sinkronisasi transaksi (kasir, antrean, laporan, kas, struk publik) + dukungan klien Expo (harga ROYALTY, CORS Expo Web & origin produksi) |
+| **Fase** | F1–F2 — Fondasi backend + sinkronisasi transaksi (kasir, antrean, laporan, kas, struk publik) + dukungan klien Expo (harga ROYALTY & OJOL, CORS Expo Web & origin produksi) |
 | **Status** | Selesai dan terverifikasi; repo berisi **backend API saja** (tanpa UI web) |
 | **PIC Backend** | [Najwan48](https://github.com/Najwan48) |
 | **Branch** | `main` |
@@ -22,7 +22,7 @@ Backend menyediakan fondasi aplikasi Next.js 16 sebagai **backend API saja** —
 - API master data: paket, add-on, outlet, bank, settings.
 - API manajemen pengguna: tambah, ubah, reset PIN, aktif/nonaktif.
 - API transaksi & operasional: order, antrean, pembayaran, pembatalan, struk publik, shift kas, laporan.
-- Harga ROYALTY per paket (`service_packages.royalty_price`) dengan aturan khusus di `services/orders.ts`.
+- Harga ROYALTY per paket (`service_packages.royalty_price`) dan harga OJOL per paket (`service_packages.ojol_price`) dengan aturan khusus di `services/orders.ts`.
 - Route `GET /` mengembalikan JSON status; health check di `GET /api/health`.
 - Dukungan klien Expo: `EXPO_PUBLIC_API_BASE_URL` untuk produksi dan CORS via `src/proxy.ts` (origin dev lokal + origin dari `WEB_ORIGIN`/`BETTER_AUTH_URL`).
 - Validasi Zod sebagai sumber tunggal (`src/lib/schemas.ts`).
@@ -35,7 +35,7 @@ Backend menyediakan fondasi aplikasi Next.js 16 sebagai **backend API saja** —
 
 | Pemeriksaan | Hasil |
 |---|---|
-| `npm test` | 27 file, **111 test lulus** (termasuk test CORS `src/proxy.test.ts`) |
+| `npm test` | 27 file, **119 test lulus** (termasuk test CORS `src/proxy.test.ts`) |
 | `npm run lint` | Bersih |
 | `npx tsc --noEmit` | Bersih |
 | `npm run build` | Sukses, semua route API terdeteksi |
@@ -142,7 +142,7 @@ Route Handler  ->  Service  ->  Drizzle  ->  PostgreSQL
 | Operasional | `cash_shifts` | **Ada endpoint F2** |
 | Audit | `audit_logs` | Dipakai untuk perubahan pengguna dan transaksi |
 
-`service_packages` memiliki kolom `royalty_price` (integer, nullable) untuk harga khusus ROYALTY per paket; ditambahkan lewat migrasi `0003`.
+`service_packages` memiliki kolom `royalty_price` (integer, nullable) untuk harga khusus ROYALTY per paket (migrasi `0003`) dan `ojol_price` (integer, nullable) untuk harga khusus pelanggan ojol (migrasi terbaru).
 
 ### 4.2 Aturan skema
 
@@ -151,6 +151,7 @@ Route Handler  ->  Service  ->  Drizzle  ->  PostgreSQL
 - ID: `text` UUID dibuat di aplikasi (`randomUUID`).
 - Harga: **integer Rupiah**, bukan float.
 - `service_packages.royalty_price`: integer Rupiah **nullable**; `NULL` berarti transaksi ROYALTY memakai `price` biasa.
+- `service_packages.ojol_price`: integer Rupiah **nullable**; `NULL` berarti transaksi OJOL memakai `price` biasa.
 - `updated_at` otomatis lewat `$onUpdate`.
 - `order_items.price_snapshot` menyimpan harga final saat transaksi; perubahan harga master tidak mengubah transaksi lama.
 - `orders.client_id` disiapkan unik untuk idempotensi offline (F6).
@@ -188,9 +189,9 @@ Daftar migrasi saat ini:
 
 Tabel `banks` ditambahkan lewat migrasi `0001_secret_grim_reaper.sql`. Rencana F1 membutuhkan service dan endpoint bank, tetapi daftar tabel di Task 3 belum memuat tabel ini. Keputusan ini sudah disepakati sebagai penyesuaian rencana.
 
-### 4.5 Harga ROYALTY
+### 4.5 Harga ROYALTY & OJOL
 
-Kolom `service_packages.royalty_price` diisi admin per paket dan dipakai saat order dibuat dengan `royalty: true`. Detail aturannya ada di bagian 6.2 (Paket & Order).
+Kolom `service_packages.royalty_price` dan `service_packages.ojol_price` diisi admin per paket lewat Pengaturan. Keduanya dipakai saat order dibuat dengan `royalty: true` atau `ojol: true`. Jika keduanya aktif, aturan ROYALTY yang dipakai. Detail aturannya ada di bagian 6.2 (Paket & Order).
 
 ---
 
@@ -300,8 +301,8 @@ Cookie sesi dikirim lewat header `set-cookie`. Klien harus memakai `credentials:
 | Method | Path | Akses | Keterangan |
 |---|---|---|---|
 | GET | `/api/packages?vehicleType=motor\|mobil&includeInactive=true` | admin | Daftar paket, urut `sortOrder` lalu nama |
-| POST | `/api/packages` | admin | Buat paket |
-| PATCH | `/api/packages/:id` | admin | Ubah sebagian field |
+| POST | `/api/packages` | admin | Buat paket (termasuk `royaltyPrice` dan `ojolPrice`, keduanya nullable) |
+| PATCH | `/api/packages/:id` | admin | Ubah sebagian field (termasuk `royaltyPrice` dan `ojolPrice`) |
 | DELETE | `/api/packages/:id` | admin | Soft-delete (`active = false`) |
 
 Body POST:
@@ -428,6 +429,7 @@ Aturan order:
 - `vehicleName` opsional dan disimpan ke `vehicles.brand`; bila kosong, brand kendaraan tidak diubah.
 - `payment` tetap opsional. `discount` juga diterima schema (integer >= 0, opsional), tetapi nilai yang tercatat dihitung server dari selisih harga, bukan dari input.
 - `royalty: true` mengaktifkan aturan ROYALTY: paket dengan nama cocok `/reguler/i` harganya `0`; paket lain memakai `pkg.royaltyPrice ?? pkg.price`; add-on tetap harga normal.
+- `ojol: true` mengaktifkan harga OJOL: `pkg.ojolPrice ?? pkg.price` (tanpa aturan Reguler gratis otomatis); add-on tetap harga normal. Jika `royalty` dan `ojol` sama-sama `true`, ROYALTY menang.
 - Selisih `discount = pkg.price - effectivePrice` dicatat pada order sebagai piutang (`orders.discount`). Pajak dihitung dari subtotal setelah diskon tersebut.
 - Order baru selalu status `menunggu`; pembayaran saat pembuatan tetap disimpan.
 - Order `selesai` dengan pembayaran otomatis menjadi `paid`; tanpa pembayaran tetap `selesai` sampai dibayar lewat endpoint payment.
