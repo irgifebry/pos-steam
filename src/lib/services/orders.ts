@@ -555,13 +555,18 @@ export async function createOrder(
           return sum + (addon ? addon.price * line.qty : 0);
         }, 0);
         // ROYALTY: paket Reguler gratis; paket lain pakai harga ROYALTY yang
-        // diatur admin per paket. Add-on tetap harga normal.
+        // diatur admin per paket. Add-on tetap harga normal. ROYALTY menang
+        // bila kedua flag aktif.
+        // OJOL: pakai harga OJOL yang diatur admin per paket (boleh 0).
+        // Tidak ada aturan gratis-Reguler otomatis; fallback ke harga normal.
         const isReguler = /reguler/i.test(pkg.name);
         const packagePrice = data.royalty
           ? isReguler
             ? 0
             : (pkg.royaltyPrice ?? pkg.price)
-          : pkg.price;
+          : data.ojol
+            ? (pkg.ojolPrice ?? pkg.price)
+            : pkg.price;
         const subtotal = packagePrice + addonSubtotal;
         const tax = Math.round((subtotal * Number(outlet.taxPercent)) / 100);
         const discount = pkg.price - packagePrice;

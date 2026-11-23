@@ -8,6 +8,7 @@ export const servicePackageInputSchema = z.object({
   vehicleType: vehicleTypeSchema,
   price: z.number().int().positive("Harga harus lebih dari 0").max(100_000_000),
   royaltyPrice: z.number().int().nonnegative().max(100_000_000).nullable().optional(),
+  ojolPrice: z.number().int().nonnegative().max(100_000_000).nullable().optional(),
   durationMin: z.number().int().nonnegative().max(600).default(0),
   description: z.string().trim().max(200).default(""),
   sortOrder: z.number().int().default(0),
@@ -53,6 +54,7 @@ export const servicePackageUpdateSchema = z.object({
   vehicleType: vehicleTypeSchema.optional(),
   price: z.number().int().positive("Harga harus lebih dari 0").max(100_000_000).optional(),
   royaltyPrice: z.number().int().nonnegative().max(100_000_000).nullable().optional(),
+  ojolPrice: z.number().int().nonnegative().max(100_000_000).nullable().optional(),
   durationMin: z.number().int().nonnegative().max(600).optional(),
   description: z.string().trim().max(200).optional(),
   sortOrder: z.number().int().min(0).max(9999).optional(),
@@ -127,6 +129,7 @@ export const orderCreateSchema = z.object({
   plate: z.string().trim().max(20).default(""),
   discount: z.number().int().nonnegative().optional(),
   royalty: z.boolean().optional(),
+  ojol: z.boolean().optional(),
   payment: orderPaymentInputSchema.optional(),
 });
 

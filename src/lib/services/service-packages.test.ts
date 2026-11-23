@@ -54,6 +54,27 @@ describe("service packages", () => {
     expect(created.createdAt).toBeInstanceOf(Date);
   });
 
+  it("menyimpan ojolPrice saat membuat paket dan mengubahnya saat update", async () => {
+    const created = await createServicePackage(db, outletId, {
+      name: "Paket Ojol",
+      vehicleType: "motor",
+      price: 30000,
+      royaltyPrice: 20000,
+      ojolPrice: 18000,
+      durationMin: 30,
+      description: "",
+      sortOrder: 0,
+      active: true,
+    });
+
+    expect(created.royaltyPrice).toBe(20000);
+    expect(created.ojolPrice).toBe(18000);
+
+    const updated = await updateServicePackage(db, created.id, { ojolPrice: null });
+    expect(updated.ojolPrice).toBeNull();
+    expect(updated.royaltyPrice).toBe(20000);
+  });
+
   it("menolak paket dengan nama yang sama pada tipe kendaraan yang sama", async () => {
     await expect(
       createServicePackage(db, outletId, {

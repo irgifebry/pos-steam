@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addonInputSchema,
   bankInputSchema,
+  orderCreateSchema,
   outletInputSchema,
   servicePackageInputSchema,
   userInputSchema,
@@ -54,6 +55,25 @@ describe("servicePackageInputSchema", () => {
   it("menolak tipe kendaraan di luar motor/mobil", () => {
     const result = vehicleTypeSchema.safeParse("truk");
     expect(result.success).toBe(false);
+  });
+
+  it("menerima ojolPrice nol dan null, menolak nilai negatif", () => {
+    const base = { name: "Ojol", vehicleType: "motor", price: 25000 };
+    expect(servicePackageInputSchema.parse({ ...base, ojolPrice: 0 }).ojolPrice).toBe(0);
+    expect(servicePackageInputSchema.parse({ ...base, ojolPrice: null }).ojolPrice).toBeNull();
+    expect(
+      servicePackageInputSchema.safeParse({ ...base, ojolPrice: -1 }).success,
+    ).toBe(false);
+  });
+});
+
+describe("orderCreateSchema", () => {
+  const base = { vehicleType: "motor", packageId: "paket-1" };
+
+  it("menerima flag ojol opsional", () => {
+    expect(orderCreateSchema.parse(base).ojol).toBeUndefined();
+    expect(orderCreateSchema.parse({ ...base, ojol: true }).ojol).toBe(true);
+    expect(orderCreateSchema.parse({ ...base, ojol: false }).ojol).toBe(false);
   });
 });
 

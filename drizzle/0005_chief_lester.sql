@@ -1,0 +1,1 @@
+ALTER TABLE "service_packages" ADD COLUMN "ojol_price" integer;

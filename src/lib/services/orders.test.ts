@@ -295,6 +295,142 @@ describe("order service", () => {
     });
   });
 
+  it("OJOL memakai ojolPrice yang diatur admin per paket", async () => {
+    const [pkg] = await db
+      .insert(servicePackages)
+      .values({
+        outletId,
+        name: "Ojol Spesial Motor",
+        vehicleType: "motor",
+        price: 30000,
+        ojolPrice: 18000,
+        durationMin: 20,
+        active: true,
+      })
+      .returning({ id: servicePackages.id });
+
+    const order = await createOrder(
+      db,
+      outletId,
+      actor,
+      orderInput({ packageId: pkg.id, ojol: true, customerName: "Ojol A" }),
+    );
+
+    // 18000 paket + 10% pajak = 19800; diskon = 30000 - 18000 = 12000
+    expect(order.packagePrice).toBe(18000);
+    expect(order.total).toBe(18000);
+    expect(order.discount).toBe(12000);
+    expect(order.grandTotal).toBe(19800);
+  });
+
+  it("OJOL fallback ke harga normal saat ojolPrice null (tanpa gratis Reguler otomatis)", async () => {
+    // pkgMotorId adalah "Cuci Reguler Motor" dengan ojolPrice null.
+    const order = await createOrder(
+      db,
+      outletId,
+      actor,
+      orderInput({ ojol: true, customerName: "Ojol Reguler" }),
+    );
+
+    expect(order.packageName).toBe("Cuci Reguler Motor");
+    expect(order.packagePrice).toBe(25000);
+    expect(order.total).toBe(25000);
+    expect(order.discount).toBe(0);
+    expect(order.grandTotal).toBe(27500);
+  });
+
+  it("ROYALTY menang atas OJOL saat kedua flag aktif", async () => {
+    const [pkg] = await db
+      .insert(servicePackages)
+      .values({
+        outletId,
+        name: "Paket Royalty Ojol Motor",
+        vehicleType: "motor",
+        price: 40000,
+        royaltyPrice: 20000,
+        ojolPrice: 15000,
+        durationMin: 20,
+        active: true,
+      })
+      .returning({ id: servicePackages.id });
+
+    const order = await createOrder(
+      db,
+      outletId,
+      actor,
+      orderInput({
+        packageId: pkg.id,
+        royalty: true,
+        ojol: true,
+        customerName: "Royalty Ojol",
+      }),
+    );
+
+    // royaltyPrice 20000 dipakai, bukan ojolPrice 15000
+    expect(order.packagePrice).toBe(20000);
+    expect(order.total).toBe(20000);
+    expect(order.discount).toBe(20000);
+    expect(order.grandTotal).toBe(22000);
+  });
+
+  it("ROYALTY tetap membuat paket Reguler gratis walau flag ojol aktif", async () => {
+    const [pkg] = await db
+      .insert(servicePackages)
+      .values({
+        outletId,
+        name: "Cuci Reguler Royalty Motor",
+        vehicleType: "motor",
+        price: 25000,
+        royaltyPrice: 10000,
+        ojolPrice: 5000,
+        durationMin: 20,
+        active: true,
+      })
+      .returning({ id: servicePackages.id });
+
+    const order = await createOrder(
+      db,
+      outletId,
+      actor,
+      orderInput({
+        packageId: pkg.id,
+        royalty: true,
+        ojol: true,
+        customerName: "Royalty Reguler",
+      }),
+    );
+
+    expect(order.packagePrice).toBe(0);
+    expect(order.total).toBe(0);
+    expect(order.discount).toBe(25000);
+    expect(order.grandTotal).toBe(0);
+  });
+
+  it("OJOL bisa memakai ojolPrice 0 secara eksplisit", async () => {
+    const [pkg] = await db
+      .insert(servicePackages)
+      .values({
+        outletId,
+        name: "Ojol Gratis Eksplisit Motor",
+        vehicleType: "motor",
+        price: 20000,
+        ojolPrice: 0,
+        durationMin: 20,
+        active: true,
+      })
+      .returning({ id: servicePackages.id });
+
+    const order = await createOrder(
+      db,
+      outletId,
+      actor,
+      orderInput({ packageId: pkg.id, ojol: true, customerName: "Ojol Gratis" }),
+    );
+
+    expect(order.packagePrice).toBe(0);
+    expect(order.discount).toBe(20000);
+  });
+
   // type references keep imports used
   it("referensi skema tersedia", () => {
     expect(typeof orderItems).toBe("object");
