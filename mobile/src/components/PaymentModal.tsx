@@ -182,7 +182,7 @@ function buildStyles(colors: Palette) {
   quickActiveText: { color: colors.brandDark },
   input: { borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 11, height: 48, paddingHorizontal: 12, color: colors.ink, backgroundColor: colors.surface },
   change: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  changeValue: { color: colors.successDark, fontSize: 18, fontWeight: '800' },
+  changeValue: { color: colors.ink, fontSize: 18, fontWeight: '800' },
   bank: { borderWidth: 1, borderColor: colors.line, padding: 11, borderRadius: 10, gap: 3, backgroundColor: colors.surface },
   name: { color: colors.ink, fontWeight: '700' },
   bankSub: { color: colors.muted, fontSize: 12 },
