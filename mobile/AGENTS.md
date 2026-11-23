@@ -30,6 +30,7 @@ Run lint and typecheck before declaring any task done.
 - Screens live in `src/screens/`; settings sub-screens are under `src/screens/settings/`. Reusable components in `src/components/`, shared theme in `src/theme/`.
 - There are 4 tabs: **Kasir, Antrean, Laporan, Pengaturan**. Admin user management lives in the Pengaturan tab.
 - Use `useNavigation<NativeStackNavigationProp<RootStackParamList>>()` and `navigation.navigate(...)` for screen transitions. Native stack headers provide platform back buttons.
+- Pengaturan has six sub-pages: Paket Layanan, **ROYALTY**, **OJOL**, Add-on, Rekening Bank, Pengguna. ROYALTY and OJOL pages edit per-package special prices (`royaltyPrice`, `ojolPrice`); ROYALTY takes precedence when both customer flags are on in Kasir.
 - Theme: **light mode only**. Use `useTheme()` / `useStyles()` from `src/theme/`; do not reintroduce a dark palette or a mode toggle.
 - Docs (React Navigation): https://reactnavigation.org/docs/getting-started
 
