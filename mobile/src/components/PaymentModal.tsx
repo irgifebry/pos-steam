@@ -13,6 +13,7 @@ export function PaymentModal({ visible, total, banks, onClose, onSubmit }: Props
   const styles = useStyles(buildStyles);
   const [method, setMethod] = useState<Method>('cash');
   const [cash, setCash] = useState(String(total));
+  const [selectedNominal, setSelectedNominal] = useState<string | null>('Pas');
   const [bankId, setBankId] = useState('');
   const [referenceNo, setReferenceNo] = useState('');
   const [error, setError] = useState('');
@@ -21,6 +22,7 @@ export function PaymentModal({ visible, total, banks, onClose, onSubmit }: Props
   useEffect(() => {
     if (visible) {
       setCash(String(total));
+      setSelectedNominal('Pas');
       setMethod('cash');
       setBankId('');
       setReferenceNo('');
@@ -74,21 +76,29 @@ export function PaymentModal({ visible, total, banks, onClose, onSubmit }: Props
               <>
                 <Text style={styles.label}>Nominal diterima</Text>
                 <View style={styles.row}>
-                  {nominalButtons.map(({ label, value }) => (
-                    <Pressable
-                      key={label}
-                      onPress={() => setCash(String(value === 0 ? total : value))}
-                      style={styles.quick}
-                    >
-                      <Text style={styles.quickText}>{label}</Text>
-                    </Pressable>
-                  ))}
+                  {nominalButtons.map(({ label, value }) => {
+                    const selected = selectedNominal === label;
+                    return (
+                      <Pressable
+                        key={label}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected }}
+                        onPress={() => {
+                          setCash(String(value === 0 ? total : value));
+                          setSelectedNominal(label);
+                        }}
+                        style={[styles.quick, selected && styles.quickActive]}
+                      >
+                        <Text style={[styles.quickText, selected && styles.quickActiveText]}>{label}</Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
                 <TextInput
                   accessibilityLabel="Uang diterima"
                   keyboardType="number-pad"
                   value={cash}
-                  onChangeText={(value) => setCash(value.replace(/\D/g, ''))}
+                  onChangeText={(value) => { setCash(value.replace(/\D/g, '')); setSelectedNominal(null); }}
                   style={styles.input}
                 />
                 <View style={styles.change}>
@@ -167,7 +177,9 @@ function buildStyles(colors: Palette) {
   activeText: { color: colors.brandDark },
   label: { color: colors.ink, fontSize: 13, fontWeight: '700' },
   quick: { flex: 1, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.line, borderRadius: 9, paddingVertical: 10, alignItems: 'center' },
+  quickActive: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
   quickText: { color: colors.ink, fontWeight: '700' },
+  quickActiveText: { color: colors.brandDark },
   input: { borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 11, height: 48, paddingHorizontal: 12, color: colors.ink, backgroundColor: colors.surface },
   change: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   changeValue: { color: colors.successDark, fontSize: 18, fontWeight: '800' },
