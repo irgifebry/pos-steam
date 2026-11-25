@@ -5,10 +5,9 @@ import type { Session, User } from '../types';
 
 const KEYS = { session: '@pos/session', user: '@pos/user' } as const;
 
-// Base URL produksi. Atur EXPO_PUBLIC_API_BASE_URL saat build untuk mengarahkan
-// aplikasi ke backend yang di-deploy (mis. https://pos-api.vercel.app).
-// Jika kosong, pakai alamat development di bawah.
-const PRODUCTION_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || '')
+// Base URL produksi. EXPO_PUBLIC_API_BASE_URL bisa mengganti URL default saat
+// build; fallback production menjaga app tetap terhubung tanpa konfigurasi EAS.
+const PRODUCTION_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || 'https://pos-cuci-steam-natz-x-porto.vercel.app')
   .trim()
   .replace(/\/+$/, '');
 
