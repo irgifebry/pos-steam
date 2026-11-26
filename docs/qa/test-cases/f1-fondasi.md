@@ -164,4 +164,4 @@
 
 - Test case ini mengikuti Rencana 01. Jika ada perbedaan dengan PRD, lihat **§14 Test Plan — Catatan & Pertanyaan Terbuka**.
 - Beberapa test case (mis. F1-052, F1-098) baru bisa dibuktikan penuh setelah F2/F7. Untuk F1, verifikasi di level service/schema dan tandai sebagai "sebagian".
-- Jika implementasi F1 mengubah kontrak (mis. nama endpoint), perbarui test case ini di PR yang sama.
+- Jika implementasi F1 mengubah kontrak (mis. nama endpoint), perbarui test case ini di commit yang sama.

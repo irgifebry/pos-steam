@@ -17,7 +17,7 @@ Gunakan checklist ini untuk memastikan perubahan baru tidak merusak fitur yang s
 | # | Cek | Test Case | Lulus |
 |---|---|---|---|
 | 1 | Root `/` JSON status dan `GET /api/health` 200 | F1-001 | [ ] |
-| 2 | Typecheck, lint, test (27 file/119 test), build | F1-002 | [ ] |
+| 2 | Typecheck, lint, test (27 file/120 test), build | F1-002 | [ ] |
 | 3 | Login email + PIN seed `admin@pos.test` / `123456` | F1-033 | [ ] |
 | 4 | Endpoint tanpa sesi → 401 `UNAUTHENTICATED` | F1-035 | [ ] |
 | 5 | Envelope error `{ error: { code, message } }` konsisten | F1-035 | [ ] |
@@ -45,7 +45,7 @@ Jika salah satu gagal: **jangan push**. Perbaiki dulu dan ulangi smoke test.
 
 ### 2.2 Skema & Validasi
 
-- [ ] 18 tabel terbentuk setelah migrasi (`0000`–`0003`)
+- [ ] 15 tabel terbentuk setelah migrasi (`0000`–`0005`)
 - [ ] Unique constraint `(outlet_id, vehicle_type, name)` pada `service_packages`
 - [ ] Unique `(outlet_id, name)` pada `addons`
 - [ ] Unique `client_id` dan `(outlet_id, invoice_no)` pada `orders`
@@ -60,16 +60,16 @@ Jika salah satu gagal: **jangan push**. Perbaiki dulu dan ulangi smoke test.
 
 - [ ] Signup default `admin`, `active=true`
 - [ ] Signup tidak bisa mengisi `role`/`active`
-- [ ] PIN <6 ditolak, 6 diterima
+- [ ] PIN <6 atau >12 ditolak; 6–12 diterima
 - [ ] Login email + PIN valid/salah
 - [ ] Tanpa sesi → 401 `UNAUTHENTICATED`
-- [ ] Role salah → 403 `FORBIDDEN`
+- [ ] Endpoint terproteksi hanya bisa diakses sesi `admin` aktif; health, struk publik, dan auth tetap publik
 - [ ] User nonaktif tidak bisa login dan sesi lama mati
 - [ ] Reset PIN bekerja; PIN lama gagal
-- [ ] Admin terakhir tidak bisa di-demote/deactivate
+- [ ] Admin terakhir tidak bisa dinonaktifkan
 - [ ] Cookie `httpOnly`, tidak ada token di `localStorage`
 - [ ] `GET /api/users?light=1` hanya mengembalikan `id`, `name`, `role`
-- [ ] Matriks RBAC semua endpoint
+- [ ] Matriks otorisasi semua endpoint (admin-only kecuali health, struk publik, dan auth)
 - [ ] Isolasi data per outlet
 - [ ] Envelope error konsisten dan Bahasa Indonesia
 - [ ] Service key/DB driver tidak ada di client bundle
@@ -175,7 +175,7 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 ### 5.1 Setup & Kesehatan
 
 - [ ] `npx tsc --noEmit` di root dan `mobile/` bersih; `npx expo-doctor` 20/20
-- [ ] `npm test` root lulus (**27 file / 119 test**)
+- [ ] `npm test` root lulus (**27 file / 120 test**)
 - [ ] Expo Web `http://localhost:8081` terhubung ke backend `http://localhost:3001`
 - [ ] CORS proxy (`src/proxy.ts`, matcher `/api/:path*`) aktif: preflight `OPTIONS /api/*` dari origin Expo Web balas 204 dengan header CORS; origin produksi dari `WEB_ORIGIN`/`BETTER_AUTH_URL` juga diterima (comma-separated)
 - [ ] Respons sukses `{ data: ... }` dan error `{ error: { code, message } }` konsisten di endpoint yang dipakai mobile

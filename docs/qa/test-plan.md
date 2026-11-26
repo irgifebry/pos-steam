@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Versi** | 1.2 |
+| **Versi** | 1.3 |
 | **Tanggal** | 28/10/2026 |
-| **Diperbarui** | 23/11/2026 |
+| **Diperbarui** | 26/11/2026 |
 | **Pemilik** | Dimas (`@dimas22231`) — QA |
-| **Status** | Aktif — test case F1 siap dieksekusi setelah implementasi F1 selesai |
+| **Status** | Aktif — F1 historis, F2 tersedia; P0 API 25/25 PASS, mobile & F3–F7 pending |
 | **Referensi utama** | [`prd.md`](../../prd.md), [`Rencana 01`](../superpowers/plans/2026-10-20-01-fondasi.md), [`CONTRIBUTING.md`](../../CONTRIBUTING.md) |
 
 > Dokumen ini adalah acuan pengujian. Perubahan perilaku bisnis harus diperbarui di `prd.md` lebih dulu, lalu test plan dan test case disesuaikan.
@@ -74,7 +74,7 @@ Sesuai PRD §4.2, dengan penyesuaian karena pengujian berfokus pada backend API 
 | Lingkungan | Kegunaan | Catatan |
 |---|---|---|
 | **Local** | Development & test otomatis | `npm run dev`, PGlite untuk test API |
-| **Vercel Preview** | Verifikasi PR | Satu preview per PR; QA retest di sini |
+| **Vercel Preview** | Verifikasi commit sebelum/sesudah push | Satu deployment per commit; QA retest di sini |
 | **Production** | Smoke test setelah rilis | Jangan pakai data uji di production |
 
 **Menjalankan backend & mobile (local):**
@@ -94,9 +94,10 @@ Expo Web memerlukan **CORS proxy** di [`src/proxy.ts`](../../src/proxy.ts) (matc
 
 | Perintah / item | Hasil |
 |---|---|
-| `npm test` (root) | **27 file / 119 test lulus** (termasuk test CORS proxy) |
+| `npm test` (root) | **27 file / 120 test lulus** (termasuk test CORS proxy) |
 | `npx tsc --noEmit` (root & `mobile/`) | bersih |
 | `npx expo-doctor` (`mobile/`) | **20/20** |
+| P0 API E2E (26/11/2026) | **25/25 PASS** — [laporan](./test-runs/2026-11-26-p0-api.md) |
 | Preview | Expo Web `http://localhost:8081` ↔ backend `http://localhost:3001` |
 
 **Matriks perangkat:**
@@ -226,7 +227,7 @@ Expo Web memerlukan **CORS proxy** di [`src/proxy.ts`](../../src/proxy.ts) (matc
 
 Mengacu pada Verifikasi Akhir Rencana 01:
 
-- [ ] `npm test` semua PASS (27 file / 119 test), tidak ada test skip.
+- [ ] `npm test` semua PASS (27 file / 120 test), tidak ada test skip.
 - [ ] `npm run typecheck` exit 0.
 - [ ] `npm run lint` tanpa error.
 - [ ] `npm run build` sukses; semua route API terdeteksi.
@@ -249,7 +250,7 @@ Baru → Triage → In Progress → Fixed → Ready for Retest → Closed
 |---|---|---|
 | **Baru** | QA | Buat issue dengan template bug report, lampirkan bukti |
 | **Triage** | QA + developer/PO | Tentukan severity, prioritas, dan pemilik |
-| **In Progress** | Developer | Perbaiki di branch `fix/...`, PR menyebut issue |
+| **In Progress** | Developer | Perbaiki langsung di `main`; commit fokus menyebut issue |
 | **Fixed** | Developer | Deploy ke Preview, minta retest |
 | **Ready for Retest** | QA | Jalankan ulang langkah reproduksi + regression area terkait |
 | **Closed** | QA | Hanya jika terbukti lolos dan bukti retest dilampirkan |
@@ -268,7 +269,7 @@ Baru → Triage → In Progress → Fixed → Ready for Retest → Closed
 
 - Satu issue = satu bug.
 - Sertakan ID test case (mis. `F1-042`).
-- Sertakan environment, commit/PR, perangkat, langkah, expected vs actual, bukti.
+- Sertakan environment, commit/deployment, perangkat, langkah, expected vs actual, bukti.
 - Jangan menutup bug tanpa retest.
 - Kerentanan keamanan **jangan** dilaporkan sebagai issue publik; hubungi maintainer secara privat.
 
@@ -276,7 +277,7 @@ Baru → Triage → In Progress → Fixed → Ready for Retest → Closed
 
 ## 9. Definition of Done (QA)
 
-Sebuah PR/fitur dianggap selesai dari sisi QA jika:
+Sebuah commit/fitur dianggap selesai dari sisi QA jika:
 
 - [ ] Test case terkait sudah dieksekusi dan statusnya diperbarui.
 - [ ] Bukti uji dilampirkan (screenshot/video/log untuk UI; output test untuk otomatis).
@@ -285,7 +286,7 @@ Sebuah PR/fitur dianggap selesai dari sisi QA jika:
 - [ ] Tidak ada bug S1/S2 terbuka.
 - [ ] Perilaku sesuai acceptance criteria PRD.
 - [ ] Dokumentasi (PRD/README/test case) diperbarui bila perilaku berubah.
-- [ ] QA menulis sign-off di PR atau issue rilis.
+- [ ] QA menulis sign-off di laporan run atau issue rilis.
 
 ---
 
@@ -294,13 +295,13 @@ Sebuah PR/fitur dianggap selesai dari sisi QA jika:
 | Fase | Fokus QA | Risiko utama |
 |---|---|---|
 | **F1 — Fondasi** | Auth, RBAC, master data, kontrak API, seed | Sesi user nonaktif, eskalasi role, duplikasi master data, service key bocor |
-| **F2 — Kasir Inti** | Transaksi ≤ 30 detik, nomor antrean/invoice, pembayaran tunai/transfer, struk, buka/tutup kas | Invoice ganda, kembalian salah, price snapshot berubah, verifikasi transfer |
+| **F2 — Kasir Inti** | Transaksi ≤ 30 detik, nomor antrean/invoice, ROYALTY/OJOL, pembayaran tunai/transfer, struk, mobile E2E | Invoice ganda, kembalian salah, price snapshot berubah, verifikasi transfer |
 | **F3 — Papan Status** | Timer, transisi status, filter, polling | Timer reset, status tidak sinkron, order lunas masih tampil |
 | **F4 — Laporan** | Rekonsiliasi omzet, filter periode, export CSV, cetak | Omzet tidak cocok, timezone, CSV rusak di Excel |
 | **F6 — Offline** | Airplane mode, antrean sync, idempotensi, indikator pending | Duplikasi transaksi, konflik nomor invoice, data master basi |
 | **F7 — Polish** | Audit log, error handling, empty state, PDF, validasi akhir | Aksi sensitif tanpa audit, error membocorkan detail internal |
 
-> Test case F2–F7 ditulis setelah fase sebelumnya selesai dan terverifikasi, sesuai aturan di [`docs/superpowers/plans/README.md`](../superpowers/plans/README.md).
+> **Status 26/11/2026:** test case F2 sudah tersedia di [`test-cases/f2-kasir-inti.md`](./test-cases/f2-kasir-inti.md); P0 API lulus 25/25, mobile E2E dan sisa kasus negatif belum. F3–F7 ditulis setelah F2 stabil, sesuai aturan di [`docs/superpowers/plans/README.md`](../superpowers/plans/README.md).
 
 ---
 
@@ -342,34 +343,37 @@ Dipantau per fase, bukan untuk menilai individu:
 | Artefak | Lokasi |
 |---|---|
 | Test plan | `docs/qa/test-plan.md` |
-| Test case F1 | `docs/qa/test-cases/f1-fondasi.md` |
+| Test case F1 (historis) | `docs/qa/test-cases/f1-fondasi.md` |
+| Test case F2 | `docs/qa/test-cases/f2-kasir-inti.md` |
 | Checklist regresi | `docs/qa/regression-checklist.md` (§1–§4 API, §5 Regresi Mobile) |
+| Template laporan run | `docs/qa/test-run-template.md` |
+| Laporan run terbaru | `docs/qa/test-runs/2026-11-26-p0-api.md` |
 | Backend API | `src/app/api/**`, `src/lib/**` (kontrak di `docs/backend/README.md`) |
 | Klien mobile | `mobile/` (Expo SDK ~58, React Navigation v7) |
 | Proxy CORS | `src/proxy.ts` |
 | Template bug | `.github/ISSUE_TEMPLATE/bug_report.yml` |
 | Template PR | `.github/pull_request_template.md` |
 
-**Aturan repo:**
+**Aturan repo (mengikuti [`AGENTS.md`](../../AGENTS.md)):**
 
-- Jangan commit langsung ke `main`.
-- Branch QA: `test/nama-pengujian` atau `docs/qa/nama-dokumen`.
-- Commit mengikuti Conventional Commits: `test(kasir): tambah test idempotensi`, `docs(qa): perbarui test plan F1`.
-- PR wajib menjelaskan **apa yang diubah** dan **cara memverifikasi**.
-- Review ke `Najwan48` atau `irgifebry`.
+- Bekerja langsung di `main`; jangan membuat branch fitur, fix, atau QA.
+- Commit terkait dalam sedikit commit fokus di `main`, lalu push ke `origin main`.
+- Sebelum push: cek `git status`, jalankan check relevan, dan pastikan `main` sama dengan `origin/main`.
+- Commit mengikuti Conventional Commits: `test(kasir): tambah test idempotensi`, `docs(qa): tambah test case F2`.
+- Jangan force-push atau menulis ulang history bersama.
 
 ---
 
 ## 14. Catatan & Pertanyaan Terbuka
 
-Temuan dokumentasi/kontrak yang perlu dikonfirmasi sebelum atau selama F1–F2. Ini bukan bug kode (kode belum ada), tetapi berpotensi menjadi bug jika tidak diputuskan.
+Temuan dokumentasi/kontrak yang masih terbuka setelah implementasi F1–F2. Status diperbarui per 26/11/2026; butir yang sudah diputuskan tetap dicatat sebagai jejak keputusan.
 
 | # | Temuan | Dampak | Rekomendasi | Status |
 |---|---|---|---|---|
-| 1 | **Panjang PIN berbeda**: PRD §5.1 dan §9.3 menyebut PIN 4 angka; README dan Rencana 01 mengunci minimal 6 karakter | Login/UX dan test case bisa salah | Konfirmasi ke PO; test mengikuti 6 sampai ada keputusan baru | Perlu keputusan |
-| 2 | **Casing status berbeda**: PRD memakai `MENUNGGU/PROSES/SELESAI/DIBATALKAN`; schema Rencana 01 memakai default `'menunggu'` huruf kecil | Filter/laporan/status bisa tidak cocok di F2 | Kunci satu format (disarankan uppercase di API/DB) sebelum F2 | Perlu keputusan |
-| 3 | **Cakupan endpoint `/api/settings`**: PRD §8 menyebut Pengaturan hanya Admin; Rencana 01 Task 8 membuka GET untuk semua peran | Kontrak endpoint kurang jelas | Pastikan hanya mengembalikan data outlet dan bank | Perlu keputusan |
-| 4 | **`GET /api/users?light=1`** tidak ada di kontrak API PRD §10 | Kontrak tidak lengkap; risiko field bocor | Dokumentasikan di PRD; pastikan hanya `id,name,role` | Perlu dokumentasi |
+| 1 | **Panjang PIN berbeda**: PRD §5.1 dan §9.3 menyebut PIN 4 angka; README dan Rencana 01 mengunci minimal 6 karakter | Login/UX dan test case bisa salah | Test mengikuti 6 karakter | Selesai — `pinSchema` 6–12 karakter; login memakai field `password` |
+| 2 | **Casing status berbeda**: PRD memakai `MENUNGGU/PROSES/SELESAI/DIBATALKAN`; schema Rencana 01 memakai default `'menunggu'` huruf kecil | Filter/laporan/status bisa tidak cocok di F2 | Kunci satu format | Selesai — API/DB memakai lowercase `menunggu/proses/selesai/paid/dibatalkan` |
+| 3 | **Cakupan endpoint `/api/settings`**: PRD §8 menyebut Pengaturan hanya Admin; Rencana 01 Task 8 membuka GET untuk semua peran | Kontrak endpoint kurang jelas | Pastikan hanya mengembalikan data outlet dan bank | Selesai — `GET/PATCH /api/settings` admin-only, GET = outlet + bank aktif |
+| 4 | **`GET /api/users?light=1`** tidak ada di kontrak API PRD §10 | Kontrak tidak lengkap; risiko field bocor | Dokumentasikan di PRD; pastikan hanya `id,name,role` | Selesai — terdokumentasi di `docs/backend/README.md` dan diverifikasi P0 (hanya 3 field) |
 | 5 | **Cakupan audit log**: Global Constraints mewajibkan semua endpoint sensitif; Rencana 01 hanya eksplisit untuk user | Perubahan harga/pajak/bank bisa tanpa jejak | Tentukan daftar aksi yang diaudit di F1/F2 | Perlu keputusan |
 | 6 | **PIN admin seed** `123456` (nama `testing`) | Risiko keamanan jika dipakai di production | Wajib ganti setelah seed di environment non-local | Mitigasi |
 | 7 | **Harga seed 1000** hanya placeholder | Data UAT tidak realistis | Ganti lewat Pengaturan sebelum UAT | Tindakan |
@@ -388,3 +392,4 @@ Temuan dokumentasi/kontrak yang perlu dikonfirmasi sebelum atau selama F1–F2. 
 | 1.0 | 28/10/2026 | Dokumen awal | Dimas |
 | 1.1 | 21/11/2026 | Ruang lingkup dua klien (web + mobile), environment Expo & CORS proxy, verifikasi terkini, fokus prioritas mobile | Dimas |
 | 1.2 | 23/11/2026 | Hapus ruang lingkup klien web (frontend dihapus); fokus backend API + Expo, `EXPO_PUBLIC_API_BASE_URL`, CORS origin produksi, verifikasi 27 file/119 test | Dimas |
+| 1.3 | 26/11/2026 | Tambah artefak F2, template/laporan test run, status P0 API 25/25 PASS, verifikasi ulang 27 file/120 test, selesaikan open question PIN/casing/settings/users-light, selaraskan aturan kontribusi dengan `AGENTS.md` | Dimas |

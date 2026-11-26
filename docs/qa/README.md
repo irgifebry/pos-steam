@@ -8,7 +8,10 @@ Dokumen pengujian untuk proyek POS Cuci Steam. QA bertanggung jawab memastikan a
 |---|---|
 | [`test-plan.md`](./test-plan.md) | Strategi, ruang lingkup, environment, data uji, prioritas, alur bug, roadmap QA, dan pertanyaan terbuka |
 | [`test-cases/f1-fondasi.md`](./test-cases/f1-fondasi.md) | Test case F1 historis (sebagian butir UI web tidak lagi relevan; baca sebagai kontrak API) |
+| [`test-cases/f2-kasir-inti.md`](./test-cases/f2-kasir-inti.md) | Test case F2 — Kasir Inti: order, antrean, ROYALTY/OJOL, pembayaran, struk, laporan, mobile E2E |
 | [`regression-checklist.md`](./regression-checklist.md) | Smoke test PR, regresi backend API, invariant lintas fase, regresi mobile (Expo), release checklist |
+| [`test-run-template.md`](./test-run-template.md) | Template laporan eksekusi per run (scope, hasil, defect, sign-off) |
+| [`test-runs/2026-11-26-p0-api.md`](./test-runs/2026-11-26-p0-api.md) | Hasil run P0 API 26/11/2026: 25/25 PASS |
 
 Template:
 
@@ -28,23 +31,24 @@ Perbedaan yang perlu diingat saat menguji:
 
 - Backend berjalan di **`http://localhost:3001`** (port `3000` dipakai proyek lain). Untuk produksi, Expo memakai `EXPO_PUBLIC_API_BASE_URL=https://<backend>.vercel.app`.
 - Mobile memakai **tema terang saja** (dark mode dihapus) dan hanya punya **4 tab**: Kasir, Antrean, Laporan, Pengaturan. Pengelolaan pengguna admin ada di Pengaturan → Pengguna.
-- Pengaturan mobile dipecah menjadi sub-halaman **Paket Layanan, Add-on, Rekening Bank, Pengguna**. Di mobile, data dihapus lewat **Hapus** (DELETE), bukan "Nonaktifkan"; daftar hanya memuat record aktif.
+- Pengaturan mobile dipecah menjadi 6 sub-halaman: **Paket Layanan, ROYALTY, OJOL, Add-on, Rekening Bank, Pengguna**. Di mobile, data dihapus lewat **Hapus** (DELETE), bukan "Nonaktifkan"; daftar hanya memuat record aktif.
 - Role yang berlaku: **hanya `admin`**. Istilah lama pada test case historis dibaca sebagai `admin`.
 
 ## Status
 
-- **F1 — Fondasi:** test case sudah tersedia; implementasi berjalan dan sebagian sudah terverifikasi (lihat verifikasi terkini di bawah).
-- **F2–F7:** test case ditulis setelah fase sebelumnya selesai dan terverifikasi (sesuai aturan di [`docs/superpowers/plans/README.md`](../superpowers/plans/README.md)).
-- **Verifikasi terkini (lokal):** `npm test` root lulus (**27 file / 119 test**); `npx tsc --noEmit` root dan mobile bersih; `npx expo-doctor` **20/20**. Backend `http://localhost:3001`; Expo Web `http://localhost:8081` memerlukan CORS `src/proxy.ts`, yang kini juga mengizinkan origin dari `WEB_ORIGIN`/`BETTER_AUTH_URL` untuk produksi.
+- **F1 — Fondasi:** test case historis tersedia; sebagian butir UI web/role lama perlu dibaca sebagai kontrak API atau diperbarui.
+- **F2 — Kasir Inti:** test case tersedia; **P0 API sudah dieksekusi 25/25 PASS** pada 26/11/2026. Modul mobile F2 dan sisa kasus negatif belum dieksekusi.
+- **F3–F7:** belum ada file test case; tulis setelah F2 stabil (sesuai aturan di [`docs/superpowers/plans/README.md`](../superpowers/plans/README.md)).
+- **Verifikasi terkini (lokal):** `npm test` root lulus (**27 file / 120 test**); `npx tsc --noEmit` root dan mobile bersih; `npx expo-doctor` **20/20**; P0 API E2E **25/25 PASS** ([laporan](./test-runs/2026-11-26-p0-api.md)). Backend `http://localhost:3001`; Expo Web `http://localhost:8081` memerlukan CORS `src/proxy.ts`, yang kini juga mengizinkan origin dari `WEB_ORIGIN`/`BETTER_AUTH_URL` untuk produksi.
 
 ## Alur Cepat QA
 
 1. Baca [`test-plan.md`](./test-plan.md), terutama §6 (prioritas), §7 (exit criteria), dan §8 (alur bug).
 2. Sebelum push, jalankan **Smoke Test** di [`regression-checklist.md`](./regression-checklist.md) §1, ditambah **Regresi Mobile (Expo)** (§5) jika perubahan menyentuh `mobile/` atau kontrak API.
-3. Eksekusi test case API/backend yang relevan dan perbarui kolom Status di test case historis bila masih dipakai.
+3. Eksekusi test case F2 yang relevan, lalu perbarui kolom Status dan tulis laporan memakai [`test-run-template.md`](./test-run-template.md). Contoh hasil terbaru ada di [`test-runs/2026-11-26-p0-api.md`](./test-runs/2026-11-26-p0-api.md).
 4. Jika gagal, buat issue dengan template bug report. Sertakan ID test case, environment, langkah, expected vs actual, dan bukti.
 5. Setelah developer memperbaiki, retest di Preview. Tutup issue hanya jika terbukti lulus.
-6. Tulis sign-off di PR/issue rilis.
+6. Tulis sign-off di laporan run dan issue rilis.
 
 ## Konvensi ID Test Case
 
@@ -61,8 +65,8 @@ Nomor tidak harus berurutan rapat; gunakan kelompok per modul (mis. `F1-030` unt
 
 ## Aturan Singkat
 
-- Jangan commit langsung ke `main` (lihat `AGENTS.md` root untuk alur kerja aktual).
-- Commit: `test(scope): ...` atau `docs(qa): ...`.
+- Bekerja dan commit langsung di `main`; jangan membuat branch QA (lihat `AGENTS.md` root).
+- Commit: `test(scope): ...` atau `docs(qa): ...`, lalu push ke `origin main`.
 - Jangan memakai data production untuk pengujian destruktif.
 - Jangan menutup bug tanpa bukti retest.
 - Kerentanan keamanan dilaporkan privat ke maintainer, bukan issue publik.
