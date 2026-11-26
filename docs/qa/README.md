@@ -13,6 +13,14 @@ Dokumen pengujian untuk proyek POS Cuci Steam. QA bertanggung jawab memastikan a
 | [`test-run-template.md`](./test-run-template.md) | Template laporan eksekusi per run (scope, hasil, defect, sign-off) |
 | [`test-runs/2026-11-26-p0-api.md`](./test-runs/2026-11-26-p0-api.md) | Hasil run P0 API 26/11/2026: 25/25 PASS |
 
+Versi Microsoft Word (`.docx`) untuk dokumen yang bisa diisi/dibagikan:
+
+| Dokumen Word | Sumber Markdown |
+|---|---|
+| [`F2-Kasir-Inti.docx`](./word/F2-Kasir-Inti.docx) | [`test-cases/f2-kasir-inti.md`](./test-cases/f2-kasir-inti.md) |
+| [`Laporan-P0-API-2026-11-26.docx`](./word/Laporan-P0-API-2026-11-26.docx) | [`test-runs/2026-11-26-p0-api.md`](./test-runs/2026-11-26-p0-api.md) |
+| [`Template-Test-Run-QA.docx`](./word/Template-Test-Run-QA.docx) | [`test-run-template.md`](./test-run-template.md) |
+
 Template:
 
 - Bug report: [`.github/ISSUE_TEMPLATE/bug_report.yml`](../../.github/ISSUE_TEMPLATE/bug_report.yml)
