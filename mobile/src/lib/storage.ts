@@ -5,9 +5,13 @@ import type { Session, User } from '../types';
 
 const KEYS = { session: '@pos/session', user: '@pos/user' } as const;
 
-// Base URL produksi. EXPO_PUBLIC_API_BASE_URL bisa mengganti URL default saat
-// build; fallback production menjaga app tetap terhubung tanpa konfigurasi EAS.
-const PRODUCTION_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || 'https://pos-cuci-steam.vercel.app')
+// Base URL produksi. EXPO_PUBLIC_API_BASE_URL berlaku untuk semua mode.
+// Fallback produksi hanya dipakai pada build produksi — di dev, web memakai
+// localhost:3001 dan native memakai IP host dari Expo (hostUri).
+const PRODUCTION_BASE_URL = (
+  process.env.EXPO_PUBLIC_API_BASE_URL ||
+  (process.env.NODE_ENV === 'production' ? 'https://pos-cuci-steam.vercel.app' : '')
+)
   .trim()
   .replace(/\/+$/, '');
 
