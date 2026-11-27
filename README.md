@@ -28,7 +28,7 @@ Tidak ada halaman atau komponen UI web di repo ini. `npm run dev` hanya menyalak
 |---|---|---|
 | `irgifebry` | **Frontend** | Klien Expo/React Native di [`mobile/`](./mobile/) — Kasir, Antrean, Laporan, Pengaturan, navigasi, tema, dan pengalaman pengguna |
 | `muhamadnajwan23` | Backend | API Route Handlers, service layer, dan skema database |
-| `Dimas` | Kontributor | Perubahan awal (arsip commit) |
+| `Dimas` | QA | Pengujian dan dokumentasi test case / checklist regresi |
 
 Ringkasan endpoint (kontrak lengkap di [`docs/backend/README.md`](./docs/backend/README.md)):
 
