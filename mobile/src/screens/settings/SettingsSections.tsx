@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -13,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Plus, X } from 'lucide-react-native';
+import { useConfirmDialog, type ConfirmOptions } from '../../components/ConfirmDialog';
 import { api } from '../../lib/api';
 import type { Addon, Bank, ServicePackage, User } from '../../types';
 import { useTheme } from '../../theme/ThemeContext';
@@ -74,19 +74,17 @@ function CrudModal({
   );
 }
 
-function confirmDelete(label: string, onConfirm: () => Promise<void>) {
-  Alert.alert(`Hapus ${label}?`, 'Data yang dihapus tidak bisa dikembalikan.', [
-    { text: 'Batal', style: 'cancel' },
-    {
-      text: 'Hapus',
-      style: 'destructive',
-      onPress: () => {
-        void onConfirm().catch((e) =>
-          Alert.alert('Gagal menghapus', e instanceof Error ? e.message : 'Silakan coba lagi.'),
-        );
-      },
-    },
-  ]);
+function makeConfirmDelete(confirm: (options: ConfirmOptions) => void) {
+  return (label: string, onConfirm: () => Promise<void>) => {
+    confirm({
+      title: `Hapus ${label}?`,
+      message: 'Data yang dihapus tidak bisa dikembalikan.',
+      confirmLabel: 'Hapus',
+      cancelLabel: 'Batal',
+      destructive: true,
+      onConfirm,
+    });
+  };
 }
 
 // ─── Tab kendaraan ────────────────────────────────────────────────────────────
@@ -145,6 +143,8 @@ export function PaketSection() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [vehicleTab, setVehicleTab] = useState<VehicleTabKey>('motor');
+  const { confirm, dialog } = useConfirmDialog();
+  const confirmDelete = makeConfirmDelete(confirm);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -283,6 +283,7 @@ export function PaketSection() {
           </Pressable>
         )}
       </CrudModal>
+      {dialog}
     </View>
   );
 }
@@ -438,6 +439,8 @@ export function AddonSection() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [vehicleTab, setVehicleTab] = useState<VehicleTabKey>('motor');
+  const { confirm, dialog } = useConfirmDialog();
+  const confirmDelete = makeConfirmDelete(confirm);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -568,6 +571,7 @@ export function AddonSection() {
           </Pressable>
         )}
       </CrudModal>
+      {dialog}
     </View>
   );
 }
@@ -586,6 +590,8 @@ export function BankSection() {
   const [form, setForm] = useState(emptyBank);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const { confirm, dialog } = useConfirmDialog();
+  const confirmDelete = makeConfirmDelete(confirm);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -671,6 +677,7 @@ export function BankSection() {
           </Pressable>
         )}
       </CrudModal>
+      {dialog}
     </View>
   );
 }
@@ -693,6 +700,8 @@ export function PenggunaSection() {
   const [newPin, setNewPin] = useState('');
   const [pinSaving, setPinSaving] = useState(false);
   const [pinError, setPinError] = useState('');
+  const { confirm, dialog } = useConfirmDialog();
+  const confirmDelete = makeConfirmDelete(confirm);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -832,6 +841,7 @@ export function PenggunaSection() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      {dialog}
     </View>
   );
 }

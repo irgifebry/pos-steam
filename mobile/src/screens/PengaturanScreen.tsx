@@ -1,9 +1,10 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Bike, ChevronRight, Crown, Package, Users, Wallet, Wrench } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
+import { useConfirmDialog } from '../components/ConfirmDialog';
 import { useTheme } from '../theme/ThemeContext';
 import { useStyles } from '../theme/useStyles';
 import type { Palette } from '../theme/palettes';
@@ -16,19 +17,17 @@ export function PengaturanScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
+  const { confirm, dialog } = useConfirmDialog();
+
   function confirmLogout() {
-    Alert.alert('Keluar dari akun?', 'Anda perlu masuk kembali untuk mengakses aplikasi.', [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: 'Keluar',
-        style: 'destructive',
-        onPress: () => {
-          void logout().catch((cause) =>
-            Alert.alert('Gagal keluar', cause instanceof Error ? cause.message : 'Silakan coba lagi.'),
-          );
-        },
-      },
-    ]);
+    confirm({
+      title: 'Keluar dari akun?',
+      message: 'Anda perlu masuk kembali untuk mengakses aplikasi.',
+      confirmLabel: 'Keluar',
+      cancelLabel: 'Batal',
+      destructive: true,
+      onConfirm: () => logout(),
+    });
   }
 
   const menu = [
@@ -41,10 +40,11 @@ export function PengaturanScreen() {
   ] as const;
 
   return (
-    <ScrollView
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 18) + 24 }]}
-    >
+    <>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 18) + 24 }]}
+      >
       <Text style={styles.eyebrow}>PREFERENSI APLIKASI</Text>
       <Text style={styles.title}>Pengaturan</Text>
       <Text style={styles.subtitle}>Kelola layanan, rekening, dan akun aplikasi.</Text>
@@ -82,10 +82,12 @@ export function PengaturanScreen() {
         ))}
       </View>
 
-      <Pressable accessibilityRole="button" onPress={confirmLogout} style={styles.logoutButton}>
-        <Text style={styles.logoutText}>Keluar dari akun</Text>
-      </Pressable>
-    </ScrollView>
+        <Pressable accessibilityRole="button" onPress={confirmLogout} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Keluar dari akun</Text>
+        </Pressable>
+      </ScrollView>
+      {dialog}
+    </>
   );
 }
 
