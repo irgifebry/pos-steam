@@ -8,7 +8,7 @@ Sistem **Point of Sale** untuk outlet cuci steam (motor & mobil). Repo ini beris
 | **Status** | Backend stabil; klien Expo aktif dikembangkan |
 | **Tanggal mulai** | 20 Oktober 2026 |
 | **Dokumen spesifikasi** | [`prd.md`](./prd.md) — lihat catatan implementasi terkini di bagian atas |
-| **Terakhir diperbarui** | 23 November 2026 |
+| **Terakhir diperbarui** | 27 November 2026 |
 
 ---
 
@@ -21,6 +21,14 @@ Sistem **Point of Sale** untuk outlet cuci steam (motor & mobil). Repo ini beris
 | **CORS** | [`src/proxy.ts`](./src/proxy.ts) | Proxy Next.js 16: origin dev lokal dan origin dari `WEB_ORIGIN` / `BETTER_AUTH_URL` |
 
 Tidak ada halaman atau komponen UI web di repo ini. `npm run dev` hanya menyalakan server API; root `/` mengembalikan JSON status (`{ name, status, description, health }`) dan health check tersedia di `GET /api/health`.
+
+## Tim & Peran
+
+| Kontributor | Peran | Fokus utama |
+|---|---|---|
+| `irgifebry` | **Frontend** | Klien Expo/React Native di [`mobile/`](./mobile/) — Kasir, Antrean, Laporan, Pengaturan, navigasi, tema, dan pengalaman pengguna |
+| `muhamadnajwan23` | Backend | API Route Handlers, service layer, dan skema database |
+| `Dimas` | Kontributor | Perubahan awal (arsip commit) |
 
 Ringkasan endpoint (kontrak lengkap di [`docs/backend/README.md`](./docs/backend/README.md)):
 
