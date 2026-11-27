@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Banknote, CarFront, Clock3, CreditCard, FileSpreadsheet, FolderOpen, Motorbike, ReceiptText, Share2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useNoticeDialog } from '../components/NoticeDialog';
+import type { MainTabParamList } from '../navigation/types';
 import { StatCard } from '../components/StatCard';
 import { api } from '../lib/api';
 import { downloadReportExcel, openExportedFile, shareExportedFile, type ExportResult } from '../lib/report-export';
@@ -80,6 +84,8 @@ export function LaporanScreen() {
     dibatalkan: { label: 'Dibatalkan', color: colors.dangerDark, background: colors.dangerSoft },
   };
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  const { notify, dialog } = useNoticeDialog();
   const [periodIndex, setPeriodIndex] = useState(0);
   const [omzet, setOmzet] = useState<OmzetSummary | null>(null);
   const [transactions, setTransactions] = useState<Order[]>([]);
@@ -150,7 +156,7 @@ export function LaporanScreen() {
 
   async function handleExport(from: string, to: string) {
     if (to < from) {
-      Alert.alert('Periode tidak valid', 'Tanggal akhir harus sama atau setelah tanggal awal.');
+      notify({ title: 'Periode tidak valid', message: 'Tanggal akhir harus sama atau setelah tanggal awal.' });
       return;
     }
     setRangeModal(false);
@@ -159,7 +165,7 @@ export function LaporanScreen() {
       setExportResult(await downloadReportExcel('transactions', from, to));
       setResultModal(true);
     } catch (cause) {
-      Alert.alert('Gagal mengekspor', cause instanceof Error ? cause.message : 'Silakan coba lagi.');
+      notify({ title: 'Gagal mengekspor', message: cause instanceof Error ? cause.message : 'Silakan coba lagi.' });
     } finally {
       setExporting(false);
     }
@@ -186,7 +192,7 @@ export function LaporanScreen() {
     try {
       await openExportedFile(exportResult);
     } catch (cause) {
-      Alert.alert('Gagal membuka file', cause instanceof Error ? cause.message : 'Silakan coba lagi.');
+      notify({ title: 'Gagal membuka file', message: cause instanceof Error ? cause.message : 'Silakan coba lagi.' });
     }
   }
 
@@ -195,7 +201,7 @@ export function LaporanScreen() {
     try {
       await shareExportedFile(exportResult);
     } catch (cause) {
-      Alert.alert('Gagal membagikan', cause instanceof Error ? cause.message : 'Silakan coba lagi.');
+      notify({ title: 'Gagal membagikan', message: cause instanceof Error ? cause.message : 'Silakan coba lagi.' });
     }
   }
 
@@ -351,7 +357,12 @@ export function LaporanScreen() {
                   );
                 })
               ) : (
-                <Text style={styles.muted}>{loading ? 'Memuat transaksi…' : `Belum ada transaksi ${periodLabel.toLowerCase()}.`}</Text>
+                <View style={styles.emptyBlock}>
+                  <Text style={styles.muted}>{loading ? 'Memuat transaksi…' : `Belum ada transaksi ${periodLabel.toLowerCase()}.`}</Text>
+                  <Pressable accessibilityRole="button" onPress={() => navigation.navigate('Kasir')} style={styles.emptyCta}>
+                    <Text style={styles.emptyCtaText}>Buat transaksi di Kasir</Text>
+                  </Pressable>
+                </View>
               )}
             </View>
           </>
@@ -445,6 +456,7 @@ export function LaporanScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+      {dialog}
     </View>
   );
 }
@@ -513,6 +525,9 @@ function buildStyles(colors: Palette) {
   flex: { flex: 1 },
   paymentName: { color: colors.ink, fontSize: 13, fontWeight: '800' },
   muted: { color: colors.muted, fontSize: 11, fontWeight: '600' },
+  emptyBlock: { alignItems: 'center', gap: 10, paddingVertical: 8 },
+  emptyCta: { backgroundColor: colors.brand, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  emptyCtaText: { color: '#fff', fontWeight: '800', fontSize: 13 },
   paymentAmount: { color: colors.ink, fontSize: 14, fontWeight: '800', fontVariant: ['tabular-nums'] },
   progressTrack: { height: 6, borderRadius: 8, backgroundColor: colors.bg, overflow: 'hidden', borderWidth: 1, borderColor: colors.line },
   progressFill: { height: '100%', borderRadius: 8 },

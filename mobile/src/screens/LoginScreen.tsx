@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
-  Alert,
   Animated,
   Easing,
   KeyboardAvoidingView,
@@ -28,6 +27,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { KyaneLogo } from '../components/KyaneLogo';
+import { useNoticeDialog } from '../components/NoticeDialog';
 import { useTheme } from '../theme/ThemeContext';
 import { useStyles } from '../theme/useStyles';
 import type { Palette } from '../theme/palettes';
@@ -37,6 +37,7 @@ type FieldName = 'email' | 'pin';
 export function LoginScreen() {
   const { colors } = useTheme();
   const styles = useStyles(buildStyles);
+  const { notify, dialog } = useNoticeDialog();
   const { login } = useAuth();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
@@ -159,10 +160,10 @@ export function LoginScreen() {
   }
 
   function showAccessHelp() {
-    Alert.alert(
-      'Butuh akses?',
-      'Hubungi admin outlet untuk reset PIN atau membuat akun baru.',
-    );
+    notify({
+      title: 'Butuh akses?',
+      message: 'Hubungi admin outlet untuk reset PIN atau membuat akun baru.',
+    });
   }
 
   return (
@@ -363,6 +364,7 @@ export function LoginScreen() {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+      {dialog}
     </View>
   );
 }

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -12,6 +11,10 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useNoticeDialog } from '../components/NoticeDialog';
+import type { MainTabParamList } from '../navigation/types';
 import { QueueCard } from '../components/QueueCard';
 import { PaymentModal } from '../components/PaymentModal';
 import { api } from '../lib/api';
@@ -38,6 +41,9 @@ export function AntreanScreen() {
   const { colors } = useTheme();
   const styles = useStyles(buildStyles);
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  const { notify, dialog } = useNoticeDialog();
+  const [doneNotice, setDoneNotice] = useState('');
   const [orders, setOrders] = useState<Order[]>([]);
   const [counts, setCounts] = useState({ menunggu: 0, proses: 0, selesai: 0, total: 0 });
   const [activeStatus, setActiveStatus] = useState<OrderStatus | undefined>(undefined);
@@ -51,6 +57,12 @@ export function AntreanScreen() {
   const [payTarget, setPayTarget] = useState<Order | null>(null);
   const [startAfterPay, setStartAfterPay] = useState(false);
   const [banks, setBanks] = useState<Bank[]>([]);
+
+  useEffect(() => {
+    if (!doneNotice) return;
+    const timer = setTimeout(() => setDoneNotice(''), 3500);
+    return () => clearTimeout(timer);
+  }, [doneNotice]);
 
   const loadOrders = useCallback(async (background = false) => {
     if (background) setRefreshing(true);
@@ -108,8 +120,9 @@ export function AntreanScreen() {
     try {
       await api.orders.setStatus(order.id, status);
       await loadOrders(true);
+      if (status === 'selesai') setDoneNotice(`Antrean ${order.queueNo} selesai dan lunas.`);
     } catch (cause) {
-      Alert.alert('Gagal memperbarui antrean', cause instanceof Error ? cause.message : 'Silakan coba lagi.');
+      notify({ title: 'Gagal memperbarui antrean', message: cause instanceof Error ? cause.message : 'Silakan coba lagi.' });
     }
   };
 
@@ -122,7 +135,7 @@ export function AntreanScreen() {
       setCancelReason('');
       await loadOrders(true);
     } catch (cause) {
-      Alert.alert('Gagal membatalkan pesanan', cause instanceof Error ? cause.message : 'Silakan coba lagi.');
+      notify({ title: 'Gagal membatalkan pesanan', message: cause instanceof Error ? cause.message : 'Silakan coba lagi.' });
     } finally {
       setSaving(false);
     }
@@ -146,12 +159,17 @@ export function AntreanScreen() {
       setStartAfterPay(false);
       await loadOrders(true);
     } catch (cause) {
-      Alert.alert('Pembayaran gagal', cause instanceof Error ? cause.message : 'Silakan coba lagi.');
+      notify({ title: 'Pembayaran gagal', message: cause instanceof Error ? cause.message : 'Silakan coba lagi.' });
     }
   };
 
   return (
     <View style={[styles.screen, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+      {!!doneNotice && (
+        <Pressable accessibilityRole="button" onPress={() => setDoneNotice('')} style={styles.toast}>
+          <Text style={styles.toastText}>{doneNotice}</Text>
+        </Pressable>
+      )}
       <FlatList
         contentInsetAdjustmentBehavior="automatic"
         data={filtered}
@@ -254,6 +272,13 @@ export function AntreanScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>{error ? 'Antrean belum dapat dimuat' : 'Tidak ada antrean'}</Text>
               <Text style={styles.emptyText}>{error ? 'Periksa koneksi lalu coba lagi.' : 'Belum ada pesanan yang sesuai filter.'}</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => (error ? void loadOrders(true) : navigation.navigate('Kasir'))}
+                style={styles.emptyCta}
+              >
+                <Text style={styles.emptyCtaText}>{error ? 'Coba lagi' : 'Buat antrean'}</Text>
+              </Pressable>
             </View>
           )
         }
@@ -297,6 +322,7 @@ export function AntreanScreen() {
         onClose={() => { setPayTarget(null); setStartAfterPay(false); }}
         onSubmit={payOrder}
       />
+      {dialog}
     </View>
   );
 }
@@ -358,6 +384,10 @@ function buildStyles(colors: Palette) {
     empty: { alignItems: 'center', padding: 28, gap: 6 },
     emptyTitle: { color: colors.ink, fontWeight: '800', fontSize: 16 },
     emptyText: { color: colors.muted, textAlign: 'center', fontSize: 13 },
+    emptyCta: { marginTop: 6, backgroundColor: colors.brand, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+    emptyCtaText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+    toast: { backgroundColor: colors.successSoft, borderWidth: 1, borderColor: colors.success, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 },
+    toastText: { color: colors.successDark, fontWeight: '800', fontSize: 13 },
     backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.52)', justifyContent: 'center', padding: 20 },
     modalCard: { backgroundColor: colors.surface, borderRadius: 18, padding: 20, gap: 13, borderWidth: 1, borderColor: colors.line },
     modalTitle: { color: colors.ink, fontSize: 20, fontWeight: '800' },

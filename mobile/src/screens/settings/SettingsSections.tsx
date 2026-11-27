@@ -232,7 +232,12 @@ export function PaketSection() {
         </Pressable>
       </View>
       {loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: 8 }} /> : items.length === 0 ? (
-        <Text style={styles.muted}>Belum ada paket layanan.</Text>
+        <View style={styles.emptyState}>
+          <Text style={styles.muted}>Belum ada paket layanan. Tambahkan paket lewat menu Paket Layanan.</Text>
+          <Pressable accessibilityRole="button" onPress={openAdd} style={styles.emptyCta}>
+            <Text style={styles.emptyCtaText}>Tambah paket layanan</Text>
+          </Pressable>
+        </View>
       ) : (
         <>
           <VehicleTabs
@@ -496,7 +501,12 @@ export function AddonSection() {
         </Pressable>
       </View>
       {loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: 8 }} /> : items.length === 0 ? (
-        <Text style={styles.muted}>Belum ada add-on.</Text>
+        <View style={styles.emptyState}>
+          <Text style={styles.muted}>Belum ada add-on.</Text>
+          <Pressable accessibilityRole="button" onPress={openAdd} style={styles.emptyCta}>
+            <Text style={styles.emptyCtaText}>Tambah add-on</Text>
+          </Pressable>
+        </View>
       ) : (
         <>
           <VehicleTabs
@@ -642,7 +652,12 @@ export function BankSection() {
         </Pressable>
       </View>
       {loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: 8 }} /> : items.length === 0 ? (
-        <Text style={styles.muted}>Belum ada rekening terdaftar.</Text>
+        <View style={styles.emptyState}>
+          <Text style={styles.muted}>Belum ada rekening terdaftar.</Text>
+          <Pressable accessibilityRole="button" onPress={openAdd} style={styles.emptyCta}>
+            <Text style={styles.emptyCtaText}>Tambah rekening terdaftar</Text>
+          </Pressable>
+        </View>
       ) : items.map((item) => (
         <View key={item.id} style={styles.listRow}>
           <View style={styles.rowDetails}>
@@ -768,7 +783,12 @@ export function PenggunaSection() {
         </Pressable>
       </View>
       {loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: 8 }} /> : items.length === 0 ? (
-        <Text style={styles.muted}>Belum ada pengguna.</Text>
+        <View style={styles.emptyState}>
+          <Text style={styles.muted}>Belum ada pengguna.</Text>
+          <Pressable accessibilityRole="button" onPress={openAdd} style={styles.emptyCta}>
+            <Text style={styles.emptyCtaText}>Tambah pengguna</Text>
+          </Pressable>
+        </View>
       ) : items.map((item) => (
         <View key={item.id} style={styles.listRow}>
           <View style={styles.rowDetails}>
@@ -953,5 +973,8 @@ function buildStyles(colors: Palette) {
     // 2-col row
     row2: { flexDirection: 'row', gap: 10 },
     muted: { color: colors.muted, fontSize: 12 },
+    emptyState: { alignItems: 'flex-start', gap: 10, paddingVertical: 12 },
+    emptyCta: { alignSelf: 'flex-start', backgroundColor: colors.brandSoft, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
+    emptyCtaText: { color: colors.brandDark, fontWeight: '800', fontSize: 13 },
   });
 }

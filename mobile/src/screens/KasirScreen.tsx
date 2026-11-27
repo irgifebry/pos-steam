@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { useNoticeDialog } from '../components/NoticeDialog';
 import { useAuth } from '../context/AuthContext';
 import { PackageList, formatIDR } from '../components/PackageList';
 import { VehicleSelector } from '../components/VehicleSelector';
@@ -18,6 +19,7 @@ export function KasirScreen() {
   const styles = useStyles(buildStyles);
   const { user, activeOutlet } = useAuth();
   const insets = useSafeAreaInsets();
+  const { notify, dialog } = useNoticeDialog();
   const [vehicleType, setVehicleType] = useState<VehicleType>('motor');
   const [packages, setPackages] = useState<ServicePackage[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
@@ -74,7 +76,7 @@ export function KasirScreen() {
   const subtotal = packagePrice + addonTotal;
   const tax = Math.round((subtotal * (activeOutlet?.taxPercent ?? 0)) / 100);
   const total = subtotal + tax;
-  const canSubmit = Boolean(selectedPackage && !loading && !submitting);
+  const canSubmit = !loading && !submitting;
 
   // Kedua toggle saling meniadakan agar harga yang dipakai tidak ambigu.
   function handleRoyaltyChange(value: boolean) {
@@ -116,7 +118,7 @@ export function KasirScreen() {
       `Terima kasih telah mencuci di ${activeOutlet?.name ?? 'KYANE POS'}.`,
     ].join('\n');
     try { await Share.share({ message, title: 'Struk digital' }); }
-    catch (cause) { Alert.alert('Gagal membagikan struk', cause instanceof Error ? cause.message : 'Silakan coba lagi.'); }
+    catch (cause) { notify({ title: 'Gagal membagikan struk', message: cause instanceof Error ? cause.message : 'Silakan coba lagi.' }); }
     finally { setShareBusy(false); }
   }
 
@@ -143,6 +145,7 @@ export function KasirScreen() {
           </View>
           <Switch value={ojol} onValueChange={handleOjolChange} trackColor={{ false: colors.lineMuted, true: colors.brand }} thumbColor={colors.surface} />
         </View>
+        <Text style={styles.exclusiveHint}>ROYALTY dan OJOL tidak bisa aktif bersamaan. Memilih salah satu akan menonaktifkan yang lain.</Text>
       </View>
       <View style={styles.section}><Text style={styles.sectionTitle}>Paket & add-on</Text>
         {loading ? <ActivityIndicator color={colors.brand} /> : error && !packages.length ? <View style={styles.notice}><Text accessibilityRole="alert" style={styles.error}>{error}</Text><Pressable onPress={() => void loadMasterData()} style={styles.retry}><Text style={styles.retryText}>Coba lagi</Text></Pressable></View> : <PackageList vehicleType={vehicleType} packages={packages} addons={addons} packageId={packageId} addonIds={addonIds} onPackageChange={setPackageId} onAddonToggle={(id) => setAddonIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id])} />}
@@ -186,6 +189,7 @@ export function KasirScreen() {
         <Pressable accessibilityRole="button" onPress={() => { setReceipt(null); setVehicleType('motor'); setPlate(''); setVehicleName(''); setNotes(''); setRoyalty(false); setOjol(false); setAddonIds([]); }} style={styles.done}><Text style={styles.doneText}>Transaksi baru</Text></Pressable>
       </View></View>
     </Modal>
+      {dialog}
   </KeyboardAvoidingView>;
 }
 function buildStyles(colors: Palette) {
@@ -209,6 +213,7 @@ function buildStyles(colors: Palette) {
   royaltyCopy: { flex: 1, gap: 2 },
   royaltyLabel: { color: colors.ink, fontSize: 12.5, fontWeight: '800' },
   royaltyHint: { color: colors.muted, fontSize: 11 },
+  exclusiveHint: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },
   discountLabel: { color: colors.successDark },
   floatBar: {
     backgroundColor: colors.surface,
@@ -226,10 +231,10 @@ function buildStyles(colors: Palette) {
   floatTotals: { gap: 6 },
   summaryLine: { flexDirection: 'row', justifyContent: 'space-between' },
   summaryLabel: { color: colors.muted, fontSize: 14 },
-  summaryValue: { color: colors.ink, fontWeight: '700' },
+  summaryValue: { color: colors.ink, fontWeight: '700', fontVariant: ['tabular-nums'] },
   totalLine: { borderTopWidth: 1, borderColor: colors.line, paddingTop: 12 },
   totalLabel: { color: colors.ink, fontSize: 16, fontWeight: '800' },
-  totalValue: { color: colors.brand, fontSize: 20, fontWeight: '800' },
+  totalValue: { color: colors.brand, fontSize: 20, fontWeight: '800', fontVariant: ['tabular-nums'] },
   submit: { minHeight: 48, borderRadius: 10, backgroundColor: colors.brand, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 },
   submitText: { color: '#ffffff', fontWeight: '800', fontSize: 15, textAlign: 'center' },
   disabled: { opacity: 0.55 },
