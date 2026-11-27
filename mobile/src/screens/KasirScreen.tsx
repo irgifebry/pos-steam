@@ -91,13 +91,15 @@ export function KasirScreen() {
 
   async function completeOrder() {
     if (!selectedPackage) { setError('Pilih paket cuci terlebih dahulu.'); return; }
+    if (!plate.trim()) { setError('Plat nomor wajib diisi.'); return; }
+    if (!vehicleName.trim()) { setError('Nama kendaraan wajib diisi.'); return; }
     setSubmitting(true); setError('');
     try {
       const order = await api.orders.create({
         clientId: newClientId(), vehicleType, packageId: selectedPackage.id,
         addons: addonIds.map((addonId) => ({ addonId, qty: 1 })),
-        vehicleName: vehicleName.trim() || undefined,
-        plate: plate.trim().toUpperCase() || undefined,
+        vehicleName: vehicleName.trim(),
+        plate: plate.trim().toUpperCase(),
         royalty: royalty || undefined,
         ojol: ojol || undefined,
       });
@@ -128,8 +130,8 @@ export function KasirScreen() {
       <View style={styles.header}><View><Text style={styles.eyebrow}>KASIR</Text><Text style={styles.title}>Transaksi baru</Text></View><View style={styles.operator}><Text style={styles.operatorName}>{user?.name ?? 'Operator'}</Text><Text style={styles.outlet}>{activeOutlet?.name ?? 'Outlet'}</Text></View></View>
       <View style={styles.section}><Text style={styles.sectionTitle}>Jenis kendaraan</Text><VehicleSelector value={vehicleType} onChange={setVehicleType} /></View>
       <View style={styles.section}><Text style={styles.sectionTitle}>Data kendaraan</Text>
-        <Text style={styles.label}>Plat Nomor</Text><TextInput accessibilityLabel="Plat Nomor" autoCapitalize="characters" autoCorrect={false} placeholder="B 1234 ABC" value={plate} onChangeText={(value) => setPlate(value.toUpperCase())} style={styles.input} />
-        <Text style={styles.label}>Nama Kendaraan <Text style={styles.optional}>(opsional)</Text></Text><TextInput accessibilityLabel="Nama Kendaraan" placeholder="Contoh: Avanza, Fortuner" value={vehicleName} onChangeText={setVehicleName} style={styles.input} />
+        <Text style={styles.label}>Plat Nomor <Text style={styles.requiredMark}>*</Text></Text><TextInput accessibilityLabel="Plat Nomor" autoCapitalize="characters" autoCorrect={false} placeholder="B 1234 ABC" value={plate} onChangeText={(value) => setPlate(value.toUpperCase())} style={styles.input} />
+        <Text style={styles.label}>Nama Kendaraan <Text style={styles.requiredMark}>*</Text></Text><TextInput accessibilityLabel="Nama Kendaraan" placeholder="Contoh: Avanza, Fortuner" value={vehicleName} onChangeText={setVehicleName} style={styles.input} />
         <Text style={styles.label}>Catatan</Text><TextInput accessibilityLabel="Catatan" multiline placeholder="Catatan untuk pesanan (opsional)" value={notes} onChangeText={setNotes} style={[styles.input, styles.notes]} />
         <View style={styles.royaltyRow}>
           <View style={styles.royaltyCopy}>
@@ -207,6 +209,7 @@ function buildStyles(colors: Palette) {
   sectionTitle: { color: colors.ink, fontSize: 15, fontWeight: '800' },
   label: { color: colors.muted, fontSize: 12, fontWeight: '700', marginTop: 2 },
   optional: { color: colors.lightMuted, fontWeight: '400' },
+  requiredMark: { color: colors.dangerDark, fontWeight: '800' },
   input: { borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 10, height: 46, paddingHorizontal: 12, color: colors.ink, backgroundColor: colors.surface, fontSize: 15 },
   notes: { minHeight: 68, textAlignVertical: 'top', paddingTop: 11 },
   royaltyRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: 1, borderColor: colors.line, paddingTop: 12, marginTop: 2 },

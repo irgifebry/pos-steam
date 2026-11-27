@@ -202,7 +202,7 @@ Jalankan jika ada perubahan di `mobile/` atau pada kontrak API yang dipakai mobi
 
 ### 5.4 Kasir & ROYALTY
 
-- [ ] Form Kasir memakai label **Nama Kendaraan** (mis. Avanza/Fortuner), bukan "Nama Pelanggan"; nilai dikirim sebagai `vehicleName` dan tersimpan ke `vehicles.brand`
+- [ ] Form Kasir memakai label **Plat Nomor \*** dan **Nama Kendaraan \*** (mis. Avanza/Fortuner); keduanya wajib diisi — tanpa plat menampilkan error "Plat nomor wajib diisi.", tanpa nama kendaraan "Nama kendaraan wajib diisi.". Nilai dikirim sebagai `plate` dan `vehicleName`, lalu `vehicleName` tersimpan ke `vehicles.brand`. **Catatan** tetap opsional
 - [ ] Toggle **Pelanggan ROYALTY** dan **Pelanggan OJOL** tersedia di Kasir
 - [ ] Saat ROYALTY aktif: paket **Reguler gratis (Rp 0)**, paket lain memakai `royaltyPrice` yang dikonfigurasi admin, **add-on tetap bayar penuh**
 - [ ] Selisih harga ROYALTY tercatat di backend sebagai `discount` (piutang), bukan mengubah harga master paket

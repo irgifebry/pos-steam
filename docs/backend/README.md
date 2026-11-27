@@ -426,7 +426,7 @@ Body POST `/api/orders`:
 Aturan order:
 
 - Server otoritatif: klien hanya mengirim `packageId`, `addonId` + `qty`, data pelanggan/kendaraan, dan payment opsional. Server menghitung total, pajak, nomor antrean, invoice, dan snapshot harga.
-- `vehicleName` opsional dan disimpan ke `vehicles.brand`; bila kosong, brand kendaraan tidak diubah.
+- `vehicleName` dan `plate` opsional pada level API; klien Expo mewajibkan keduanya sebelum membuat antrean. `vehicleName` disimpan ke `vehicles.brand`; bila kosong, brand kendaraan tidak diubah.
 - `payment` tetap opsional. `discount` juga diterima schema (integer >= 0, opsional), tetapi nilai yang tercatat dihitung server dari selisih harga, bukan dari input.
 - `royalty: true` mengaktifkan aturan ROYALTY: paket dengan nama cocok `/reguler/i` harganya `0`; paket lain memakai `pkg.royaltyPrice ?? pkg.price`; add-on tetap harga normal.
 - `ojol: true` mengaktifkan harga OJOL: `pkg.ojolPrice ?? pkg.price` (tanpa aturan Reguler gratis otomatis); add-on tetap harga normal. Jika `royalty` dan `ojol` sama-sama `true`, ROYALTY menang.

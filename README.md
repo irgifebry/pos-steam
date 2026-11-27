@@ -55,7 +55,7 @@ Semua data diakses lewat Route Handler; browser/klien tidak pernah bicara langsu
 | Pembayaran | Dilakukan saat **Mulai Cuci** di Antrean. Order dengan total `0` langsung masuk `PROSES` tanpa pembayaran |
 | ROYALTY | Paket **Reguler gratis**; paket lain memakai **harga ROYALTY** yang diatur admin per paket (`service_packages.royalty_price`); **add-on tetap dibayar penuh**. Selisih harga dicatat sebagai diskon/piutang |
 | OJOL | Harga khusus per paket dari `service_packages.ojol_price`; jika kosong pakai harga normal. **Add-on tetap dibayar penuh**. Jika ROYALTY dan OJOL sama-sama aktif, **ROYALTY yang dipakai** |
-| Nama kendaraan | Klien mengirim `vehicleName` (contoh: Avanza); disimpan ke `vehicles.brand` |
+| Data kendaraan | **Plat nomor dan Nama Kendaraan wajib diisi** di form Kasir (nama kendaraan mis. Avanza); dikirim sebagai `plate` dan `vehicleName`, lalu `vehicleName` disimpan ke `vehicles.brand`. Catatan tetap opsional |
 | Durasi cuci | Tidak dipakai klien; kolom `duration_min` tetap ada dengan default `0` |
 | Hapus data | Penghapusan bersifat **soft delete** (`active = false`) lewat API |
 | Harga | Master boleh berubah, harga transaksi tidak (`price_snapshot` di `order_items`) |
